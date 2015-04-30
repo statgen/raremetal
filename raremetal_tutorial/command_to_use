@@ -1,0 +1,12 @@
+#!/bin/bash
+
+yourpath="/net/wonderland/home/saichen/Raremetal/bin"
+
+$yourpath/raremetalworker  --ped example1.ped --dat example1.dat --vcf example1.vcf.gz --traitName QT1 --inverseNormal --makeResiduals --kinSave --kinGeno --prefix STUDY1 
+
+$youpath/raremetalworker  --ped example2.ped --dat example2.dat --vcf example2.vcf.gz --traitName QT1 --inverseNormal --makeResiduals --kinSave --kinGeno --prefix STUDY2
+
+bgzip STUDY1.QT1.singlevar.score.txt; tabix -c "#" -s 1 -b 2 -e 2 STUDY1.QT1.singlevar.score.txt.gz
+bgzip STUDY2.QT1.singlevar.score.txt; tabix -c "#" -s 1 -b 2 -e 2 STUDY2.QT1.singlevar.score.txt.gz
+
+$yourpath/raremetal --summaryFiles summaryfiles --covFiles covfiles --groupFile group.file --SKAT --burden --MB --VT --hwe 1.0e-05 --callRate 0.95 --longOutput --tabulateHits --hitsCutoff 1e-05 --prefix COMBINED.QT1 --labelHits

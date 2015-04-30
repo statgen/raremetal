@@ -1,0 +1,116 @@
+
+Rare-Metal-Worker handled all individuals as related.
+
+The following parameters are in effect:
+
+
+Input Files:
+============================
+--ped [example2.ped]
+--dat [example2.dat]
+--vcf [example2.vcf.gz]
+--dosage [false]
+--noeof [false]
+
+Output Files:
+============================
+--prefix [STUDY2]
+--LDwindow [1000000]
+--zip [false]
+--thin [false]
+--labelHits [false]
+
+VC Options:
+============================
+--vcX [false]
+--separateX [false]
+
+Trait Options:
+============================
+--makeResiduals [true]
+--inverseNormal [true]
+--traitName [QT1]
+
+Model Options:
+============================
+--recessive [false]
+--dominant [false]
+
+Kinship Source:
+============================
+--kinPedigree [false]
+--kinGeno [true]
+--kinFile []
+--kinxFile []
+--kinSave [true]
+
+Kinship Options:
+============================
+--kinMaf [0.05]
+--kinMiss [0.05]
+
+Chromosome X:
+============================
+xLabel [X]
+xStart [2699520]
+xEnd [154931044]
+
+maleLabel [1]
+femaleLabel [2]
+
+
+Others:
+============================
+cpus [1]
+
+Analysis started at: Thu Apr 30 13:27:35 2015
+
+Loading input files ...
+  Loading DAT files ...done.
+  Loading PED files ...done.
+
+To account for relatedness in the sample,
+ EMPIRICAL KINSHIP WILL BE ESTIMATED.
+
+Sanity checking input files ...
+completed.
+
+Estimating kinship matrix ...
+  processing chromosome 9
+  processed 1012 markers in total.
+  90 markers were included to calculate empirical kinship.
+completed.
+
+Relationship inference completed at: Thu Apr 30 13:27:40 2015
+
+  Estimated kinship saved in STUDY2.Empirical.Kinship.gz.
+
+Analyzing trait "QT1" ...
+  Matching individuals in phenotype and genotypes ...
+    Found 591 phenotyped AND genotyped individuals from 591 families.
+  done.
+
+  Start fitting linear mixed model ... 
+    Matching IDs in kinship matrix ... done.
+    Decomposing empirical kinship matrix ... done.
+Fitting linear mixed model completed.
+  done.
+  Fitting model used 0.0 minutes.
+completed.
+
+  Generating association statistics and LD matrices used 0.1 minutes.
+  Single variant statistics stored in 
+  STUDY2.QT1.singlevar.score.txt
+
+Variance-covariance matrix stored in 
+  STUDY2.QT1.singlevar.cov.txt
+
+QQ and Manhattan plots saved in 
+  STUDY2.QT1.plots.pdf
+
+
+Log file listing current options stored in STUDY2.singlevar.log
+
+Analysis ends at: Thu Apr 30 13:27:44 2015
+
+Analysis took 9 seconds (~ 0.0 hours).
