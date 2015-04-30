@@ -34,7 +34,7 @@ Other Options:
 --longOutput [true]
 --tabulateHits [true]
 --hitsCutoff [1e-05]
-Analysis started at: Thu Apr 30 13:33:03 2015
+Analysis started at: Thu Apr 30 14:16:54 2015
 
 Warning: variant 9:44680403:G:A from study 1 failed to pass HWE or CALLRATE filter and it is excluded from meta analysis.
 Warning: variant 9:45422946:A:G from study 1 failed to pass HWE or CALLRATE filter and it is excluded from meta analysis.
@@ -71,3 +71,7 @@ Checking if all groups are analyzed...
 Warning: the following groups has no qualifed variants to group and are skipped:
 	GENE1, GENE2, GENE4, GENE6, 
 	done!
+
+Analysis ends at: Thu Apr 30 14:16:54 2015
+
+Analysis took 0 seconds (~ 0.0 hours).

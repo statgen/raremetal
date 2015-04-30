@@ -1478,11 +1478,8 @@ void Meta::Run(GroupFromAnnotation & group,FILE * log)
 	 covfile_  = ifopen(filename,"r");
 	 if(covfile_ == NULL)
 	 {
-	    filename = covfile[study] + ".gz";
-	    covfile_  = ifopen(filename,"r");
+	 	error("ERROR! Cannot open file: %s! Input cov file has to be bgzipped and tabix indexed using the following command:\n bgzip yourfile.singlevar.cov.txt; tabix -c \"#\" -s 1 -b 2 -e 2 yourprefix.singlevar.cov.txt.gz\n",filename.c_str());
 	 }
-	 if(covfile_ == NULL)
-	    error("ERROR! Cannot open file: %s!\n",filename.c_str());
 	 String buffer;
 	 StringArray tokens;
 	 int m=0;
