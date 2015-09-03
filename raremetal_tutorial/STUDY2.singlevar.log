@@ -63,7 +63,7 @@ Others:
 ============================
 cpus [1]
 
-Analysis started at: Thu Apr 30 13:27:35 2015
+Analysis started at: Mon May  4 15:40:10 2015
 
 Loading input files ...
   Loading DAT files ...done.
@@ -81,7 +81,7 @@ Estimating kinship matrix ...
   90 markers were included to calculate empirical kinship.
 completed.
 
-Relationship inference completed at: Thu Apr 30 13:27:40 2015
+Relationship inference completed at: Mon May  4 15:40:15 2015
 
   Estimated kinship saved in STUDY2.Empirical.Kinship.gz.
 
@@ -111,6 +111,6 @@ QQ and Manhattan plots saved in
 
 Log file listing current options stored in STUDY2.singlevar.log
 
-Analysis ends at: Thu Apr 30 13:27:44 2015
+Analysis ends at: Mon May  4 15:40:19 2015
 
 Analysis took 9 seconds (~ 0.0 hours).

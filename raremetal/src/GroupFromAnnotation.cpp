@@ -250,7 +250,7 @@ void GroupFromAnnotation::GetGroupFromFile(FILE * log)
 
 void GroupFromAnnotation::GetGroupFromVCF()
 {  
-   printf("Parsing annotations from annotated VCF file ...");
+   printf("Parsing annotations from annotated VCF file ...\n");
    StringArray func;
    func.AddTokens(function,"/");
 
@@ -450,7 +450,7 @@ void GroupFromAnnotation::GetGroupFromVCF()
    }
    printf("done!\n");
 
-   /* This is for outpupt groupfile from annotated vcf file
+  /*  This is for outpupt groupfile from annotated vcf file */
       FILE * out;
       String filename = "test.groupfile";
       out = fopen(filename,"wt");
@@ -462,7 +462,7 @@ void GroupFromAnnotation::GetGroupFromVCF()
       fprintf(out,"\n");
       }
       fclose(out);
-    */
+    
 }
 
 void GroupFromAnnotation::Run(String path,FILE * log)

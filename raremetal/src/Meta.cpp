@@ -332,6 +332,7 @@ void Meta::UpdateDirection(StringIntHash & directionByChrPos,StringArray & direc
    }
 }
 
+
 void Meta::UpdateUsefulInfo(String & chr_pos,int samplesize,StringIntHash & usefulSize)
 {
    int idx = usefulSize.Find(chr_pos);
@@ -515,7 +516,7 @@ void Meta::PoolSummaryStat(GroupFromAnnotation & group,FILE * log)
 {
    //usefulSize and usefulAC have the pooled N and AC information 
    StringIntHash usefulSize;
-   StringDoubleHash usefulAC; 
+   StringDoubleHash usefulAC;
    //refalt use study:chr:pos as key and ref:alt as value
    StringArray refalt;
    StringIntHash directionByChrPos; //this hash uses chr:pos as key and save the positions in directions array.
@@ -635,6 +636,7 @@ void Meta::PoolSummaryStat(GroupFromAnnotation & group,FILE * log)
 	    tokens[2]=".";
 	 if(tokens[3]=="0")
 	    tokens[3]=".";
+
 	 if((tokens[2]=="." && tokens[3]==".") || (tokens[2]==tokens[3] && c1+c2!=0 && c2+c3!=0))
 	 {
 	    char direct = '!';
@@ -2043,6 +2045,15 @@ void Meta::Run(GroupFromAnnotation & group,FILE * log)
 	    cond_Qstat = cond_tmp.InnerProduct(cond_stats[g]);
 	 double * lambda = new double [n];
 	 CalculateLambda(cov[g],weight,lambda);
+// check lambda for dead loop
+	double lambda_sum=0;
+	for( int i=0; i<n; i++ )
+		lambda_sum += lambda[i];
+	if ( lambda_sum < 0.0000000001 ) {
+		 fprintf(log,"Gene %s lambda sum is zero. Skipped!\n",group.annoGroups[g].c_str());
+		continue;
+	}
+	 
 	 /*
 	    printf("lambdas are :\n");
 	    for(int i=0;i<n;i++)

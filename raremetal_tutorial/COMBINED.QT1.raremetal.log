@@ -33,9 +33,11 @@ Other Options:
 --maf [0.05]
 --longOutput [true]
 --tabulateHits [true]
---hitsCutoff [1e-05]
-Analysis started at: Thu Apr 30 14:16:54 2015
+--hitsCutoff [0.2]
+Analysis started at: Thu Sep  3 11:36:04 2015
 
+Warning: variant 9:44001280:G:A from study 1 failed to pass HWE or CALLRATE filter and it is excluded from meta analysis.
+Warning: variant 9:44001379:T:C from study 1 failed to pass HWE or CALLRATE filter and it is excluded from meta analysis.
 Warning: variant 9:44680403:G:A from study 1 failed to pass HWE or CALLRATE filter and it is excluded from meta analysis.
 Warning: variant 9:45422946:A:G from study 1 failed to pass HWE or CALLRATE filter and it is excluded from meta analysis.
 Warning: variant 9:45368740:G:A is excluded from group GENE1 for the following reasons:monomorphic or failed QC.
@@ -72,6 +74,6 @@ Warning: the following groups has no qualifed variants to group and are skipped:
 	GENE1, GENE2, GENE4, GENE6, 
 	done!
 
-Analysis ends at: Thu Apr 30 14:16:54 2015
+Analysis ends at: Thu Sep  3 11:36:04 2015
 
 Analysis took 0 seconds (~ 0.0 hours).
