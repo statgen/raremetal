@@ -26,13 +26,13 @@
 
 int main(int argc, char ** argv)
 {
-   printf("\nRAREMETAL %s -- A Tool for Rare Variants Meta-Analyses for Quantitative Traits\n"
+	printf("\nRAREMETAL %s -- A Tool for Rare Variants Meta-Analyses for Quantitative Traits\n"
 	 "          (c) 2012-2013 Shuang Feng, Dajiang Liu, Goncalo Abecasis\n\n",VERSION);
-printf("\nPlease go to \"http://genome.sph.umich.edu/wiki/RAREMETAL\" for the newest version.\n");
-  PhoneHome::allThinning = 100;
+	printf("\nPlease go to \"http://genome.sph.umich.edu/wiki/RAREMETAL\" for the newest version.\n");
+	PhoneHome::allThinning = 100;
     time_t initialTime = time(0);
 
-   BEGIN_LONG_PARAMETERS(additional)
+	BEGIN_LONG_PARAMETERS(additional)
       LONG_PARAMETER_GROUP("List of Studies")
       LONG_STRINGPARAMETER("summaryFiles", &Meta::summaryFiles)
       LONG_STRINGPARAMETER("covFiles", &Meta::covFiles)
@@ -65,6 +65,7 @@ printf("\nPlease go to \"http://genome.sph.umich.edu/wiki/RAREMETAL\" for the ne
       LONG_PARAMETER("tabulateHits", &Meta::report)
       LONG_PARAMETER("dosage", &Meta::dosage)
       LONG_DOUBLEPARAMETER("hitsCutoff", &Meta::report_pvalue_cutoff)
+      LONG_PARAMETER("altMAF", &Meta::altMAF )
 
       LONG_PHONEHOME(VERSION)
       END_LONG_PARAMETERS();

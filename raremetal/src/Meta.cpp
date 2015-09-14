@@ -37,6 +37,7 @@ double Meta::CALLRATE = 0.95;
 double Meta::MAF_cutoff = 0.05;
 int Meta::marker_col = 2;
 int Meta::cov_col = 3;
+bool Meta::altMAF = false;
 bool Meta::tabix = false;
 bool Meta::dosage = false;
 String Meta::cond = "";
@@ -100,190 +101,161 @@ void Meta::Prepare()
       error("Covariance files are essential to do gene-level tests. Pleaes ues --covFiles your.list.of.cov.files option.\n");
 
    //if conditional analysis says yes
-   if(cond!="")
-   {
-      IFILE condFile = ifopen(cond,"r");
-      if(condFile==NULL)
-	 error("Can not open file %s.\n",cond.c_str());
-      String buffer;
-      while (!ifeof(condFile))
-      {
-	 buffer.ReadLine(condFile);
-	 if(buffer.FindChar('#')!=-1 || buffer.FindChar(':')==-1)
-	    continue;
-	 StringArray tmpMarker;
-	 tmpMarker.AddTokens(buffer, " \t");
-	 for(int i=0;i<tmpMarker.Length();i++)
-	 {
-	    commonVar.Push(tmpMarker[i]);
-	    StringArray tmp;
-	    tmp.AddTokens(tmpMarker[i],":");
-	    common_chr.Push(tmp[0]);
-	    common_pos.Push(tmp[1]);
-	    common_ref.Push(tmp[2]);
-	    common_alt.Push(tmp[3]);
-	    conditionVar.SetInteger(tmp[0]+":"+ tmp[1],commonVar.Length()-1);
-	 }
-      }
-      ifclose(condFile);
-      if(common_pos.Length()==0)
-	 error("No variant to be conditioned on. Condition file %s might be in the wrong format.\n",cond.c_str());
+	if(cond!="")
+	{
+		IFILE condFile = ifopen(cond,"r");
+		if(condFile==NULL)
+		error("Can not open file %s.\n",cond.c_str());
+		String buffer;
+		while (!ifeof(condFile))
+		{
+			buffer.ReadLine(condFile);
+			if(buffer.FindChar('#')!=-1 || buffer.FindChar(':')==-1)
+				continue;
+			StringArray tmpMarker;
+			tmpMarker.AddTokens(buffer, " \t");
+			for(int i=0;i<tmpMarker.Length();i++)
+			{
+				commonVar.Push(tmpMarker[i]);
+				StringArray tmp;
+				tmp.AddTokens(tmpMarker[i],":");
+				common_chr.Push(tmp[0]);
+				common_pos.Push(tmp[1]);
+				common_ref.Push(tmp[2]);
+				common_alt.Push(tmp[3]);
+				conditionVar.SetInteger(tmp[0]+":"+ tmp[1],commonVar.Length()-1);
+			}
+		}
+		ifclose(condFile);
+		if(common_pos.Length()==0)
+			error("No variant to be conditioned on. Condition file %s might be in the wrong format.\n",cond.c_str());
 
-      int numStudy = scorefile.Length();
-      commonVar_study = new IntArray [numStudy];
-      commonVar_effSize = new Vector [numStudy];
-      commonVar_U = new Vector [numStudy];
-      commonVar_V = new Vector [numStudy];
-      commonVar_markers_in_window = new IntArray * [numStudy];
-      commonVar_marker_cov = new Vector * [numStudy];
-      XX_inv = new Matrix [numStudy];
-      cond_status = new bool [numStudy];
-      commonVar_betaHat = new Vector [numStudy];
+		int numStudy = scorefile.Length();
+		commonVar_study = new IntArray [numStudy];
+		commonVar_effSize = new Vector [numStudy];
+		commonVar_U = new Vector [numStudy];
+		commonVar_V = new Vector [numStudy];
+		commonVar_markers_in_window = new IntArray * [numStudy];
+		commonVar_marker_cov = new Vector * [numStudy];
+		XX_inv = new Matrix [numStudy];
+		cond_status = new bool [numStudy];
+		commonVar_betaHat = new Vector [numStudy];
+		
+		for(int s=0;s<scorefile.Length();s++)
+		{
+			SummaryFileReader statReader,covReader;
+			String filename = scorefile[s];
+			String covFilename = covfile[s];
+			int adjust;
+			
+			if(!statReader.ReadTabix(filename))
+				error("Cannot open file: %s!\nInput file has to be bgzipped and tabix indexed using the following command:\n bgzip your.summary.file; tabix -c \"#\" -s 1 -b 2 -e 2 your.summary.file.gz\n",scorefile[s].c_str());
+			IFILE dup = ifopen(filename,"r");
+			buffer.ReadLine(dup);
+			if(buffer.Find("RareMetalWorker")==-1) { // rvt
+				adjust = 1;
+				marker_col = 4;
+				cov_col = 5;
+			}
+			else { // rmw
+				adjust = 0;
+				marker_col = 4;
+				cov_col = 5;
+			}
+			ifclose(dup);
+			
+			dup=ifopen(filename,"r"); 
+			while (!ifeof(dup))
+	 		{
+	 			buffer.ReadLine(dup);
+	 			//get sample size
+	 			if(buffer.Find("##AnalyzedSamples")!=-1)
+	 			{
+	 				StringArray tokens;
+	 				tokens.AddTokens(buffer,"=");
+	 				SampleSize.Push(tokens[1].AsInteger());
+	 				break;
+	 			}
+	 		}
+	 		ifclose(dup);
+	 		
+	 		if(!covReader.ReadTabix(covFilename))
+	 			error("Cannot open file: %s!\nInput file has to be bgzipped and tabix indexed using the following command:\n bgzip your.covariance.file; tabix -c \"#\" -s 1 -b 2 -e 2 your.covariance.file.gz.\n",covfile[s].c_str());
 
-      for(int s=0;s<scorefile.Length();s++)
-      {
-	 SummaryFileReader statReader,covReader;
-
-	 String filename = scorefile[s];
-	 String covFilename = covfile[s];
-	 int adjust =0;
-	 if(!statReader.ReadTabix(filename))
-	 {
-	    adjust =1;
-	    if(adjust==0)
-	    {
-	       marker_col = 2;
-	       cov_col = 3;
+			for(int i=0;i<commonVar.Length();i++)
+			{
+			//if this variant is genotyped in this study
+				if(!covReader.ReadRecord(common_chr[i],common_pos[i]))
+					continue;
+				if(!statReader.ReadRecord(common_chr[i],common_pos[i]))
+					continue;
+				StringArray record;
+				record.AddTokens(statReader.buffer,"\t");
+				
+				if((record[2]==common_ref[i] && record[3]==common_alt[i]) || (record[3]==common_ref[i] && record[2]==common_alt[i]))
+				{
+					double v = record[14-adjust].AsDouble();
+					if(v>0)
+					{
+						commonVar_study[s].Push(i);
+						commonVar_V[s].Push(v*v);
+						commonVar_effSize[s].Push(record[15-adjust].AsDouble());
+						commonVar_U[s].Push(record[13-adjust].AsDouble());
+					}
+				}
+			}
+			int dim = commonVar_study[s].Length();
+			if(dim!=0)
+				cond_status[s] =true;
+			else {
+				cond_status[s] = false;
+				continue;
+			}
+			commonVar_markers_in_window[s] = new IntArray [dim];
+			commonVar_marker_cov[s] = new Vector [dim];
+			
+			bool cov_status = covReader.ReadTabix(covFilename);
+			if ( !cov_status )
+				error("Cannot open cov file: %s\n", covFilename.c_str());
+			for(int i=0;i<dim;i++)
+			{
+				int idx = commonVar_study[s][i];
+				if(!covReader.ReadRecord(common_chr[idx],common_pos[idx]))
+					continue;
+				StringArray tmp_markers;
+				tmp_markers.AddTokens(covReader.marker_nearby,",");
+				for(int j=0;j<tmp_markers.Length();j++)
+					commonVar_markers_in_window[s][i].Push(tmp_markers[j].AsInteger());
+				tmp_markers.Clear();
+				tmp_markers.AddTokens(covReader.marker_cov,",");
+				for(int j=0;j<tmp_markers.Length();j++)
+					commonVar_marker_cov[s][i].Push(tmp_markers[j].AsDouble());
+			}
+			XX_inv[s].Dimension(commonVar_study[s].Length(),commonVar_study[s].Length(),0.0);
+			CalculateXXCov(s,XX_inv[s]);
+		//calculate beta hat for common variants
+			commonVar_betaHat[s].Dimension(dim);
+			for(int i=0;i<commonVar_betaHat[s].dim;i++)
+				commonVar_betaHat[s][i] = XX_inv[s][i].InnerProduct(commonVar_U[s]);
+				//printf("xx_inv %g %g %g,U %g %g\n",XX_inv[s][0][0],XX_inv[s][0][1],XX_inv[s][1][1],commonVar_U[0][0],commonVar_U[0][1]);
+				//printf("xx_inv %g,commonvar U %g commonVar_betahat %g\n",XX_inv[s][0][0],commonVar_U[s][0],commonVar_betaHat[s][0]);
+			}
+			
+		bool status = false;
+		for(int i=0;i<numStudy;i++)
+		{
+			if(cond_status[i])
+			{
+				status=true;
+	    		break;
+	    	}
 	    }
-	    else
+	    if(!status) 
 	    {
-	       marker_col = 4;
-	       cov_col = 5;
+	    	cond="";
+	    	printf("\nWarning: None of the variants to be conditioned on are found in any of the studies. Conditional analysis options will be ignored.\n\n");
 	    }
-	    filename = scorefile[s] + ".gz";
-	    if(!statReader.ReadTabix(filename))
-	    {
-	       error("Cannot open file: %s!\nInput file has to be bgzipped and tabix indexed using the following command:\n bgzip your.summary.file; tabix -c \"#\" -s 1 -b 2 -e 2 your.summary.file.gz\n",scorefile[s].c_str());
-	    }
-	 }
-
-	 IFILE dup = ifopen(filename,"r");
-	 buffer.ReadLine(dup);
-	 if(buffer.Find("RareMetalWorker")==-1)
-	 {
-	    adjust =1;
-	    if(adjust==0)
-	    {
-	       marker_col = 2;
-	       cov_col = 3;
-	    }
-	    else
-	    {
-	       marker_col = 4;
-	       cov_col = 5;
-	    }
-	 }
-	 ifclose(dup);
-
-	 dup=ifopen(filename,"r"); 
-
-	 while (!ifeof(dup))
-	 {
-	    buffer.ReadLine(dup);
-	    //get sample size
-	    if(buffer.Find("##AnalyzedSamples")!=-1)
-	    {
-	       StringArray tokens;
-	       tokens.AddTokens(buffer,"=");
-	       SampleSize.Push(tokens[1].AsInteger());
-	       break;
-	    }
-	 }
-	 ifclose(dup);
-
-	 if(!covReader.ReadTabix(covFilename))
-	 {
-	    covFilename = covfile[s] + ".gz";
-	    if(!covReader.ReadTabix(covFilename))
-	    {
-	       error("Cannot open file: %s!\nInput file has to be bgzipped and tabix indexed using the following command:\n bgzip your.covariance.file; tabix -c \"#\" -s 1 -b 2 -e 2 your.covariance.file.gz.\n",covfile[s].c_str());
-	    }
-	 }
-
-	 for(int i=0;i<commonVar.Length();i++)
-	 {
-	    //if this variant is genotyped in this study
-	    if(!covReader.ReadRecord(common_chr[i],common_pos[i]))
-	       continue;
-	    if(!statReader.ReadRecord(common_chr[i],common_pos[i]))
-	       continue;
-	    StringArray record;
-	    record.AddTokens(statReader.buffer,"\t");
-
-	    if((record[2]==common_ref[i] && record[3]==common_alt[i])
-		  || (record[3]==common_ref[i] && record[2]==common_alt[i]))
-	    {
-	       double v = record[14-adjust].AsDouble();
-	       if(v>0)
-	       {
-		  commonVar_study[s].Push(i);
-		  commonVar_V[s].Push(v*v);
-		  commonVar_effSize[s].Push(record[15-adjust].AsDouble());
-		  commonVar_U[s].Push(record[13-adjust].AsDouble());
-	       }
-	    }
-	 }
-	 int dim = commonVar_study[s].Length();
-	 if(dim!=0)
-	    cond_status[s] =true;
-	 else 
-	 {
-	    cond_status[s] = false;
-	    continue;
-	 }
-	 commonVar_markers_in_window[s] = new IntArray [dim];
-	 commonVar_marker_cov[s] = new Vector [dim];
-
-	 covReader.ReadTabix(covFilename);
-	 for(int i=0;i<dim;i++)
-	 {
-	    int idx = commonVar_study[s][i];
-	    if(!covReader.ReadRecord(common_chr[idx],common_pos[idx]))
-	       continue;
-	    StringArray tmp_markers;
-	    tmp_markers.AddTokens(covReader.marker_nearby,",");
-	    for(int j=0;j<tmp_markers.Length();j++)
-	       commonVar_markers_in_window[s][i].Push(tmp_markers[j].AsInteger());
-	    tmp_markers.Clear();
-	    tmp_markers.AddTokens(covReader.marker_cov,",");
-	    for(int j=0;j<tmp_markers.Length();j++)
-	       commonVar_marker_cov[s][i].Push(tmp_markers[j].AsDouble());
-	 }
-	 XX_inv[s].Dimension(commonVar_study[s].Length(),commonVar_study[s].Length(),0.0);
-	 CalculateXXCov(s,XX_inv[s]);
-	 //calculate beta hat for common variants
-	 commonVar_betaHat[s].Dimension(dim);
-	 for(int i=0;i<commonVar_betaHat[s].dim;i++)
-	    commonVar_betaHat[s][i] = XX_inv[s][i].InnerProduct(commonVar_U[s]);
-	 //printf("xx_inv %g %g %g,U %g %g\n",XX_inv[s][0][0],XX_inv[s][0][1],XX_inv[s][1][1],commonVar_U[0][0],commonVar_U[0][1]);
-	 //printf("xx_inv %g,commonvar U %g commonVar_betahat %g\n",XX_inv[s][0][0],commonVar_U[s][0],commonVar_betaHat[s][0]);
-      }
-
-      bool status = false;
-      for(int i=0;i<numStudy;i++)
-      {
-	 if(cond_status[i]) 
-	 {
-	    status=true;
-	    break;
-	 }
-      }
-      if(!status) 
-      {
-	 cond="";
-	 printf("\nWarning: None of the variants to be conditioned on are found in any of the studies. Conditional analysis options will be ignored.\n\n");
-      }
-   }
+	}
 }
 
 void Meta::UpdateDirection(StringIntHash & directionByChrPos,StringArray & directions,int & direction_idx,int study,char marker_direction,String & chr_pos,FILE * log,bool exclude,StringArray & refalt)
@@ -514,120 +486,129 @@ void Meta::UpdateExcludedMarker(int & skip_count,StringIntHash & SNPexclude,int 
 //At the end, single variant meta-analysis will be completed.
 void Meta::PoolSummaryStat(GroupFromAnnotation & group,FILE * log)
 {
-   //usefulSize and usefulAC have the pooled N and AC information 
-   StringIntHash usefulSize;
-   StringDoubleHash usefulAC;
-   //refalt use study:chr:pos as key and ref:alt as value
-   StringArray refalt;
-   StringIntHash directionByChrPos; //this hash uses chr:pos as key and save the positions in directions array.
-   StringArray directions; //this stores the actual direction strings
+	//usefulSize and usefulAC have the pooled N and AC information 
+	StringIntHash usefulSize;
+	StringIntHash recSize; // record #samples to include (for --altMAF option)
+	StringDoubleHash usefulAC;
+	//refalt use study:chr:pos as key and ref:alt as value
+	StringArray refalt;
+	StringIntHash directionByChrPos; //this hash uses chr:pos as key and save the positions in directions array.
+	StringArray directions; //this stores the actual direction strings
 
-   Vector GCbyStudy;
-   total_N=0;
-   flipCount =0;
-   int skip_count=0;
+	Vector GCbyStudy;
+	total_N=0;
+	flipCount =0;
+	int skip_count=0;
 
-   for(int study=0;study<scorefile.Length();study++)
-   {
-      int duplicateSNP=0;
+	for(int study=0;study<scorefile.Length();study++)
+	{
+		int duplicateSNP=0;
       //Set up data structure to help remove duplicates
-      StringIntHash hashToRemoveDuplicates; //hash for skip duplicate markers
-      int varCount = 0;
-      String dupcheck_chr = "1";
+		StringIntHash hashToRemoveDuplicates; //hash for skip duplicate markers
+		int varCount = 0;
+		String dupcheck_chr = "1";
 
-      Vector chisq_study_i;
+		Vector chisq_study_i;
 
-      printf("Pooling summary statistics from study %d ...\n",study+1);
+		printf("Pooling summary statistics from study %d ...\n",study+1);
 
-      //read in summary statistics. 
+		//read in summary statistics. 
       //maf and summary stat are saved. SNPpos in the file are hashed.
-      String filename = scorefile[study];
+		String filename = scorefile[study];
 
-      SummaryFileReader covReader;
-      if(cond!="" && cond_status[study])
-      {
-	 String covFilename = covfile[study];
-	 covReader.ReadTabix(covFilename);
-      }
+		SummaryFileReader covReader;
+		if(cond!="" && cond_status[study])
+		{
+			String covFilename = covfile[study];
+			bool cov_status = covReader.ReadTabix(covFilename);
+			if (!cov_status)
+				error("Cannot open cov file: %s\n", covFilename.c_str());
+		}
 
-      IFILE file;
-      file = ifopen(filename,"r");
+		IFILE file;
+		file = ifopen(filename,"r");
 
-      if(file == NULL)
-      {
-	 filename += ".gz";
-	 file = ifopen(filename,"r");
-      }
+/*		if(file == NULL)
+		{
+			filename += ".gz";
+			file = ifopen(filename,"r");
+		}
+*/
+		if(file == NULL)
+			error("Cannot open file: %s!\nInput file has to be bgzipped and tabix indexed using the following command:\n bgzip your.summary.file; tabix -c \"#\" -s 1 -b 2 -e 2 your.summary.file.gz\n",scorefile[study].c_str());
 
-      if(file == NULL)
-	 error("Cannot open file: %s!\nInput file has to be bgzipped and tabix indexed using the following command:\n bgzip your.summary.file; tabix -c \"#\" -s 1 -b 2 -e 2 your.summary.file.gz\n",scorefile[study].c_str());
+		String buffer;
+		StringArray tokens;
 
-      String buffer;
-      StringArray tokens;
+		buffer.ReadLine(file);
+		int adjust;
+		if(buffer.Find("RareMetalWorker")==-1) { // rvt
+			adjust =1;
+			marker_col = 4;
+			cov_col = 5;
+		}
+		else  { //rmw
+			adjust = 0;
+			marker_col = 2;
+			cov_col = 3;
+		}
+		ifclose(file);
+		FormatAdjust.Push(adjust);
 
-      buffer.ReadLine(file);
-      int adjust;
-      if(buffer.Find("RareMetalWorker")==-1)
-	 adjust =1;
-      else 
-	 adjust =0;
-      ifclose(file);
-      FormatAdjust.Push(adjust);
+		file = ifopen(filename,"r");
+		while (!ifeof(file))
+		{
+			buffer.ReadLine(file);
+			//get sample size
+			if(buffer.Find("##AnalyzedSamples")!=-1)
+			{
+				StringArray tokens;
+				tokens.AddTokens(buffer,"=");
+				SampleSize.Push(tokens[1].AsInteger());
+				continue;
+			}
+			else if(buffer.FindChar('#') !=-1 || buffer.Find("CHROM")!=-1)
+				continue;
+			tokens.Clear();
+			tokens.AddTokens(buffer, SEPARATORS);
 
-      file = ifopen(filename,"r");
-      while (!ifeof(file))
-      {
-	 buffer.ReadLine(file);
-	 //get sample size
-	 if(buffer.Find("##AnalyzedSamples")!=-1)
-	 {
-	    StringArray tokens;
-	    tokens.AddTokens(buffer,"=");
-	    SampleSize.Push(tokens[1].AsInteger());
-	    continue;
-	 }
-	 else if(buffer.FindChar('#') !=-1 || buffer.Find("CHROM")!=-1)
-	    continue;
-	 tokens.Clear();
-	 tokens.AddTokens(buffer, SEPARATORS);
+			if(tokens[0].Find("chr")!=-1)
+				tokens[0] = tokens[0].SubStr(3);
 
-	 if(tokens[0].Find("chr")!=-1)
-	    tokens[0] = tokens[0].SubStr(3);
+			String chr_pos = tokens[0] + ":" + tokens[1];
+			int direction_idx = directionByChrPos.Integer(chr_pos);
+			//check allele counts to see if the site is monomorphic
+			int c1,c2,c3;
+			if(dosage)
+			{
+				c3 = tokens[4].AsDouble()*tokens[6].AsDouble()*tokens[6].AsDouble(); 
+				c2 = tokens[4].AsDouble()*2.0*tokens[6].AsDouble()*(1.0-tokens[6].AsDouble()); 
+				c1 = tokens[4].AsDouble()*(1.0-tokens[6].AsDouble())*(1.0-tokens[6].AsDouble()); 
+			}
+			else
+			{
+				c1 = tokens[10-adjust].AsDouble();
+				c2 = tokens[11-adjust].AsDouble();
+				c3 = tokens[12-adjust].AsDouble();
+			}
 
-	 String chr_pos = tokens[0] + ":" + tokens[1];
-	 int direction_idx = directionByChrPos.Integer(chr_pos);
-	 //check allele counts to see if the site is monomorphic
-	 int c1,c2,c3;
-	 if(dosage)
-	 {
-	    c3 = tokens[4].AsDouble()*tokens[6].AsDouble()*tokens[6].AsDouble(); 
-	    c2 = tokens[4].AsDouble()*2.0*tokens[6].AsDouble()*(1.0-tokens[6].AsDouble()); 
-	    c1 = tokens[4].AsDouble()*(1.0-tokens[6].AsDouble())*(1.0-tokens[6].AsDouble()); 
-	 }
-	 else
-	 {
-	    c1 = tokens[10-adjust].AsDouble();
-	    c2 = tokens[11-adjust].AsDouble();
-	    c3 = tokens[12-adjust].AsDouble();
-	 }
-
-	 //CHECK duplicate markers
-	 if(tokens[0] != dupcheck_chr)
-	 {
-	    hashToRemoveDuplicates.Clear();
-	    dupcheck_chr = tokens[0];
-	 }
-	 if(hashToRemoveDuplicates.Integer(chr_pos) ==-1)
-	 {
-	    varCount++;
-	    hashToRemoveDuplicates.SetInteger(chr_pos,varCount);
-	 }
-	 else
-	 {
-	    duplicateSNP++;
-	    fprintf(log,"Warning: variant %s from study %s is skipped because of duplicate records in the same study.\n",chr_pos.c_str(),scorefile[study].c_str());
-	    continue;
-	 }
+			//CHECK duplicate markers
+			if(tokens[0] != dupcheck_chr)
+			{
+				hashToRemoveDuplicates.Clear();
+				dupcheck_chr = tokens[0];
+			}
+			if(hashToRemoveDuplicates.Integer(chr_pos) ==-1)
+			{
+				varCount++;
+				hashToRemoveDuplicates.SetInteger(chr_pos,varCount);
+			}
+			else
+			{
+				duplicateSNP++;
+				fprintf(log,"Warning: variant %s from study %s is skipped because of duplicate records in the same study.\n",chr_pos.c_str(),scorefile[study].c_str());
+				continue;
+			}
 
 	 //POOLING STEP1: if fail HWE or CALLRATE then skip this record
 	 //if a variant has a missing allele but not mornomorphic then exclude this variant without updating the total sample size
@@ -668,6 +649,7 @@ void Meta::PoolSummaryStat(GroupFromAnnotation & group,FILE * log)
 	 if(marker_idx == -1)
 	 {
 	    //if this position is never hashed before
+	    UpdateUsefulInfo(chr_pos, current_N, recSize); // add size to --altMAF when site is observed
 	    if(c2+c3==0||c1+c2==0)
 	    {
 	       //if monomorphic, then hash in ref=alt allele for this position and update direction with '?' usefulAC as count of ref allele
@@ -718,81 +700,83 @@ void Meta::PoolSummaryStat(GroupFromAnnotation & group,FILE * log)
 	    {
 	       //if monomorphic, then check the following: ref?=alt,if yes, check if ref of this study is the same as the one of the alleles previously hashed for this position (if not the same, then exclude marker;if they are the same update counts and statistics). 
 	       int count=0;
-	       if(tokens[2]!=tokens[3])
-	       {
-		  if(tokens[2]==".")
-		     match = MatchOneAllele(tokens[3],refalt,marker_idx);
-		  else if (tokens[3]==".") 
-		     match = MatchOneAllele(tokens[2],refalt,marker_idx);
-		  else 
-		     match = MatchTwoAlleles(refalt_current,marker_idx,chr_pos,directionByChrPos,refalt);
-	       }
-	       else 
-		  match = MatchOneAllele(tokens[3],refalt,marker_idx);
-	       if(tokens[2]=="." || tokens[3]==".")
-	       {
-		  if(match==1)
-		     count = 0;
-		  else if(match==0)
-		     //count = 2*(c1+c2+c3);
-		     count =0;
-	       }
-	       else
-	       {
-		  if(match==0)
-		     count = 2*c3+c2;
-		  else if(match==1)
-		     count = 2*c1+c2;
-	       }
+	    	if(tokens[2]!=tokens[3])
+	    	{
+				if(tokens[2]==".")
+					match = MatchOneAllele(tokens[3],refalt,marker_idx);
+				else if (tokens[3]==".") 
+					match = MatchOneAllele(tokens[2],refalt,marker_idx);
+				else 
+					match = MatchTwoAlleles(refalt_current,marker_idx,chr_pos,directionByChrPos,refalt);
+			}
+			else 
+				match = MatchOneAllele(tokens[3],refalt,marker_idx);
+			if(tokens[2]=="." || tokens[3]==".")
+			{
+				if(match==1)
+					count = 0;
+				else if(match==0)
+		     	//count = 2*(c1+c2+c3);
+					count =0;
+			}
+			else
+			{
+			if(match==0)
+				count = 2*c3+c2;
+			else if(match==1)
+				count = 2*c1+c2;
+			}
 
-	       if(match==2)
-	       {
-		  //if allels do not match, then exclude this variant and continue
-		  UpdateExcludedMarker(skip_count,SNPexclude,study,chr_pos,2,tokens[0]+":"+tokens[1]+":"+tokens[2]+":"+tokens[3],log,directionByChrPos,refalt);
-		  UpdateUsefulInfo(chr_pos,SampleSize[study],usefulSize);
-		  char direct = '!';
-		  UpdateDirection(directionByChrPos,directions,direction_idx,study,direct,chr_pos,log,true,refalt);
-		  continue;
-	       }
-	       if(match==1)
-		  flip=true;
+			if(match==2)
+			{
+				//if allels do not match, then exclude this variant and continue
+				UpdateExcludedMarker(skip_count,SNPexclude,study,chr_pos,2,tokens[0]+":"+tokens[1]+":"+tokens[2]+":"+tokens[3],log,directionByChrPos,refalt);
+				UpdateUsefulInfo(chr_pos,SampleSize[study],usefulSize);
+				char direct = '!';
+				UpdateDirection(directionByChrPos,directions,direction_idx,study,direct,chr_pos,log,true,refalt);
+				continue;
+			}
+			if(match==1)
+				flip=true;
 
-	       UpdateUsefulInfo(chr_pos,count,usefulAC);
-	       if(SampleSize[study]!=current_N)
-		  UpdateUsefulInfo(chr_pos,SampleSize[study]-current_N,usefulSize);
-	       char direct = '?';
-	       UpdateDirection(directionByChrPos,directions,direction_idx,study,direct,chr_pos,log,false,refalt);
+			UpdateUsefulInfo(chr_pos, current_N, recSize); // add --altMAF
+			UpdateUsefulInfo(chr_pos,count,usefulAC);
+			if(SampleSize[study]!=current_N)
+				UpdateUsefulInfo(chr_pos,SampleSize[study]-current_N,usefulSize);
+			char direct = '?';
+			UpdateDirection(directionByChrPos,directions,direction_idx,study,direct,chr_pos,log,false,refalt);
 	    }
 	    else
 	    {
-	       //if site is not monomorphc,then need to match alleles and upate statistics
-	       match = MatchTwoAlleles(refalt_current,marker_idx,chr_pos,directionByChrPos,refalt);
-	       if(match==2)
-	       {
-		  UpdateExcludedMarker(skip_count,SNPexclude,study,chr_pos,2,tokens[0]+":"+tokens[1]+":"+tokens[2]+":"+tokens[3],log,directionByChrPos,refalt);
-		  UpdateUsefulInfo(chr_pos,SampleSize[study],usefulSize);
-		  char direct = '!';
-		  UpdateDirection(directionByChrPos,directions,direction_idx,study,direct,chr_pos,log,true,refalt);
-		  continue;
-	       }
-	       if(match==1)
-	       {
-		  flip=true;
-		  if(SampleSize[study]!=current_N)
-		     UpdateUsefulInfo(chr_pos,SampleSize[study]-current_N,usefulSize);
-		  UpdateUsefulInfo(chr_pos,2*c1+c2,usefulAC);
-		  char direct = GetDirection(chr_pos,tokens[15-adjust].AsDouble(),true);
-		  UpdateDirection(directionByChrPos,directions,direction_idx,study,direct,chr_pos,log,false,refalt);
-		  UpdateStats(SNPstat,SNP_Vstat,chr_pos,tokens[13-adjust].AsDouble(),tokens[14-adjust].AsDouble(),flip);
+	    	//if site is not monomorphic,then need to match alleles and upate statistics
+			match = MatchTwoAlleles(refalt_current,marker_idx,chr_pos,directionByChrPos,refalt);
+	    	if(match==2)
+	    	{
+				UpdateExcludedMarker(skip_count,SNPexclude,study,chr_pos,2,tokens[0]+":"+tokens[1]+":"+tokens[2]+":"+tokens[3],log,directionByChrPos,refalt);
+		  		UpdateUsefulInfo(chr_pos,SampleSize[study],usefulSize);
+		  		char direct = '!';
+				UpdateDirection(directionByChrPos,directions,direction_idx,study,direct,chr_pos,log,true,refalt);
+		  		continue;
+	       	}
+	       	UpdateUsefulInfo(chr_pos, current_N, recSize);
+	       	if(match==1)
+	       	{
+		  		flip=true;
+		  		if(SampleSize[study]!=current_N)
+					UpdateUsefulInfo(chr_pos,SampleSize[study]-current_N,usefulSize);
+				UpdateUsefulInfo(chr_pos,2*c1+c2,usefulAC);
+				char direct = GetDirection(chr_pos,tokens[15-adjust].AsDouble(),true);
+				UpdateDirection(directionByChrPos,directions,direction_idx,study,direct,chr_pos,log,false,refalt);
+				UpdateStats(SNPstat,SNP_Vstat,chr_pos,tokens[13-adjust].AsDouble(),tokens[14-adjust].AsDouble(),flip);
 	       }
 	       if(match==0)
 	       {
-		  if(SampleSize[study]!=current_N)
-		     UpdateUsefulInfo(chr_pos,SampleSize[study]-current_N,usefulSize);
-		  UpdateUsefulInfo(chr_pos,current_AC,usefulAC);
-		  char direct = GetDirection(chr_pos,tokens[15-adjust].AsDouble(),false);
-		  UpdateDirection(directionByChrPos,directions,direction_idx,study,direct,chr_pos,log,false,refalt);
-		  UpdateStats(SNPstat,SNP_Vstat,chr_pos,tokens[13-adjust].AsDouble(),tokens[14-adjust].AsDouble(),flip);
+				if(SampleSize[study]!=current_N)
+					UpdateUsefulInfo(chr_pos,SampleSize[study]-current_N,usefulSize);
+				UpdateUsefulInfo(chr_pos,current_AC,usefulAC);
+				char direct = GetDirection(chr_pos,tokens[15-adjust].AsDouble(),false);
+				UpdateDirection(directionByChrPos,directions,direction_idx,study,direct,chr_pos,log,false,refalt);
+				UpdateStats(SNPstat,SNP_Vstat,chr_pos,tokens[13-adjust].AsDouble(),tokens[14-adjust].AsDouble(),flip);
 	       }
 	    }
 	 }
@@ -966,11 +950,21 @@ void Meta::PoolSummaryStat(GroupFromAnnotation & group,FILE * log)
 	 double AC = usefulAC.Double(tmp[0]+":"+tmp[1]);
 
 	 //Note: usefulSize has the # of samples to be excluded
-	 int N = usefulSize.Integer(tmp[0]+":"+tmp[1]);
-	 if(N!=-1)
-	    N = total_N-N;
-	 else
-	    N = total_N;
+	 //		  recSize has # of samples truly added from vcf/ped. Use this when altMAF is toggled
+	 int N;
+	 if ( this->altMAF ) {
+		N = recSize.Integer( tmp[0]+":"+tmp[1] );
+		if ( N==-1 )
+			N = 0;
+	 }
+	 else { // use default
+		N = usefulSize.Integer(tmp[0]+":"+tmp[1]);
+		if(N!=-1)
+			N = total_N-N;
+		else
+			N = total_N;	 
+	 }
+	 
 	 double maf;
 	 if(founderAF)
 	 {
@@ -1465,11 +1459,9 @@ void Meta::Run(GroupFromAnnotation & group,FILE * log)
 	 {
 	    covFilename = covfile[study];
 	    if(!covReader.ReadTabix(covFilename))
-	       covFilename += ".gz";
-	    if(!covReader.ReadTabix(covFilename))
-	    {
+//	       covFilename += ".gz";
+//	    if(!covReader.ReadTabix(covFilename))
 	       error("Can not open file %s.\n",covfile[study].c_str());
-	    }
 	 }
       }
       else
@@ -2719,12 +2711,12 @@ void Meta::BurdenAssoc(String method,GroupFromAnnotation & group,Vector *& maf,V
       Vector weight;
       weight.Dimension(maf[g].Length());
 
-      if(method=="burden")
-	 for(int w=0;w<weight.Length();w++)
-	    weight[w] = 1.0;
-      else if(method=="MB")
-	 for(int w=0;w<weight.Length();w++)
-	    weight[w] = 1.0/sqrt(maf[g][w]*(1.0-maf[g][w]));
+		if(method=="burden")
+			for(int w=0;w<weight.Length();w++)
+				weight[w] = 1.0;
+		else if(method=="MB")
+			for(int w=0;w<weight.Length();w++)
+				weight[w] = 1.0/sqrt(maf[g][w]*(1.0-maf[g][w]));
 
       numerator  = weight.InnerProduct(stats[g]);
       Vector tmp;

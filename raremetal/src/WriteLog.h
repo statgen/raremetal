@@ -55,7 +55,9 @@ fprintf(log,"--correctGC [%s]\n",Meta::correctGC?"true":"false");
    fprintf(log,"--longOutput [%s]\n",Meta::fullResult?"true":"false");
    fprintf(log,"--tabulateHits [%s]\n",Meta::report?"true":"false");
    //fprintf(log,"--founderAF [%s]\n",Meta::founderAF?"true":"false");
+   fprintf(log,"--dosage [%s]\n", Meta::dosage ? "ON" : "OFF");
    fprintf(log,"--hitsCutoff [%g]\n",Meta::report_pvalue_cutoff);
+   fprintf(log,"--altMAF [%s]\n", Meta::altMAF ? "ON" : "OFF");
 }
 
 #endif

@@ -42,6 +42,7 @@ class Meta
 	static double HWE;
 	static int marker_col;
 	static int cov_col;
+	static bool altMAF; // if TRUE, exclude size of studies that do not contain that variant
 
 	//saved single variant information from pooled studies
 	StringArray scorefile, covfile;

@@ -415,6 +415,31 @@ int main(int argc, char ** argv)
 	     fprintf(log,"  %s", filenamePlots_dom.c_str());
 	  }
 
+	  if ( PreMeta::zipOutput ) { // do tabix at last
+	  // tabix score
+	  	String cmd = String("tabix -c \"#\" -s 1 -b 2 -e 2 -f ") + filename;
+	  	int sys_status = system( cmd.c_str() );
+	  	if ( sys_status == 0 ) {
+	  		printf( "\nSingle variant stats %s has been tabixed\n",filename.c_str() );
+	  		fprintf(log, "\nSingle variant stats %s has been tabixed\n",filename.c_str() );
+	  	}
+	  	else {
+	  		printf("\nUnable to tabix %s\n", filename.c_str());
+	  		fprintf(log, "\nUnable to tabix %s\n", filename.c_str());
+	  	}
+	  // tabix cov		
+	  	cmd = String("tabix -c \"#\" -s 1 -b 2 -e 2 -f ") + filename_COV;
+	  	sys_status = system( cmd.c_str() );
+	  	if ( sys_status == 0 ) {
+	  		printf( "\nVar-cov matrix %s has been tabixed\n",filename_COV.c_str() );
+	  		fprintf(log, "\nVar-cov matrix %s has been tabixed\n",filename_COV.c_str() );
+	  	}
+	  	else {
+	  		printf("\nUnable to tabix %s\n", filename_COV.c_str());
+	  		fprintf(log, "\nUnable to tabix %s\n", filename_COV.c_str());
+	  	}  	
+	  }
+
 	  printf("\n");
 	  fprintf(log,"\n");
        }
