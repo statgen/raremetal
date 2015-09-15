@@ -417,6 +417,8 @@ int main(int argc, char ** argv)
 
 	  if ( PreMeta::zipOutput ) { // do tabix at last
 	  // tabix score
+		printf( "\nTabixing output .gz files...\n" );
+		fprintf(log, "\nTabixing output .gz files...\n" );
 	  	String cmd = String("tabix -c \"#\" -s 1 -b 2 -e 2 -f ") + filename;
 	  	int sys_status = system( cmd.c_str() );
 	  	if ( sys_status == 0 ) {

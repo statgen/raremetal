@@ -16,7 +16,7 @@ Output Files:
 ============================
 --prefix [STUDY1]
 --LDwindow [1000000]
---zip [false]
+--zip [true]
 --thin [false]
 --labelHits [false]
 
@@ -63,7 +63,7 @@ Others:
 ============================
 cpus [1]
 
-Analysis started at: Wed May 20 16:49:28 2015
+Analysis started at: Tue Sep 15 13:51:20 2015
 
 Loading input files ...
   Loading DAT files ...done.
@@ -81,7 +81,7 @@ Estimating kinship matrix ...
   224 markers were included to calculate empirical kinship.
 completed.
 
-Relationship inference completed at: Wed May 20 16:49:46 2015
+Relationship inference completed at: Tue Sep 15 13:51:39 2015
 
   Estimated kinship saved in STUDY1.Empirical.Kinship.gz.
 
@@ -100,17 +100,23 @@ completed.
 
   Generating association statistics and LD matrices used 0.0 minutes.
   Single variant statistics stored in 
-  STUDY1.QT1.singlevar.score.txt
+  STUDY1.QT1.singlevar.score.txt.gz
 
 Variance-covariance matrix stored in 
-  STUDY1.QT1.singlevar.cov.txt
+  STUDY1.QT1.singlevar.cov.txt.gz
 
 QQ and Manhattan plots saved in 
   STUDY1.QT1.plots.pdf
 
+Tabixing output .gz files...
+
+Single variant stats STUDY1.QT1.singlevar.score.txt.gz has been tabixed
+
+Var-cov matrix STUDY1.QT1.singlevar.cov.txt.gz has been tabixed
+
 
 Log file listing current options stored in STUDY1.singlevar.log
 
-Analysis ends at: Wed May 20 16:49:47 2015
+Analysis ends at: Tue Sep 15 13:51:42 2015
 
-Analysis took 19 seconds (~ 0.0 hours).
+Analysis took 22 seconds (~ 0.0 hours).
