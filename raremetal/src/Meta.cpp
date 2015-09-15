@@ -159,8 +159,8 @@ void Meta::Prepare()
 			}
 			else { // rmw
 				adjust = 0;
-				marker_col = 4;
-				cov_col = 5;
+				marker_col = 2;
+				cov_col = 3;
 			}
 			ifclose(dup);
 			
@@ -185,7 +185,7 @@ void Meta::Prepare()
 			for(int i=0;i<commonVar.Length();i++)
 			{
 			//if this variant is genotyped in this study
-				if(!covReader.ReadRecord(common_chr[i],common_pos[i]))
+				if(!covReader.ReadRecord(common_chr[i],common_pos[i])) 
 					continue;
 				if(!statReader.ReadRecord(common_chr[i],common_pos[i]))
 					continue;
