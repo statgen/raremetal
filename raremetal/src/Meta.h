@@ -43,6 +43,12 @@ class Meta
 	static int marker_col;
 	static int cov_col;
 	static bool altMAF; // if TRUE, exclude size of studies that do not contain that variant
+	static bool GeneOnly; // only perform gene based test
+	static bool RegionStatus; // if TRUE, restrict gene-based test to the specified region
+	static String Region; // raw region option
+	static String Chr;
+	static int Start;
+	static int End; // 3 variables to define region
 
 	//saved single variant information from pooled studies
 	StringArray scorefile, covfile;
@@ -107,5 +113,7 @@ double GetGenomicControlFromPvalue(Vector & pvalue);
 	int MatchOneAllele(String refalt_current,StringArray & refalt, int & marker_idx);
 	void UpdateStats(StringDoubleHash &SNPstat, StringDoubleHash &SNP_Vstat,String markerName,double stat,double vstat,bool flip);
 };
+
+bool SetIfilePosition( IFILE & sfile, Tabix & myTabix, String Chr, int pos );
 
 #endif

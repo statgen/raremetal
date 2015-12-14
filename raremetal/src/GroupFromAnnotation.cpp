@@ -12,7 +12,9 @@ String GroupFromAnnotation::mapFile = "../data/refFlat_hg19.txt";
 bool GroupFromAnnotation::labelHits = false;
 
 GroupFromAnnotation::GroupFromAnnotation()
-{}
+{
+	geneCount = 0;
+}
 
 GroupFromAnnotation::~GroupFromAnnotation()
 {
@@ -248,6 +250,7 @@ void GroupFromAnnotation::GetGroupFromFile(FILE * log)
    fclose(samefile);
 }
 
+/* Original function
 void GroupFromAnnotation::GetGroupFromVCF()
 {  
    printf("Parsing annotations from annotated VCF file ...\n");
@@ -450,7 +453,7 @@ void GroupFromAnnotation::GetGroupFromVCF()
    }
    printf("done!\n");
 
-  /*  This is for outpupt groupfile from annotated vcf file */
+  //  This is for outpupt groupfile from annotated vcf file 
       FILE * out;
       String filename = "test.groupfile";
       out = fopen(filename,"wt");
@@ -463,6 +466,259 @@ void GroupFromAnnotation::GetGroupFromVCF()
       }
       fclose(out);
     
+}
+*/
+
+
+// partition 8th column only
+void GroupFromAnnotation::GetGroupFromVCF()
+{  
+   printf("Parsing annotations from annotated VCF file ...\n");
+   StringArray func;
+   func.AddTokens(function,"/");
+   
+   vcfInitialize(); // set size of the tables
+
+   FILE * inFile;
+   inFile = fopen(vcfInput,"r");
+   StringIntHash groupHash;
+   int geneCount=0;
+
+// add all genes to group hash first
+	while (!feof(inFile))
+	{
+		String buffer;
+		buffer.ReadLine(inFile);
+		if ( buffer[0] == '#' )
+			continue;
+		addLineFromVcf( buffer );
+	}
+	fclose(inFile);
+	
+// sort SNPlist and SNPNoAllele
+	for( int g=0; g<geneCount; g++ ) {
+		if ( SNPlist[g].Length()>1 ) {
+			Vector order;
+			setOrderFromSortedPositions( g, order);
+			
+			StringArray cp_SNPlist,cp_SNPNoAllele;
+			cp_SNPlist.Dimension(SNPlist[g].Length());
+			cp_SNPNoAllele.Dimension(SNPNoAllele[g].Length());
+			for(int l=0;l<SNPlist[g].Length();l++) {
+				cp_SNPlist[l] = SNPlist[g][l];
+				cp_SNPNoAllele[l] = SNPNoAllele[g][l];
+			}
+			for(int i=0;i<order.Length();i++) {
+				SNPlist[g][i] = cp_SNPlist[order[i]];
+				SNPNoAllele[g][i] = cp_SNPNoAllele[order[i]] ;
+			}
+		}
+	}
+
+// print test.groupfile
+	printf("done!\n");
+	String grp_filename = "test.groupfile";
+	printGroupFile( grp_filename );
+}	
+
+
+void GroupFromAnnotation::addLineFromVcf( String & buffer )
+{
+// sample:
+// ANNO=Nonsynonymous:ASB16;
+// ANNOFULL=ASB16/NM_080863:+:Nonsynonymous(CCC/Pro/P->ACC/Thr/T:Base1310/1362:Codon437/454:Exon5/5):Exon
+//	|C17orf65/NM_178542:-:Intron
+
+	StringArray vfield;
+	vfield.AddTokens(buffer, "\t");
+	if ( vfield.Length() < 8 )
+		error("Annotation vcf only has %d columns!\n", vfield.Length());
+	StringArray info_semicolon;
+	info_semicolon.AddTokens( vfield[7],";" );
+	
+// find ANNOFULL first
+	int annofull_index = -1;
+	for( int i=0; i<info_semicolon.Length(); i++ ) {
+		String iheader = info_semicolon[i].SubStr(0,8);
+		if (iheader == "ANNOFULL") {
+			annofull_index = i;
+			break;
+		}
+	}
+	if (annofull_index == -1) {
+		printf("warning: no ANNOFULL field at chr%s:%s. Variant won't included in groups!\n", info_semicolon[0].c_str(), info_semicolon[1].c_str());
+		return;
+	}
+
+// remove ANNOFULL=
+	String anno_full_str = info_semicolon[annofull_index].SubStr(9);
+
+// check each alternative field
+	StringArray alts;
+	alts.AddTokens( anno_full_str, "|" );
+	for( int a=0; a<alts.Length(); a++ ) {
+		StringArray sub;
+		sub.AddTokens( alts[a], ":/=");
+		if (func_upper.Length() != 0) { // match before add
+			for(int f =0;f<func_upper.Length();f++) {
+				bool pattern_match = checkPatternMatch( sub, func_upper[f] );
+				if ( pattern_match ) {
+					addGeneFromVcf( vfield, sub[0] );
+					break;
+				}
+			}
+		}
+		else { // no pattern to match: check if intergenic first
+			String upper_name = sub[0].ToUpper();
+			if ( !upper_name.SlowFind( "INTERGENIC" ) )
+				addGeneFromVcf( vfield, sub[0] );
+		}
+	}	
+}
+
+bool GroupFromAnnotation::checkPatternMatch( StringArray & sub, String & func )
+{
+	int result = -1;
+	for( int i=0; i<sub.Length(); i++ ) {
+		if ( sub[i].Length() < func.Length() )
+			continue;
+		String str = sub[i];
+		String upper_sub = str.ToUpper();
+		result = upper_sub.SlowFind( func );
+		if ( result == 0 )
+			break;
+	}
+	if ( result == 0 )
+		return 1;
+	else
+		return 0;
+}
+		
+void GroupFromAnnotation::addGeneFromVcf( StringArray & vfield, String & genename )
+{
+	int gene = groupHash.Integer( genename );
+	if ( gene == -1 )
+		error("Gene %s not recorded..something is wrong!\n", genename.c_str());
+	String markername;
+	if (vfield[0].Find("chr") != -1)
+		markername = vfield[0].SubStr(3);
+	else
+		markername = vfield[0];
+	markername += ":";
+	markername += vfield[1];
+	markername += ":";
+	markername += vfield[3];
+	markername += ":";
+	markername += vfield[4];
+	if ( SNPlist[gene].FastFind(markername) == -1 ) { // do not add duplicate
+		SNPlist[gene].Push(markername);
+		SNPNoAllele[gene].Push(vfield[0]+":"+vfield[1]);
+		pos[gene].Push(vfield[1].AsInteger());
+	}
+}		
+
+void GroupFromAnnotation::addGeneToGroupHash( String & gene)
+{
+	int gidx = groupHash.Integer( gene);
+	if (gidx != -1)
+		return;
+	groupHash.SetInteger(gene, geneCount);
+	annoGroups.Push(gene);
+	geneCount++;
+}
+
+void GroupFromAnnotation::setOrderFromSortedPositions( int pos_idx, Vector & order )
+{
+	Vector sorted_pos;
+	sorted_pos.Copy( pos[pos_idx] );
+	sorted_pos.Sort();
+
+	order.Dimension( sorted_pos.Length() );
+	for( int i=0; i<sorted_pos.Length(); i++ ) {
+		for( int j=0; j<sorted_pos.Length(); j++ ) {
+			if ( sorted_pos[i] == pos[pos_idx][j] ) {
+				order[i] = j;
+				break;
+			}
+		}
+	}
+}
+
+
+void GroupFromAnnotation::printGroupFile( String & filename )
+{
+	FILE * out;
+    out = fopen(filename,"wt");
+    for(int i=0;i<geneCount;i++) {
+		fprintf(out,"%s\t",annoGroups[i].c_str());
+		for(int m=0;m<SNPlist[i].Length();m++)
+		fprintf(out,"%s\t",SNPlist[i][m].c_str());
+		fprintf(out,"\n");
+    }
+    fclose(out);
+}	
+
+void GroupFromAnnotation::vcfInitialize()
+{
+	// func_upper
+	if ( function != "" ) {
+		func_upper.AddTokens( function, "/" );
+		for( int i=0; i<func_upper.Length(); i++ )
+			func_upper[i] = func_upper[i].ToUpper();
+	}
+
+	FILE * inFile;
+	inFile = fopen(vcfInput,"r");
+	while (!feof(inFile)) {
+		String buffer;
+		buffer.ReadLine( inFile);
+		if ( buffer[0] == '#' )
+			continue;
+		StringArray vfield;
+		vfield.AddTokens(buffer, "\t");
+		if ( vfield.Length() < 8 )
+			error("Annotation vcf only has %d columns!\n", vfield.Length());
+		StringArray info_semicolon;
+		info_semicolon.AddTokens( vfield[7],";" );
+		
+		int annofull_index = -1;
+		for( int i=0; i<info_semicolon.Length(); i++ ) {
+			String iheader = info_semicolon[i].SubStr(0,8);
+			if (iheader == "ANNOFULL") {
+				annofull_index = i;
+				break;
+			}
+		}
+		if (annofull_index == -1)
+			continue;
+		String anno_full_str = info_semicolon[annofull_index].SubStr(9);
+		StringArray alts;
+		alts.AddTokens( anno_full_str, "|" );
+		for( int a=0; a<alts.Length(); a++ ) {
+			StringArray sub;
+			sub.AddTokens( alts[a], ":/=");
+			if (func_upper.Length() != 0) { // match before add
+				for(int f =0;f<func_upper.Length();f++) {
+					bool pattern_match = checkPatternMatch( sub, func_upper[f] );
+					if ( pattern_match ) {
+						chrom.Push( vfield[0] );
+						addGeneToGroupHash( sub[0] );
+						break;
+					}
+				}
+			}
+			else { // no pattern to match
+				chrom.Push( vfield[0] );
+				addGeneToGroupHash( sub[0] );		
+			}
+		}
+	}
+
+// vectors	
+	SNPlist = new StringArray [geneCount];
+	SNPNoAllele = new StringArray [geneCount];
+	pos = new Vector [geneCount];
+	
 }
 
 void GroupFromAnnotation::Run(String path,FILE * log)

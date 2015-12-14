@@ -22,7 +22,7 @@ class GroupFromAnnotation
 	static String groupFile;
 	static String function;
 	static String mapFile;
-static bool labelHits;
+	static bool labelHits;
 
 	VcfFileReader reader;
 	VcfHeader header;
@@ -30,8 +30,12 @@ static bool labelHits;
 
 	StringArray * SNPlist;
 	StringArray * SNPNoAllele;
+	StringArray func_upper;
 	StringArray annoGroups;
 	StringArray chrom;
+	StringIntHash groupHash;
+	Vector * pos;
+	int geneCount;
 	//these are for annotating single variant accoding to refFlat_hg19.txt
 	IntArray start_pos,end_pos;
 	StringArray genename,chr;
@@ -45,6 +49,15 @@ static bool labelHits;
 	void GetGroupFromVCF();
 	void Run(String path,FILE * log);
 	String AnnotateSingleVar(String chr, int pos);
+
+// group vcf related
+	void vcfInitialize();
+	void addLineFromVcf( String & buffer );
+	bool checkPatternMatch( StringArray & sub, String & func );
+	void addGeneFromVcf( StringArray & vfield, String & genename );
+	void setOrderFromSortedPositions( int pos_idx, Vector & order );
+	void printGroupFile( String & filename );
+	void addGeneToGroupHash( String & gene );
 };
 
 #endif

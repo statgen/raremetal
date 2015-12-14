@@ -1,0 +1,71 @@
+
+Rare-Metal-Worker handled all individuals as related.
+
+The following parameters are in effect:
+
+
+Input Files:
+============================
+--ped []
+--dat []
+--vcf []
+--dosage [false]
+--noeof [false]
+
+Output Files:
+============================
+--prefix []
+--LDwindow [1000000]
+--zip [false]
+--thin [false]
+--labelHits [false]
+
+VC Options:
+============================
+--vcX [false]
+--separateX [false]
+
+Trait Options:
+============================
+--makeResiduals [false]
+--inverseNormal [false]
+--traitName []
+
+Model Options:
+============================
+--recessive [false]
+--dominant [false]
+
+Kinship Source:
+============================
+--kinPedigree [false]
+--kinGeno [false]
+--kinFile []
+--kinxFile []
+--kinSave [false]
+
+Kinship Options:
+============================
+--kinMaf [0.05]
+--kinMiss [0.05]
+
+Chromosome X:
+============================
+xLabel [X]
+xStart [2699520]
+xEnd [154931044]
+
+maleLabel [1]
+femaleLabel [2]
+
+
+Others:
+============================
+range []
+variantList []
+cpus [1]
+
+Analysis started at: Sun Dec 13 20:03:45 2015
+
+Loading input files ...
+  Loading DAT files ...

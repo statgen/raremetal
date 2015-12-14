@@ -25,6 +25,9 @@
 #include "InputFile.h"
 #include "GroupFromAnnotation.h"
 #include "DataQC.h"
+#include <vector>
+#include <map>
+#include <string>
 
 class PreMeta
 {
@@ -53,7 +56,10 @@ class PreMeta
       static bool recessive;
       static bool dominant;
       static bool additive;
-static bool calculateOR;
+	static bool calculateOR;
+	static bool Simplify;
+		static String Region;
+		static String varListName;
 
       int warnings;
       int numFounders;
@@ -81,6 +87,7 @@ static bool calculateOR;
       Vector chisqred;
       double lambda;
       Matrix projectionMat,inv;
+      std::map< std::string, std::vector<int> > varList; // variant list if needed
 
       void CalculateProjectionMatrix(FastTransform & trans,FastFit & engine,Vector & sigma2);
 
@@ -101,7 +108,10 @@ static bool calculateOR;
       void UnrelatedAssoc(IFILE SCOREoutput, IFILE SCOREoutput_rec,IFILE SCOREoutput_dom, Pedigree & ped,FastFit & engine,FastTransform & trans,Vector & sigma2);
 
       void GeneratePlots(String & filename,Vector & pvalueAll,StringArray & chr_plot,Vector & pos_plot,GroupFromAnnotation & group,IFILE & SCOREoutput,Vector & chisq_before_GCcorrect,Vector & maf_GC,String & model);
-void GetRealPrefix(String & file);
+	void GetRealPrefix(String & file);
+	void setVarList();
+	void updateScoreVar( std::string & chr_str, int & current_score_var, int & current_score_index);
+	void updateCovVar( std::string & chr_str, int & current_cov_var, int & current_cov_index);
 };
 
 #endif

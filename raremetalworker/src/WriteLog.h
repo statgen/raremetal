@@ -76,6 +76,8 @@ void WriteLog(String & pedfile,String & datfile,bool noeof,FILE * log)
    fprintf(log,"femaleLabel [%d]\n\n",PreMeta::femaleLabel);
    fprintf(log,"\nOthers:\n");
    fprintf(log,"============================\n");
+   fprintf(log,"range [%s]\n",PreMeta::Region.c_str());
+   fprintf(log,"variantList [%s]\n",PreMeta::varListName.c_str());
  fprintf(log,"cpus [%d]\n\n",KinshipEmp::cpus);
 }
 

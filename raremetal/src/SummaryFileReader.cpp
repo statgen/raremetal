@@ -9,6 +9,8 @@ int SummaryFileReader::counter=0;
 bool SummaryFileReader::ReadTabix(String filename)
 {
    myFilePtr = ifopen(filename,"r");
+   old_pos = 0;
+   old_chr = "";
    if(myFilePtr==NULL)
    {
       return(false);
@@ -35,25 +37,26 @@ bool SummaryFileReader::ReadRecord(String chr, int pos)
    {
       while(!ifeof(myFilePtr))
       {
-	 buffer.ReadLine(myFilePtr);
-	 if(buffer.Length()==0)
-	    return(false);
-	 tmp.Clear();
-	 tmp.AddTokens(buffer,"\t");
-	 counter++;
-	 markerPosHash.SetInteger(tmp[0]+tmp[1],counter);
-	 markerNearby.Push(tmp[Meta::marker_col]);
-	 markerNearbyCov.Push(tmp[Meta::cov_col]);
-	 old_pos = tmp[1].AsInteger();
-	 old_chr = tmp[0];
-	 if(old_chr==chr && old_pos==pos)
-	 {
-	    marker_nearby = tmp[Meta::marker_col];
-	    marker_cov = tmp[Meta::cov_col];
-	    return(true);
-	 }
-	 if(old_pos>pos)
-	    return(false);
+	 			buffer.ReadLine(myFilePtr);
+	 			if(buffer.Length()==0)
+	    		return(false);
+			 tmp.Clear();
+//printf("old_chr=%s, chr=%s, old_pos=%d, pos=%d, buffer=%s\n",old_chr.c_str(), chr.c_str(), old_pos, pos, buffer.c_str());
+			 tmp.AddTokens(buffer,"\t");
+			 counter++;
+			 markerPosHash.SetInteger(tmp[0]+tmp[1],counter);
+			 markerNearby.Push(tmp[Meta::marker_col]);
+			 markerNearbyCov.Push(tmp[Meta::cov_col]);
+			 old_pos = tmp[1].AsInteger();
+			 old_chr = tmp[0];
+			 if(old_chr==chr && old_pos==pos)
+			 {
+	  		  marker_nearby = tmp[Meta::marker_col];
+	    		marker_cov = tmp[Meta::cov_col];
+	    		return(true);
+	 		}
+	 		if(old_pos>pos)
+	    	return(false);
       }
    }
 

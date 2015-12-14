@@ -48,6 +48,9 @@ int PreMeta::maleLabel = 1;
 int PreMeta::femaleLabel =2;
 bool PreMeta::correctGC =false;
 bool PreMeta::calculateOR=false;
+bool PreMeta::Simplify=false; // print %.2e for cov
+String PreMeta::Region = "";
+String PreMeta::varListName = "";
 
 PreMeta::PreMeta(){}
 
@@ -468,6 +471,12 @@ void PreMeta::CalculateUnrelatedAssocStats(double & effSize,double & pvalue, dou
 
 void PreMeta::Run(IFILE SCOREoutput, IFILE SCOREoutput_rec,IFILE SCOREoutput_dom, IFILE SCOREcov, IFILE SCOREcov_rec,IFILE SCOREcov_dom,Pedigree & ped, FastTransform & trans,FastFit & engine,GroupFromAnnotation & group, FILE * log,SanityCheck & checkData,KinshipEmp & kin_emp)
 {
+	if ( PreMeta::varListName != "" ) {
+		printf("\nReading variant list...\n");
+		setVarList();
+		printf("  done.\n\n ");
+	}
+
    warnings = 0;
    bool fitXStatus = false;
    //setup the reference genome
@@ -640,7 +649,8 @@ void PreMeta::Run(IFILE SCOREoutput, IFILE SCOREoutput_rec,IFILE SCOREoutput_dom
 	    fitXStatus=true;
 	 }
 
-	 if(status==1)
+	if(status==1)
+//	 if(status==1 && ( current_score_var < 0 || current_score_var == pos ))
 	 {
 	    ifprintf(SCOREoutput,"%s\t%d\t%s\t%s\t%d\t%g\t%g\t%g\tNA\tNA\t%d\t%d\t%d\tNA\tNA\tNA\tNA",chr.c_str(),pos,refAllele.c_str(),rareAllele.c_str(),trans.persons,founderMaf,markerMaf,mac,hom1,het,hom2);
 	    ifprintf(SCOREoutput,"\n");
@@ -761,6 +771,10 @@ void PreMeta::Run(IFILE SCOREoutput, IFILE SCOREoutput_rec,IFILE SCOREoutput_dom
 	       for(int m=0;m<genotypeAll.rows;m++)
 	       {
 		  double cov = CalculateCov(engine,trans,ped,genotypeAll,sigma2,m);
+		  if ( PreMeta::Simplify ) {
+		  	ifprintf(SCOREcov,"%.2e,",cov);
+		  }
+		  else
 		  ifprintf(SCOREcov,"%g,",cov);
 	       }
 	       ifprintf(SCOREcov,"\n");
@@ -851,7 +865,10 @@ void PreMeta::Run(IFILE SCOREoutput, IFILE SCOREoutput_rec,IFILE SCOREoutput_dom
 	 for(int m=0;m<genotypeAll.rows;m++)
 	 {
 	    double cov = CalculateCov(engine,trans,ped,genotypeAll,sigma2,m);
-	    ifprintf(SCOREcov,"%g,",cov);
+	    if (PreMeta::Simplify)
+	    	ifprintf(SCOREcov,"%.2e,",cov);
+	    else
+	    	ifprintf(SCOREcov,"%g,",cov);
 	 }
 	 ifprintf(SCOREcov,"\n");
 
@@ -900,33 +917,80 @@ void PreMeta::Run(IFILE SCOREoutput, IFILE SCOREoutput_rec,IFILE SCOREoutput_dom
       }
    }
 
-   if(genoFromVCF)
-   {
-      StringArray chromosome;
-      reader.open(vcfInput,header);
-      reader.readVcfIndex();
-      const Tabix* indexPtr = reader.getVcfIndex();
-      for(int i = 0; i < indexPtr->getNumRefs(); i++)
-      {
-	 chromosome.Push(indexPtr->getRefName(i));
-      }
-      reader.close();
+	if(genoFromVCF)
+	{
+		StringArray chromosome;
+		reader.open(vcfInput,header);
+		reader.readVcfIndex();
+		const Tabix* indexPtr = reader.getVcfIndex();
+		String range_chr;
+		int range_start;
+		int range_end;
+		if ( Region == "" ) {
+			for(int i = 0; i < indexPtr->getNumRefs(); i++) {
+				chromosome.Push(indexPtr->getRefName(i));
+			}
+		}
+		else {
+			printf("Restrict RMW to region %s!\n", Region.c_str());
+			StringArray tf;
+			tf.AddTokens(Region, ":-");
+			range_chr = tf[0];
+			range_start = tf[1].AsInteger();
+			range_end = tf[2].AsInteger();
+			if ( range_end <= range_start )
+				error("Invalid range: %s!\n", Region.c_str());
+			chromosome.Push( range_chr );
+    	}
+		reader.close();
 
       //loop through chromosomes by reading tabix data
-      for(int i=0;i<chromosome.Length();i++)
-      {
-	 reader.open(vcfInput,header);
-	 reader.readVcfIndex();
-	 reader.setReadSection(chromosome[i].c_str());
-	 int initial_pos = 0;
+		for(int i=0;i<chromosome.Length();i++)
+		{
+			reader.open(vcfInput,header);
+			reader.readVcfIndex();
+		// see if need to specify region
+			if ( Region == "" )
+				reader.setReadSection(chromosome[i].c_str());
+			else {
+				bool section_status = reader.set1BasedReadSection(chromosome[i].c_str(), range_start, range_end);
+				if (!section_status)
+	 				error("Unable to set vcf at range: %s\n", Region.c_str());
+			}
+		// read from varList if needed
+			int current_score_var = -1;
+			int current_cov_var = -1;
+			int current_score_index = -1;
+			int current_cov_index = -1;
+			std::string chr_str = std::string(chromosome[i].c_str());
+			if ( varListName != "" ) {
+				if ( varList.find(chr_str) == varList.end() ) // no var in this chr
+					continue;
+				bool section_status = 0;
+				for( int ii=0; ii<(int)varList[chr_str].size(); ii++ ) {
+					current_score_var = varList[chr_str][0];
+					current_cov_var = current_score_var;
+					int last_end = varList[chr_str][ (int)varList[chr_str].size()-1 ] + window + 1;
+					section_status = reader.set1BasedReadSection(chr_str.c_str(), current_score_var, last_end);
+					if (section_status) {
+						current_score_index = ii;
+						current_cov_index = ii;
+						break;
+					}
+	 			}
+	 			if (!section_status) // no available variant in this chr
+	 				continue;
+			}
+			
+			int initial_pos = 0;
 
-	 while(reader.readRecord(record))
-	 {
-	    bool status;
-	    if(dosage)
-	       status = GetGenotypeVectorVCFDosage(trans,ped);
-	    else
-	       status = GetGenotypeVectorVCF(trans,ped,checkData,log);
+			while(reader.readRecord(record))
+			{
+				bool status;
+				if(dosage)
+					status = GetGenotypeVectorVCFDosage(trans,ped);
+				else
+					status = GetGenotypeVectorVCF(trans,ped,checkData,log);
 
 	    /*
 	    //TODO:TS
@@ -948,8 +1012,8 @@ void PreMeta::Run(IFILE SCOREoutput, IFILE SCOREoutput_rec,IFILE SCOREoutput_dom
 	    printf("sigma2 is: %g.\n",engine.sigma2Hat);
 	     */
 
-	    if(chr==PreMeta::xLabel && !FastFit::unrelated && (AutoFit::fitX || FastFit::separateX) && !fitXStatus)
-	    {
+				if(chr==PreMeta::xLabel && !FastFit::unrelated && (AutoFit::fitX || FastFit::separateX) && !fitXStatus)
+				{
 	       printf("\n  Analyzing chromosome X ... \n");
 	       fprintf(log,"\n  Analyzing chromosome X ... \n");
 	       double tol = 0.0001;
@@ -1015,206 +1079,261 @@ void PreMeta::Run(IFILE SCOREoutput, IFILE SCOREoutput_rec,IFILE SCOREoutput_dom
 	       fitXStatus=true;
 	    }
 
-	    if(!status)
-	    {
-	       if(hwe_pvalue != _NAN_ || hwe_pvalue != 6.66666e-66)
-		  ifprintf(SCOREoutput,"%s\t%d\t%s\t%s\t%d\t%g\t%g\t%g\t%g\t%g\t%d\t%d\t%d\tNA\tNA\tNA\tNA",chr.c_str(),pos,refAllele.c_str(),rareAllele.c_str(),trans.persons,founderMaf,markerMaf,mac,callRate,hwe_pvalue,hom1,het,hom2);
-	       else
-		  ifprintf(SCOREoutput,"%s\t%d\t%s\t%s\t%d\t%g\t%g\t%g\t%g\tNA\t%d\t%d\t%d\tNA\tNA\tNA\tNA",chr.c_str(),pos,refAllele.c_str(),rareAllele.c_str(),trans.persons,founderMaf,markerMaf,mac,callRate,hom1,het,hom2);
+			if ( pos > current_score_var && current_score_var > 0 ) {
+				printf("\nWarning: cannot find variants in vcf: %d", current_score_var);
+				bool found = 0;
+				for( int jj=current_score_index+1; jj<(int)varList[chr_str].size(); jj++ ) {
+					if ( pos <= varList[chr_str][jj] ) {
+						current_score_index = jj;
+						current_cov_index = jj;
+						current_score_var = varList[chr_str][jj];
+						current_cov_var = varList[chr_str][jj];
+						found = 1;
+						break;
+					}
+					else
+						printf(" %d", varList[chr_str][jj]);
+				}
+				printf(". These variants are skipped!\n");
+				if ( !found ) {
+					current_score_var = 2000000000;
+					current_cov_var = 2000000000;
+				}
+			}
 
-	       ifprintf(SCOREoutput,"\n");
-	       if(recessive)
-	       {
-		  if(hwe_pvalue != _NAN_ || hwe_pvalue != 6.66666e-66)
-		     ifprintf(SCOREoutput_rec,"%s\t%d\t%s\t%s\t%d\t%g\t%g\t%g\t%g\t%g\t%d\t%d\t%d\tNA\tNA\tNA\tNA",chr.c_str(),pos,refAllele.c_str(),rareAllele.c_str(),trans.persons,founderMaf,markerMaf,mac,callRate,hwe_pvalue,hom1,het,hom2);
-		  else
-		     ifprintf(SCOREoutput_rec,"%s\t%d\t%s\t%s\t%d\t%g\t%g\t%g\t%g\tNA\t%d\t%d\t%d\tNA\tNA\tNA\tNA",chr.c_str(),pos,refAllele.c_str(),rareAllele.c_str(),trans.persons,founderMaf,markerMaf,mac,callRate,hom1,het,hom2);
-		  ifprintf(SCOREoutput_rec,"\n");
-	       }
+				if(!status)
+				{
+					if ( current_score_var < 0 || current_score_var == pos ) {
+						if(hwe_pvalue != _NAN_ || hwe_pvalue != 6.66666e-66)
+							ifprintf(SCOREoutput,"%s\t%d\t%s\t%s\t%d\t%g\t%g\t%g\t%g\t%g\t%d\t%d\t%d\tNA\tNA\tNA\tNA",chr.c_str(),pos,refAllele.c_str(),rareAllele.c_str(),trans.persons,founderMaf,markerMaf,mac,callRate,hwe_pvalue,hom1,het,hom2);
+						else
+		  					ifprintf(SCOREoutput,"%s\t%d\t%s\t%s\t%d\t%g\t%g\t%g\t%g\tNA\t%d\t%d\t%d\tNA\tNA\tNA\tNA",chr.c_str(),pos,refAllele.c_str(),rareAllele.c_str(),trans.persons,founderMaf,markerMaf,mac,callRate,hom1,het,hom2);
 
-	       if(dominant)
-	       {
-		  if(hwe_pvalue != _NAN_ || hwe_pvalue != 6.66666e-66)
-		     ifprintf(SCOREoutput_dom,"%s\t%d\t%s\t%s\t%d\t%g\t%g\t%g\t%g\t%g\t%d\t%d\t%d\tNA\tNA\tNA\tNA",chr.c_str(),pos,refAllele.c_str(),rareAllele.c_str(),trans.persons,founderMaf,markerMaf,mac,callRate,hwe_pvalue,hom1,het,hom2);
-		  else
-		     ifprintf(SCOREoutput_dom,"%s\t%d\t%s\t%s\t%d\t%g\t%g\t%g\t%g\tNA\t%d\t%d\t%d\tNA\tNA\tNA\tNA",chr.c_str(),pos,refAllele.c_str(),rareAllele.c_str(),trans.persons,founderMaf,markerMaf,mac,callRate,hom1,het,hom2);
-		  ifprintf(SCOREoutput_dom,"\n");
-	       }
+	       				ifprintf(SCOREoutput,"\n");
+	       				if(recessive)
+	       				{
+		  					if(hwe_pvalue != _NAN_ || hwe_pvalue != 6.66666e-66)
+		     					ifprintf(SCOREoutput_rec,"%s\t%d\t%s\t%s\t%d\t%g\t%g\t%g\t%g\t%g\t%d\t%d\t%d\tNA\tNA\tNA\tNA",chr.c_str(),pos,refAllele.c_str(),rareAllele.c_str(),trans.persons,founderMaf,markerMaf,mac,callRate,hwe_pvalue,hom1,het,hom2);
+		  					else
+		     					ifprintf(SCOREoutput_rec,"%s\t%d\t%s\t%s\t%d\t%g\t%g\t%g\t%g\tNA\t%d\t%d\t%d\tNA\tNA\tNA\tNA",chr.c_str(),pos,refAllele.c_str(),rareAllele.c_str(),trans.persons,founderMaf,markerMaf,mac,callRate,hom1,het,hom2);
+		  					ifprintf(SCOREoutput_rec,"\n");
+	       				}
 
-	       continue;
-	    }
-	    marker_count++;
-	    averageAF += markerMaf;
+	       				if(dominant)
+	       				{
+		  					if(hwe_pvalue != _NAN_ || hwe_pvalue != 6.66666e-66)
+								ifprintf(SCOREoutput_dom,"%s\t%d\t%s\t%s\t%d\t%g\t%g\t%g\t%g\t%g\t%d\t%d\t%d\tNA\tNA\tNA\tNA",chr.c_str(),pos,refAllele.c_str(),rareAllele.c_str(),trans.persons,founderMaf,markerMaf,mac,callRate,hwe_pvalue,hom1,het,hom2);
+					  		else
+					    		ifprintf(SCOREoutput_dom,"%s\t%d\t%s\t%s\t%d\t%g\t%g\t%g\t%g\tNA\t%d\t%d\t%d\tNA\tNA\tNA\tNA",chr.c_str(),pos,refAllele.c_str(),rareAllele.c_str(),trans.persons,founderMaf,markerMaf,mac,callRate,hom1,het,hom2);
+							ifprintf(SCOREoutput_dom,"\n");
+						}
+					}
+					if (current_score_var == pos) {
+						updateScoreVar( chr_str, current_score_var, current_score_index);
+					}
+					continue;
+				}
+	    		marker_count++;
+	    		averageAF += markerMaf;
 
-	    if(marker_count==1) 
-	       initial_pos = pos;
+	    		if(marker_count==1) 
+	       			initial_pos = pos;
 
 	    //Output score statistics here
-	    if(FastFit::unrelated)
-	    {
-	       UnrelatedAssoc(SCOREoutput,SCOREoutput_rec,SCOREoutput_dom,ped,engine,trans,sigma2);
-	    }
-	    else
-	    {
-	       RelatedAssoc(SCOREoutput,SCOREoutput_rec,SCOREoutput_dom,ped,engine,trans,sigma2);
-	    }
+	    		if ( current_score_var < 0 || pos == current_score_var ) {
+		    		if(FastFit::unrelated)
+		    		{
+	    	   			UnrelatedAssoc(SCOREoutput,SCOREoutput_rec,SCOREoutput_dom,ped,engine,trans,sigma2);
+	    			}
+			    	else
+			    	{
+			       		RelatedAssoc(SCOREoutput,SCOREoutput_rec,SCOREoutput_dom,ped,engine,trans,sigma2);
+			    	}
+			    	if ( current_score_var == pos )
+						updateScoreVar( chr_str, current_score_var, current_score_index);
+			    }
 
 	    //check if position has passed the window
-	    while(pos - initial_pos > window && markerInLD.Length() >0 )
-	    {
-	       //output cov for marker at initial_pos
-	       ifprintf(SCOREcov,"%s\t%d\t",chr.c_str(),initial_pos);
-	       for(int i=0;i<markerInLD.Length();i++)
-	       {
-		  ifprintf(SCOREcov,"%d,",markerInLD[i]);
-	       }
-	       ifprintf(SCOREcov,"\t");
-	       for(int m=0;m<genotypeAll.rows;m++)
-	       {
-		  double cov = CalculateCov(engine,trans,ped,genotypeAll,sigma2,m);
-		  ifprintf(SCOREcov,"%g,",cov);
-	       }
-	       ifprintf(SCOREcov,"\n");
+			    while(pos - initial_pos > window && markerInLD.Length() >0 )
+			    {
+			      while ( current_cov_var > 0 && initial_pos > current_cov_var ) { // this variant might  be skipped above
+			      	updateCovVar( chr_str, current_cov_var, current_cov_index );
+			      }
+			      if (current_cov_var < 0 || initial_pos == current_cov_var) {
+			       //output cov for marker at initial_pos
+			       ifprintf(SCOREcov,"%s\t%d\t",chr.c_str(),initial_pos);
+			       for(int i=0;i<markerInLD.Length();i++)
+			       {
+					  ifprintf(SCOREcov,"%d,",markerInLD[i]);
+			       }
+			       ifprintf(SCOREcov,"\t");
+			       for(int m=0;m<genotypeAll.rows;m++)
+			       {
+						double cov = CalculateCov(engine,trans,ped,genotypeAll,sigma2,m);
+						if (PreMeta::Simplify)
+							ifprintf(SCOREcov,"%.2e,",cov);
+						else
+		  					ifprintf(SCOREcov,"%g,",cov);
+	       			}
+			    	ifprintf(SCOREcov,"\n");
 
-	       if(recessive)
-	       {
-		  ifprintf(SCOREcov_rec,"%s\t%d\t",chr.c_str(),initial_pos);
-		  for(int i=0;i<markerInLD.Length();i++)
-		  {
-		     ifprintf(SCOREcov_rec,"%d,",markerInLD[i]);
-		  }
-		  ifprintf(SCOREcov_rec,"\t");
-		  for(int m=0;m<genotypeAll_rec.rows;m++)
-		  {
-		     double cov = CalculateCov(engine,trans,ped,genotypeAll_rec,sigma2,m);
-		     ifprintf(SCOREcov_rec,"%g,",cov);
-		  }
-		  ifprintf(SCOREcov_rec,"\n");
-	       }
+					if(recessive)
+					{
+						ifprintf(SCOREcov_rec,"%s\t%d\t",chr.c_str(),initial_pos);
+						for(int i=0;i<markerInLD.Length();i++)
+						{
+							ifprintf(SCOREcov_rec,"%d,",markerInLD[i]);
+						}
+						ifprintf(SCOREcov_rec,"\t");
+		  				for(int m=0;m<genotypeAll_rec.rows;m++)
+		  				{
+		     				double cov = CalculateCov(engine,trans,ped,genotypeAll_rec,sigma2,m);
+		     				ifprintf(SCOREcov_rec,"%g,",cov);
+		  				}
+		  				ifprintf(SCOREcov_rec,"\n");
+	       			}
 
-	       if(dominant)
-	       {
-		  ifprintf(SCOREcov_dom,"%s\t%d\t",chr.c_str(),initial_pos);
-		  for(int i=0;i<markerInLD.Length();i++)
-		  {
-		     ifprintf(SCOREcov_dom,"%d,",markerInLD[i]);
-		  }
-		  ifprintf(SCOREcov_dom,"\t");
-		  for(int m=0;m<genotypeAll_dom.rows;m++)
-		  {
-		     double cov = CalculateCov(engine,trans,ped,genotypeAll_dom,sigma2,m);
-		     ifprintf(SCOREcov_dom,"%g,",cov);
-		  }
-		  ifprintf(SCOREcov_dom,"\n");
-	       }
+	       			if(dominant)
+	       			{
+		  				ifprintf(SCOREcov_dom,"%s\t%d\t",chr.c_str(),initial_pos);
+		  				for(int i=0;i<markerInLD.Length();i++)
+		  				{
+		     				ifprintf(SCOREcov_dom,"%d,",markerInLD[i]);
+		 				}
+		  				ifprintf(SCOREcov_dom,"\t");
+		  				for(int m=0;m<genotypeAll_dom.rows;m++)
+		  				{
+		     				double cov = CalculateCov(engine,trans,ped,genotypeAll_dom,sigma2,m);
+		     				ifprintf(SCOREcov_dom,"%g,",cov);
+		  				}
+		  				ifprintf(SCOREcov_dom,"\n");
+	       			}
+	       			if ( initial_pos == current_cov_var )
+						updateCovVar( chr_str, current_cov_var, current_cov_index );
+	       		  }
 
 	       //reorganize the trackers
-	       markerInLD.Delete(0);
-	       initial_pos = markerInLD[0];
-	       genotypeAll.DeleteRow(0);
-	       if(recessive)
-		  genotypeAll_rec.DeleteRow(0);
-	       if(dominant)
-		  genotypeAll_dom.DeleteRow(0);
-	    }
+	      			markerInLD.Delete(0);
+	       			initial_pos = markerInLD[0];
+	       			genotypeAll.DeleteRow(0);
+	       			if(recessive)
+		  				genotypeAll_rec.DeleteRow(0);
+	       			if(dominant)
+		 				genotypeAll_dom.DeleteRow(0);
+	    		}
 
 	    //push the new marker in
-	    markerInLD.Push(pos);
-	    initial_pos = markerInLD[0];
-	    genotypeAll.GrowTo(genotypeAll.rows+1,trans.persons,0.0);
+	    		markerInLD.Push(pos);
+	    		initial_pos = markerInLD[0];
+	    		genotypeAll.GrowTo(genotypeAll.rows+1,trans.persons,0.0);
 
-	    for(int i=0;i<trans.persons;i++)
-	    {
-	       if(FastFit::unrelated)
-		  genotypeAll[genotypeAll.rows-1][i] = genotype[i];
-	       else
-		  genotypeAll[genotypeAll.rows-1][i] = transGeno[i];
-	    }
-	    if(recessive)
-	    {
-	       genotypeAll_rec.GrowTo(genotypeAll_rec.rows+1,trans.persons,0.0);
+	    		for(int i=0;i<trans.persons;i++)
+	    		{
+	       			if(FastFit::unrelated)
+		  				genotypeAll[genotypeAll.rows-1][i] = genotype[i];
+	       			else
+		  				genotypeAll[genotypeAll.rows-1][i] = transGeno[i];
+	    		}
+	    		if(recessive)
+	    		{
+	       			genotypeAll_rec.GrowTo(genotypeAll_rec.rows+1,trans.persons,0.0);
 
-	       for(int i=0;i<trans.persons;i++)
-	       {
-		  if(FastFit::unrelated)
-		     genotypeAll_rec[genotypeAll_rec.rows-1][i] = genotype_rec[i];
-		  else
-		     genotypeAll_rec[genotypeAll_rec.rows-1][i] = transGeno_rec[i];
-	       }
-	    }
-	    if(dominant)
-	    {
-	       genotypeAll_dom.GrowTo(genotypeAll_dom.rows+1,trans.persons,0.0);
+	       			for(int i=0;i<trans.persons;i++)
+	       			{
+		  				if(FastFit::unrelated)
+		     				genotypeAll_rec[genotypeAll_rec.rows-1][i] = genotype_rec[i];
+		  				else
+		     				genotypeAll_rec[genotypeAll_rec.rows-1][i] = transGeno_rec[i];
+	       			}
+	    		}
+	    		if(dominant)
+	    		{
+	       			genotypeAll_dom.GrowTo(genotypeAll_dom.rows+1,trans.persons,0.0);
 
-	       for(int i=0;i<trans.persons;i++)
-	       {
-		  if(FastFit::unrelated)
-		     genotypeAll_dom[genotypeAll_dom.rows-1][i] = genotype_dom[i];
-		  else
-		     genotypeAll_dom[genotypeAll_dom.rows-1][i] = transGeno_dom[i];
-	       }
-	    }
-	 }
+	       			for(int i=0;i<trans.persons;i++)
+	       			{
+		  				if(FastFit::unrelated)
+		     				genotypeAll_dom[genotypeAll_dom.rows-1][i] = genotype_dom[i];
+		  				else
+		     				genotypeAll_dom[genotypeAll_dom.rows-1][i] = transGeno_dom[i];
+	       			}
+	    		}
+	 		}
 	 //output the LD matrix for the rest of the markers in genotypeAll
-	 int markers = genotypeAll.rows;
+	 		int markers = genotypeAll.rows;
 
-	 for(int i=0;i<markers;i++)
-	 {
-	    ifprintf(SCOREcov,"%s\t%d\t",chr.c_str(),initial_pos);
-	    for(int j=0;j<markerInLD.Length();j++)
-	    {
-	       ifprintf(SCOREcov,"%d,",markerInLD[j]);
-	    }
-	    ifprintf(SCOREcov,"\t");
-	    for(int m=0;m<genotypeAll.rows;m++)
-	    {
-	       double cov = CalculateCov(engine,trans,ped,genotypeAll,sigma2,m);
-	       ifprintf(SCOREcov,"%g,",cov);
-	    }
-	    ifprintf(SCOREcov,"\n");
-	    genotypeAll.DeleteRow(0);
+			for(int i=0;i<markers;i++)
+	 		{
+	 		  while ( current_cov_var > 0 && initial_pos > current_cov_var ) { // this variant might  be skipped above
+				updateCovVar( chr_str, current_cov_var, current_cov_index );
+			  }
+	 		  if (current_cov_var < 0 || initial_pos == current_cov_var) {
+	    		ifprintf(SCOREcov,"%s\t%d\t",chr.c_str(),initial_pos);
+	    		for(int j=0;j<markerInLD.Length();j++)
+	    		{
+	       			ifprintf(SCOREcov,"%d,",markerInLD[j]);
+	    		}
+	    		ifprintf(SCOREcov,"\t");
+	    		for(int m=0;m<genotypeAll.rows;m++)
+	    		{
+	       			double cov = CalculateCov(engine,trans,ped,genotypeAll,sigma2,m);
+	       			if (PreMeta::Simplify)
+	       				ifprintf(SCOREcov,"%.2e,",cov);
+	       			else
+	       				ifprintf(SCOREcov,"%g,",cov);
+	    		}
+	    		ifprintf(SCOREcov,"\n");
+	    	  }
+	    		genotypeAll.DeleteRow(0);
 
-	    if(recessive)
-	    {
-	       ifprintf(SCOREcov_rec,"%s\t%d\t",chr.c_str(),initial_pos);
-	       for(int j=0;j<markerInLD.Length();j++)
-	       {
-		  ifprintf(SCOREcov_rec,"%d,",markerInLD[j]);
-	       }
-	       ifprintf(SCOREcov_rec,"\t");
-	       for(int m=0;m<genotypeAll_rec.rows;m++)
-	       {
-		  double cov = CalculateCov(engine,trans,ped,genotypeAll_rec,sigma2,m);
-		  ifprintf(SCOREcov_rec,"%g,",cov);
-	       }
-	       ifprintf(SCOREcov_rec,"\n");
-	       genotypeAll_rec.DeleteRow(0);
-	    }
+	    		if(recessive)
+	    		{
+	    		  if (current_cov_var < 0 || initial_pos == current_cov_var) {
+	       			ifprintf(SCOREcov_rec,"%s\t%d\t",chr.c_str(),initial_pos);
+	       			for(int j=0;j<markerInLD.Length();j++)
+	       			{
+		  				ifprintf(SCOREcov_rec,"%d,",markerInLD[j]);
+	       			}
+	       			ifprintf(SCOREcov_rec,"\t");
+	       			for(int m=0;m<genotypeAll_rec.rows;m++)
+	       			{
+		  				double cov = CalculateCov(engine,trans,ped,genotypeAll_rec,sigma2,m);
+		  				ifprintf(SCOREcov_rec,"%g,",cov);
+	       			}
+	       			ifprintf(SCOREcov_rec,"\n");
+	       		  }
+	       			genotypeAll_rec.DeleteRow(0);
+	    		}
 
-	    if(dominant)
-	    {
-	       ifprintf(SCOREcov_dom,"%s\t%d\t",chr.c_str(),initial_pos);
-	       for(int j=0;j<markerInLD.Length();j++)
-	       {
-		  ifprintf(SCOREcov_dom,"%d,",markerInLD[j]);
-	       }
-	       ifprintf(SCOREcov_dom,"\t");
-	       for(int m=0;m<genotypeAll_dom.rows;m++)
-	       {
-		  double cov = CalculateCov(engine,trans,ped,genotypeAll_dom,sigma2,m);
-		  ifprintf(SCOREcov_dom,"%g,",cov);
-	       }
-	       ifprintf(SCOREcov_dom,"\n");
-	       genotypeAll_dom.DeleteRow(0);
-	    }
-
-	    //reorganize the trackers
-	    markerInLD.Delete(0);
-	    initial_pos = markerInLD[0];
-	 }
-	 reader.close();
-      }
-   }
+	    		if(dominant)
+	    		{
+	    		  if (current_cov_var < 0 || initial_pos == current_cov_var) {
+	       			ifprintf(SCOREcov_dom,"%s\t%d\t",chr.c_str(),initial_pos);
+	       			for(int j=0;j<markerInLD.Length();j++)
+	       			{
+		  				ifprintf(SCOREcov_dom,"%d,",markerInLD[j]);
+	       			}
+	       			ifprintf(SCOREcov_dom,"\t");
+	       			for(int m=0;m<genotypeAll_dom.rows;m++)
+	       			{
+		  				double cov = CalculateCov(engine,trans,ped,genotypeAll_dom,sigma2,m);
+		  				ifprintf(SCOREcov_dom,"%g,",cov);
+	       			}
+	       			ifprintf(SCOREcov_dom,"\n");
+	       		  }
+	       			genotypeAll_dom.DeleteRow(0);
+	    		}
+	    		
+	    		if ( initial_pos == current_cov_var )
+	    			updateCovVar( chr_str, current_cov_var, current_cov_index );
+	
+	    	//reorganize the trackers
+	    		markerInLD.Delete(0);
+	    		initial_pos = markerInLD[0];
+	 		}
+	 		reader.close();
+		}
+	}
 
    if(averageAF/marker_count>0.5)
    {
@@ -2295,4 +2414,50 @@ void PreMeta::GetRealPrefix(String & realPrefix)
    else
       realPrefix = FastFit::traitName + ".";
 }
+
+
+void PreMeta::setVarList()
+{
+	IFILE infile = ifopen( varListName, "r" );
+	int prev_pos = 0;
+	std::string prev_chr = "";
+	while( !ifeof(infile) ) {
+		String buffer;
+		buffer.ReadLine(infile);
+		StringArray tokens;
+		tokens.AddTokens( buffer, "\t");
+		if ( tokens.Length() != 2 )
+			error("Incorrect format of input variant list!\n");
+		std::string chr_name = std::string( tokens[0].c_str() );
+		int current_pos = tokens[1].AsInteger();
+		if ( chr_name.compare(prev_chr) != 0 )
+			prev_pos = 0;
+		else {
+			if (current_pos < prev_pos)
+				error("Input variant list is not sorted by coordinates!\n");
+		}
+		varList[chr_name].push_back(current_pos);
+	}
+	ifclose(infile);
+}
+
+void PreMeta::updateScoreVar( std::string & chr_str, int & current_score_var, int & current_score_index)
+{
+	current_score_index++;
+	if (current_score_index >= (int)varList[chr_str].size())
+		current_score_var = 2000000000;
+	else
+		current_score_var = varList[chr_str][current_score_index];
+}
+
+void PreMeta::updateCovVar( std::string & chr_str, int & current_cov_var, int & current_cov_index)
+{
+	current_cov_index++;
+	if ( current_cov_index >= (int)varList[chr_str].size())
+	    current_cov_var = 2000000000;
+	else
+		current_cov_var = varList[chr_str][current_cov_index];
+}
+
+
 

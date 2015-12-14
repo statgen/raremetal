@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////// 
 // Main.cpp 
-// (c) 2012-2014 Shuang Feng, Dajiang Liu, Goncalo Abecasis
+// (c) 2012-2016 Shuang Feng, Dajiang Liu, Goncalo Abecasis
 // 
 // This file is distributed as part of the RareMetalWorker source code package   
 // and may not be redistributed in any form, without prior written    
@@ -43,7 +43,7 @@ int main(int argc, char ** argv)
     bool noeof = false;
 
     printf("\nRAREMETALWORKER %s -- A Forerunner of RareMetal\n"
-	  "          (c) 2012-2014 Shuang Feng, Dajiang Liu, Goncalo Abecasis\n\n", VERSION);
+	  "          (c) 2012-2016 Shuang Feng, Dajiang Liu, Sai Chen, Goncalo Abecasis\n\n", VERSION);
 
     printf("\nIf you feel the software is useful, please cite:\n  RAREMETAL: fast and powerful meta-analysis for rare variants; Shuang Feng, Dajiang Liu, Xiaowei Zhan, Mary Kate Wing, Goncalo R. Abecasis; Bioinformatics 2014\n");
 
@@ -102,6 +102,9 @@ int main(int argc, char ** argv)
        LONG_PHONEHOME(VERSION)
        BEGIN_LEGACY_PARAMETERS()
        LONG_PARAMETER("useCovariates", &FastFit::useCovariates)
+       LONG_STRINGPARAMETER("range", &PreMeta::Region)
+       LONG_STRINGPARAMETER("variantList", &PreMeta::varListName) // list of variants to calculate score and cov
+       
        END_LONG_PARAMETERS();
 
     ParameterList pl;
