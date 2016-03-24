@@ -590,7 +590,7 @@ void Meta::PoolSummaryStat(GroupFromAnnotation & group,FILE * log)
 			continue;
 			tokens.Clear();
 			tokens.AddTokens(buffer, SEPARATORS);
-			
+
 			if(tokens[0].Find("chr")!=-1)
 			tokens[0] = tokens[0].SubStr(3);
 			
@@ -891,7 +891,12 @@ void Meta::PoolSummaryStat(GroupFromAnnotation & group,FILE * log)
 		total_N += SampleSize[study];
 		//calculate GC
 		chisq_study_i.Sort();
-		GCbyStudy.Push(chisq_study_i[0.5]/0.456);
+		if (chisq_study_i.size==0) {
+			printf("\nWarning: no GC calculated in chisq_study_i!\n");
+			GCbyStudy.Push(0);
+		}
+		else
+			GCbyStudy.Push(chisq_study_i[0.5]/0.456);
 		if(duplicateSNP>0)
 		{
 			printf("\nWarning: %d variants are skipped from analysis due to duplicate records in study %s. Please check log for details.\n\n",duplicateSNP,scorefile[study].c_str());
