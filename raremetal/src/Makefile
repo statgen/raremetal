@@ -1,5 +1,5 @@
 EXE=raremetal
-TOOLBASE = Meta GroupFromAnnotation WritePDF SummaryFileReader
+TOOLBASE = Meta MetaUtility GroupFromAnnotation WritePDF SummaryFileReader
 SRCONLY = Main.cpp 
 HDRONLY = MixChidist.h My_mvt.h qfc.h Rmath.h WriteLog.h imhof.h Rmath.h
 

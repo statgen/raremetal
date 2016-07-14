@@ -28,6 +28,9 @@ void WriteLog(FILE * log)
    fprintf(log,"============================\n");
    fprintf(log,"--summaryFiles [%s]\n",Meta::summaryFiles.c_str());
    fprintf(log,"--covFiles [%s]\n",Meta::covFiles.c_str());
+//   fprintf(log, "Implemented Meta-analysis Methods:\n");
+//   fprintf(log,"============================\n");
+//   fprintf(log, "--useExact [%s]\n", Meta::useExactMetaMethod? "true":"false");
    fprintf(log,"\nGrouping Methods:\n");
    fprintf(log,"============================\n");
    fprintf(log,"--groupFile [%s]\n",GroupFromAnnotation::groupFile.c_str());

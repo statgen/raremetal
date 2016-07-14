@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////
 // Main.cpp
-// (c) 2013-2014 Shuang Feng, Dajiang Liu, Goncalo Abecasis
+// (c) 2013-2017 Sai Chen, Shuang Feng, Dajiang Liu, Goncalo Abecasis
 // and may not be redistributed in any form, without prior written
 // permission from the author. Permission is granted for you to
 // modify this file for your own personal use, but modified versions
@@ -27,7 +27,7 @@
 int main(int argc, char ** argv)
 {
 	printf("\nRAREMETAL %s -- A Tool for Rare Variants Meta-Analyses for Quantitative Traits\n"
-		"          (c) 2012-2016 Shuang Feng, Dajiang Liu, Sai Chen, Goncalo Abecasis\n\n",VERSION);
+		"          (c) 2012-2017 Shuang Feng, Dajiang Liu, Sai Chen, Goncalo Abecasis\n\n",VERSION);
 	printf("\nPlease go to \"http://genome.sph.umich.edu/wiki/RAREMETAL\" for the newest version.\n");
 	PhoneHome::allThinning = 100;
 	time_t initialTime = time(0);
@@ -68,6 +68,7 @@ int main(int argc, char ** argv)
 	LONG_PARAMETER("altMAF", &Meta::altMAF )
 	LONG_STRINGPARAMETER("range", &Meta::Region)
 	LONG_PARAMETER("geneOnly", &Meta::GeneOnly)
+	LONG_PARAMETER("useExact", &Meta::useExactMetaMethod)
 	
 	LONG_PHONEHOME(VERSION)
 	END_LONG_PARAMETERS();
@@ -84,9 +85,9 @@ int main(int argc, char ** argv)
 	FILE * logFile;
 	String filename;
 	if(Meta::prefix=="")
-	filename = "raremetal.log";
+		filename = "raremetal.log";
 	else if(Meta::prefix.Last()=='.' || Meta::prefix.Last()=='/')
-	filename = Meta::prefix + "raremetal.log";
+		filename = Meta::prefix + "raremetal.log";
 	else
 		filename = Meta::prefix + ".raremetal.log";
 	
@@ -100,25 +101,21 @@ int main(int argc, char ** argv)
 	
 	try {
 		if(Meta::summaryFiles=="")
-		{
 			error("--summaryFiles can not be empty.\n");
-		}
 		GroupFromAnnotation group;
 		
-		if(GroupFromAnnotation::groupFile!=""
-		&& GroupFromAnnotation::vcfInput !="")
-		{
+		if(GroupFromAnnotation::groupFile!="" && GroupFromAnnotation::vcfInput !="") {
 			printf("Warning: you have entered both groupfile and annotated VCF file. Groups will be read from the group file only.\n");
 			GroupFromAnnotation::vcfInput="";
 		}
 		
 		String path;
 		path = argv[0];
-		Meta meta;
+		Meta meta (logFile);
 		meta.Prepare();
 		group.Run(path,logFile);
-		meta.PoolSummaryStat(group,logFile);
-		meta.Run(group,logFile);
+		meta.PoolSummaryStat(group);
+		meta.Run(group);
 		
 		time(&now);
 		printf("\nAnalysis ends at: %s\n", ctime(&now));
@@ -131,8 +128,7 @@ int main(int argc, char ** argv)
 		
 		fclose(logFile);
 	}
-	catch(std::exception& e)
-	{
+	catch(std::exception& e) {
 		printf("Exiting, exception thrown: %s\n\n",e.what());
 		fprintf(logFile,"Exiting, exception thrown: %s\n\n",e.what());
 		PhoneHome::completionStatus("Exception");

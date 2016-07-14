@@ -21,6 +21,8 @@
 #include "PreMeta.h"
 #include "KinshipEmp.h"
 #include <Eigen/Eigenvalues>
+#include <map>
+#include <iterator>
 
 bool FastTransform::empKin = false;
 bool FastTransform::pedKin = false;
@@ -28,7 +30,7 @@ bool FastTransform::mergedVCFID = false;
 String FastTransform::readInEmp = "";
 String FastTransform::readInEmpX = "";
 
-   FastTransform::FastTransform()
+FastTransform::FastTransform()
 :pPheno			(NULL)
 {}
 
@@ -39,147 +41,127 @@ FastTransform::~FastTransform()
 
 void FastTransform::GetFixedEffectsCount(Pedigree & ped, bool useCovariates)
 {
-   fixedEffects = 1 + (useCovariates ? ped.covariateCount : 0);
+	fixedEffects = 1 + (useCovariates ? ped.covariateCount : 0);
 }
 
 void FastTransform::SelectSamplesPED(Pedigree & ped,bool useCovariates)
 {
-   //printf("Selecting useful samples ...\n");
-   for(int i=0;i<ped.count;i++)
-   {
-      //check if this sample is phenotyped at least one trait
-      bool phenotyped =false;
-      for(int tr=0;tr<ped.traitNames.Length();tr++)
-      {
-	 if(ped[i].isPhenotyped(tr))
-	 {
-	    phenotyped=true;
-	    break;
-	 }
-      }
-      //     if (phenotyped && (!useCovariates || ped[i].isFullyControlled()))
-      if (phenotyped)
-      {
-	 bool reject = true;
-	 for(int m=0;m<ped.markerCount;m++)
-	 {
-	    if(ped[i].isGenotyped(m))
-	    {
-	       reject =false;
-	       break;
-	    }
-	 }
-	 if(reject)
-	    continue;
-	 //String id = ped[i].famid + "." + ped[i].pid;
-	 //samplePEDIDHash.SetInteger(id,i);
-	 samplePEDIDHash.SetInteger(ped[i].pid,i);
-	 genotypedSamplePED.Push(i);
-      }
-   }
+	//printf("Selecting useful samples ...\n");
+	for(int i=0;i<ped.count;i++) {
+	//check if this sample is phenotyped at least one trait
+		bool phenotyped =false;
+   		for(int tr=0;tr<ped.traitNames.Length();tr++) {
+   			if(ped[i].isPhenotyped(tr)) {
+   				phenotyped=true;
+	    		break;
+			}
+		}
+    	if (phenotyped) {
+			bool reject = true;
+			for(int m=0;m<ped.markerCount;m++) {
+				if(ped[i].isGenotyped(m)) {
+	    			reject =false;
+	    			break;
+	    		}
+			}
+			if(reject)
+	    		continue;
+	 		//String id = ped[i].famid + "." + ped[i].pid;
+	 		//samplePEDIDHash.SetInteger(id,i);
+	 		samplePEDIDHash.SetInteger(ped[i].pid,i);
+			genotypedSamplePED.Push(i);
+		}
+	}
 }
 
+
+// 07/08/16 update: read vcf once instead of multiple times
 void FastTransform::SelectSamplesVCF(Pedigree & ped,bool useCovariates)
 {
-   //   printf("Selecting useful samples ...\n");
-   VcfFileReader reader;
-   VcfHeader header;
-   VcfRecord record;
-   reader.open(PreMeta::vcfInput,header);
-   int numSamples = header.getNumSamples();
-   totalN=numSamples;
-   reader.close();
+	// printf("Selecting useful samples ...\n");
+	VcfFileReader reader;
+	VcfHeader header;
+	VcfRecord record;
+	reader.open(PreMeta::vcfInput,header);
+	int numSamples = header.getNumSamples();
+	totalN=numSamples;
+	reader.close();
 
-   StringIntHash VCFID;
-   for(int s=0;s<numSamples;s++)
-   {
-      const char * sample = header.getSampleName(s);
-      VCFID.SetInteger(sample,s);
-   }
+	StringIntHash VCFID;
+	for(int s=0;s<numSamples;s++) {
+		const char * sample = header.getSampleName(s);
+		VCFID.SetInteger(sample,s);
+	}
 
-   for (int i = 0; i < ped.count; i++)
-   {
-      //check if this a sample is phenotyped at least one trait
-      bool phenotyped =false;
-      for(int tr=0;tr<ped.traitNames.Length();tr++)
-      {
-	 if(ped[i].isPhenotyped(tr))
-	 {
-	    phenotyped=true;
-	    break;
-	 }
-      }
-      //if (phenotyped && (!useCovariates || ped[i].isFullyControlled()))
-      if (!phenotyped)
-	 continue;
-      //get the sample # from VCF 
-      int s;
-      if(mergedVCFID)
-      {
-	 String sample = ped[i].famid+"_"+ped[i].pid;
-	 s = VCFID.Integer(sample);
-      }
-      else
-      {
-	 s = VCFID.Integer(ped[i].pid);
-      }
-
-      if(s==-1)
-	 continue;
-      //check if this sample is genotyped at least one site.
-      reader.open(PreMeta::vcfInput,header);
-      //screen out individuals who are not genotyped at all
-      bool reject = true;
-      while(reader.readRecord(record))
-      {
-	 VcfRecordGenotype & genoInfo = record.getGenotypeInfo();
-	 if(PreMeta::dosage)
-	 {
-	    const std::string * geno = genoInfo.getString(PreMeta::dosageFlag.c_str(),s);
-	    if(!geno)
-	    {
-	       error("RAREMETALWORKER could not find dosage in \"%s\" field in VCF file!",PreMeta::dosageFlag.c_str());
-	    }
-
-	    if(*geno != ".")
-	    {
-	       reject = false;
-	       break;
-	    }
-	 }
-	 else
-	 {
-	    int numGTs = record.getNumGTs(s);
-	    int bad =0;
-	    for(int j = 0; j < numGTs; j++)
-	    {
-	       if(record.getGT(s,j) == VcfGenotypeSample::MISSING_GT)
-		  bad++;
-	    }
-	    if(bad==0)
-	    {
-	       reject=false;
-	       break;
-	    }
-	 }
-      }
-      reader.close();
-
-      if(reject) continue;
-      //printf("%s\n",ped[i].pid.c_str());
-      if(mergedVCFID)
-      {
-	 String sample = ped[i].famid+"_"+ped[i].pid;
-	 sampleVCFIDHash.SetInteger(sample,s);
-      samplePEDIDHash.SetInteger(sample,i);
-      }
-      else
-{
-	 sampleVCFIDHash.SetInteger(ped[i].pid,s);
-      samplePEDIDHash.SetInteger(ped[i].pid,i);
-}
-      genotypedSampleVCF.Push(s);
-   }
+	// now see if each sample is genotyped in at least one site
+	std::map<int, bool> g1; // store the samples that haven't found a genotyped site
+	for(int s=0; s<numSamples; s++)
+		g1[s] = 0;
+	reader.open(PreMeta::vcfInput,header);
+	while(reader.readRecord(record)) {
+		if (g1.empty())
+			break;
+		VcfRecordGenotype & genoInfo = record.getGenotypeInfo();
+		std::map<int, bool> to_remove;
+		for(std::map<int, bool>::iterator t=g1.begin(); t!=g1.end(); t++) {
+			int s = t->first;
+			if(PreMeta::dosage) {
+				const std::string * geno = genoInfo.getString(PreMeta::dosageFlag.c_str(),s);
+				if(!geno)
+					error("cannot find dosage at \"%s\" in VCF!",PreMeta::dosageFlag.c_str());
+				if(*geno != ".")
+					to_remove[s] = 1;
+			}
+			else { // gt
+				int numGTs = record.getNumGTs(s);
+				bool bad = 0;
+				for(int j = 0; j < numGTs; j++) {
+					if(record.getGT(s,j) == VcfGenotypeSample::MISSING_GT) {
+						bad = 1;
+						break;
+					}
+				}
+				if (!bad)
+					to_remove[s] = 1;
+			}
+		}
+		for(std::map<int, bool>::iterator pm=to_remove.begin(); pm!=to_remove.end(); pm++)
+			g1.erase(pm->first);
+	}
+	reader.close();
+	// now g1 has index of samples that are not genotyped
+	for(int i=0; i<ped.count; i++) {
+		bool phenotyped =false;
+		for(int tr=0;tr<ped.traitNames.Length();tr++) {
+			if(ped[i].isPhenotyped(tr)) {
+				phenotyped=true;
+				break;
+			}
+		}
+		if (!phenotyped)
+			continue;
+		int s;
+		String sample;
+		if(mergedVCFID) {
+			sample = ped[i].famid+"_"+ped[i].pid;
+			s = VCFID.Integer(sample);
+		}
+		else
+			s = VCFID.Integer(ped[i].pid);
+		if (s==-1)
+			continue;
+		if (g1.find(s) != g1.end())
+			continue;
+		if(mergedVCFID) {
+			sampleVCFIDHash.SetInteger(sample,s);
+			samplePEDIDHash.SetInteger(sample,i);
+		}
+		else {
+			sampleVCFIDHash.SetInteger(ped[i].pid,s);
+			samplePEDIDHash.SetInteger(ped[i].pid,i);
+		}
+		genotypedSampleVCF.Push(s);
+	}
 }
 
 void FastTransform::ScreenSampleID(Pedigree & ped,bool useCovariates)

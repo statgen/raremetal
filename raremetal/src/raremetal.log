@@ -1,0 +1,40 @@
+The following parameters are in effect:
+
+List of Studies:
+============================
+--summaryFiles []
+--covFiles []
+
+Grouping Methods:
+============================
+--groupFile []
+--annotatedVcf []
+--annotation []
+--writeVcf [OFF]
+
+QC Options:
+============================
+--hwe [1e-05]
+--callRate [0.95]
+
+Association Methods:
+============================
+--burden [false]
+--MB [false]
+--SKAT [false]
+--VT [false]
+--condition []
+
+Other Options:
+============================
+--tabix [false]
+--correctGC [false]
+--prefix []
+--maf [0.05]
+--longOutput [false]
+--tabulateHits [false]
+--dosage [OFF]
+--hitsCutoff [1e-06]
+--altMAF [OFF]
+Analysis started at: Thu Apr 21 13:07:43 2016
+

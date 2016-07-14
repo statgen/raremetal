@@ -6,6 +6,8 @@
 // Written by Jan Wigginton
 */
 
+// 07/08/16 fixed "mid" when value is too big than int limit
+
 double SNPHWE(int obs_hets, int obs_hom1, int obs_hom2)
 {
    if (obs_hom1 < 0 || obs_hom2 < 0 || obs_hets < 0) 
@@ -33,7 +35,7 @@ double SNPHWE(int obs_hets, int obs_hom1, int obs_hom2)
       het_probs[i] = 0.0;
 
    /* start at midpoint */
-   int mid = rare_copies * (2 * genotypes - rare_copies) / (2 * genotypes);
+   int mid = (double)rare_copies / (double)(2 * genotypes) * (double)(2 * genotypes - rare_copies);
 
    /* check to ensure that midpoint and rare alleles have same parity */
    if ((rare_copies & 1) ^ (mid & 1))

@@ -172,26 +172,22 @@ void FastFit::PrintPreface(IFILE output,Pedigree & ped,FastTransform & trans,FIL
       ifprintf(output,"##Covariates=");
       ifprintf(output,"%s",ped.covariateNames[0].c_str());
       for(int i=1;i<ped.covariateCount;i++)
-	 ifprintf(output,",%s",ped.covariateNames[i].c_str());
+         ifprintf(output,",%s",ped.covariateNames[i].c_str());
       ifprintf(output,"\n");
       ifprintf(output,"##CovariateSummaries\tmin\t25th\tmedian\t75th\tmax\tmean\tvariance\n");
-      for(int i=0;i<ped.covariateCount;i++)
-      {
-	 Vector covariate;
-	 for (int f = 0; f < ped.familyCount; f++)
-	 {
-	    for(int j=0;j<trans.pPheno[f].Length();j++)
-	    {
-	       covariate.Push(ped[trans.pPheno[f][j]].covariates[i]);
-	    }
-	 }
-	 covariate.Sort();
-	 //covariate.RemoveDuplicates();
-	 int first,second,middle;
-	 first = (int) covariate.Length()/4;
-	 second = first*3;
-	 middle = (int) (first+second)/2;
-	 ifprintf(output,"##%s\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n",ped.covariateNames[i].c_str(),covariate.Min(),covariate[first],covariate[middle],covariate[second],covariate.Max(),covariate.Average(),covariate.Var());
+      for(int i=0;i<ped.covariateCount;i++) {
+         Vector covariate;
+         for (int f = 0; f < ped.familyCount; f++) {
+            for(int j=0;j<trans.pPheno[f].Length();j++)
+               covariate.Push(ped[trans.pPheno[f][j]].covariates[i]);
+         }
+        covariate.Sort();
+         //covariate.RemoveDuplicates();
+         int first,second,middle;
+         first = (int) covariate.Length()/4;
+         second = first*3;
+         middle = (int) (first+second)/2;
+         ifprintf(output,"##%s\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n",ped.covariateNames[i].c_str(),covariate.Min(),covariate[first],covariate[middle],covariate[second],covariate.Max(),covariate.Average(),covariate.Var());
       }
    }
    else 
@@ -375,13 +371,11 @@ void FastFit::FitModels(IFILE SCOREoutput,IFILE SCOREoutput_rec,IFILE SCOREoutpu
    //Calculate Cov(beta_hat)
    //double sigma_g2 = engine.sigma_g2Hat;
    //double sigma_e2 = engine.sigma_e2Hat;
-      if(!unrelated)
-      {
-	 Vector sigma2(trans.persons);
-	 for(int i=0;i<trans.persons;i++)
-	 {
-	    sigma2[i] = sigma_g2Hat*trans.D[i]+sigma_e2Hat;
-	 }
+   if(!unrelated)
+   {
+	  Vector sigma2(trans.persons);
+	  for(int i=0;i<trans.persons;i++)
+         sigma2[i] = sigma_g2Hat*trans.D[i]+sigma_e2Hat;
 
 	 inv.Dimension(trans.UX.cols,trans.UX.cols);
 	 Eigen::MatrixXd X;
@@ -404,70 +398,63 @@ void FastFit::FitModels(IFILE SCOREoutput,IFILE SCOREoutput_rec,IFILE SCOREoutpu
 	 for(int i=0;i<inv.rows;i++)
 	    for(int j=0;j<inv.cols;j++)
 	       inv[i][j] = inv_(i,j);
-      }
-      else
-      {
-	 inv.Dimension(trans.X.cols,trans.X.cols);
-	 Eigen::MatrixXd X;
-	 Eigen::MatrixXd tmp;
-	 Eigen::MatrixXd inv_;
-	 X.resize(trans.X.rows,trans.X.cols);
-	 for(int i=0;i<trans.X.rows;i++)
-	    for(int j=0;j<trans.X.cols;j++)
-	       X(i,j)=trans.X[i][j];
-	 tmp.resize(trans.persons,trans.persons);
-	 inv_.resize(trans.X.cols,trans.X.cols);
-	 tmp = X.transpose()*X;
-	 inv_ = tmp.inverse(); 
-	 inv_ *= sigma2Hat;
-	 for(int i=0;i<inv.rows;i++)
-	    for(int j=0;j<inv.cols;j++)
-	       inv[i][j] = inv_(i,j);
+   }
+   else {
+    inv.Dimension(trans.X.cols,trans.X.cols);
+    Eigen::MatrixXd X;
+    Eigen::MatrixXd tmp;
+    Eigen::MatrixXd inv_;
+    X.resize(trans.X.rows,trans.X.cols);
+    for(int i=0;i<trans.X.rows;i++)
+      for(int j=0;j<trans.X.cols;j++)
+         X(i,j)=trans.X[i][j];
+      tmp.resize(trans.persons,trans.persons);
+      inv_.resize(trans.X.cols,trans.X.cols);
+      tmp = X.transpose()*X;
+      inv_ = tmp.inverse(); 
+      inv_ *= sigma2Hat;
+      for(int i=0;i<inv.rows;i++)
+       for(int j=0;j<inv.cols;j++)
+          inv[i][j] = inv_(i,j);
       }
       ifprintf(SCOREoutput,"## - NullModelEstimates\n");
       ifprintf(SCOREoutput,"## - Name\tBetaHat\tSE(BetaHat)\n");
       ifprintf(SCOREoutput,"## - Intercept\t%g\t%g\n",betaHat[0],sqrt(inv[0][0]));
-      if(betaHat.Length()>1)
-	 for(int b=1;b<betaHat.Length();b++)
-	 {
-	    ifprintf(SCOREoutput,"## - %s\t%g\t%g\n",ped.covariateNames[b-1].c_str(),betaHat[b],sqrt(inv[b][b]));
-	 }
-
-   Vector y;
-   for (int f = 0; f < ped.familyCount; f++)
-   {
-      for(int j=0;j<trans.pPheno[f].Length();j++)
-      {
-	 y.Push(ped[trans.pPheno[f][j]].traits[traitNum]);
+      if(betaHat.Length()>1) {
+         for(int b=1;b<betaHat.Length();b++)
+            ifprintf(SCOREoutput,"## - %s\t%g\t%g\n",ped.covariateNames[b-1].c_str(),betaHat[b],sqrt(inv[b][b]));
       }
-   }
-   y.Sort();
-   int first,second,middle;
-   first = (int) y.Length()/4;
-   second = first*3;
-   middle = (int) (first+second)/2;
-   ifprintf(SCOREoutput,"##AnalyzedTrait\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n",y.Min(),y[first],y[middle],y[second],y.Max(),y.Average(),y.Var());
 
-   if(unrelated)
+      Vector y;
+      for (int f = 0; f < ped.familyCount; f++) {
+         for(int j=0;j<trans.pPheno[f].Length();j++)
+            y.Push(ped[trans.pPheno[f][j]].traits[traitNum]);
+      }
+      y.Sort();
+      int first,second,middle;
+      first = (int) y.Length()/4;
+      second = first*3;
+      middle = (int) (first+second)/2;
+      ifprintf(SCOREoutput,"##AnalyzedTrait\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n",y.Min(),y[first],y[middle],y[second],y.Max(),y.Average(),y.Var());
+
+      if(unrelated)
       ifprintf(SCOREoutput,"##Sigma_e2_Hat\t%g\n",sigma2Hat);
-   else
-   {
-      ifprintf(SCOREoutput,"##Sigma_g2_Hat\t%g\n",sigma_g2Hat);
-      ifprintf(SCOREoutput,"##Sigma_e2_Hat\t%g\n",sigma_e2Hat);
-   }
+      else
+      {
+         ifprintf(SCOREoutput,"##Sigma_g2_Hat\t%g\n",sigma_g2Hat);
+         ifprintf(SCOREoutput,"##Sigma_e2_Hat\t%g\n",sigma_e2Hat);
+      }
 
-   printf("  done.\n");
-   fprintf(log,"  done.\n");
+      printf("  done.\n");
+      fprintf(log,"  done.\n");
 
    //house keeping
-   if(CleanKin)
-   {
-      kin_emp.CleanUpAuto();
-      if(AutoFit::fitX)
+      if(CleanKin)
       {
-	 kin_emp.CleanUpX();
+         kin_emp.CleanUpAuto();
+         if(AutoFit::fitX)
+            kin_emp.CleanUpX();
       }
-   }
    //trans.CleanUp();
 
 
@@ -676,9 +663,7 @@ void FastFit::FitSimpleLinearModels(Pedigree & ped,double tol,FastTransform & tr
    for (int f = 0; f < ped.familyCount; f++)
    {
       for(int j=0;j<trans.pPheno[f].Length();j++)
-      {
-	 Y.Push(ped[trans.pPheno[f][j]].traits[traitNum]);
-      }
+         Y.Push(ped[trans.pPheno[f][j]].traits[traitNum]);
    }
 
    Vector tmp;
