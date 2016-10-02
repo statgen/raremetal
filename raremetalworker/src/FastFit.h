@@ -39,12 +39,13 @@ class FastFit : public ScalarMinimizer
 		FastFit() {};
 		~FastFit() {};
 		virtual double Brent(double tol, FastTransform & trans);
-		static bool   useCovariates;
-		static bool   inverseNormal;
-		static bool   makeResiduals;
-		static bool   unrelated;
-		static bool   separateX;
-		static bool   CleanKin;
+		static bool useCovariates;
+		static bool inverseNormal;
+		static bool makeResiduals;
+		static bool unrelated;
+		static bool separateX;
+		static bool CleanKin;
+		static bool binary;
 		int traitNum;
 		static String traitName;
 
@@ -58,7 +59,6 @@ class FastFit : public ScalarMinimizer
 		Vector residuals_unrelated;
 		Matrix inv;
 
-
 		//Estimation functions
 		double Evaluate(double delta,FastTransform & trans,bool full);
 		double EvaluateMulti(FastTransform & trans,bool full);
@@ -69,6 +69,8 @@ class FastFit : public ScalarMinimizer
 		void PreFit(IFILE SCOREoutput,IFILE SCOREoutput_rec,IFILE SCOREoutput_dom,Pedigree & ped,double tol,FastTransform & trans,FILE * log);
 		void FitModels(IFILE SCOREoutput,IFILE SCOREoutput_rec,IFILE SCOREoutput_dom,Pedigree & ped, double tol, FastTransform & trans,KinshipEmp & kin_emp, FILE * log);
 		void FitSimpleLinearModels(Pedigree & ped, double tol, FastTransform & trans,KinshipEmp & kin_emp,FILE * log);
+		void FitSimpleLogisticModels(Pedigree & ped, FastTransform & trans,FILE * log);
+
 		void AutoFitLinearMixModels(Pedigree & ped, double tol, FastTransform & trans,KinshipEmp & kin_emp,FILE * log,bool forX);
 		void AutoFitLinearMixModels2(Pedigree & ped, double tol, FastTransform & trans,KinshipEmp & kin_emp,FILE * log,bool forX);
 		void FastFitPolyGenicModels(Pedigree & ped, double tol, FastTransform & trans,KinshipEmp & kin_emp,FILE * log, bool forX);

@@ -18,6 +18,7 @@
 #include "FastFit.h"
 #include "PreMeta.h"
 #include "AutoFit2.h"
+#include "logistic.h"
 
 int traitNum = 0;
 bool FastFit::useCovariates = false;
@@ -26,6 +27,7 @@ bool FastFit::makeResiduals = false;
 bool FastFit::unrelated = false;
 bool FastFit::separateX = false;
 bool FastFit::CleanKin = false;
+bool FastFit::binary = false;
 String FastFit::traitName = "";
 
 void FastFit::OptimizeDelta(double tol,FastTransform & trans)
@@ -165,6 +167,10 @@ void FastFit::PrintPreface(IFILE output,Pedigree & ped,FastTransform & trans,FIL
    ifprintf(output,"##Families=%d\n",trans.numFamily);
    ifprintf(output,"##AnalyzedFamilies=%d\n",trans.families);
    ifprintf(output,"##Founders=%d\n",trans.numFounder);
+   if(makeResiduals)
+      ifprintf(output, "##MakeResiduals=True\n");
+   else
+      ifprintf(output, "##MakeResiduals=False\n");
    ifprintf(output,"##AnalyzedFounders=%d\n",trans.analyzedFounders);
 
    if((useCovariates || makeResiduals) && ped.covariateNames.Length()>0)
@@ -226,8 +232,7 @@ void FastFit::PreFit(IFILE SCOREoutput,IFILE SCOREoutput_rec,IFILE SCOREoutput_d
    if(PreMeta::dominant)
       PrintPreface(SCOREoutput_dom,ped,trans,log);
 
-   if(makeResiduals)
-   {
+   if(makeResiduals) {
       FastFit::useCovariates=true;
       Matrix inv;
       Matrix transX;
@@ -235,60 +240,6 @@ void FastFit::PreFit(IFILE SCOREoutput,IFILE SCOREoutput_rec,IFILE SCOREoutput_d
 
       //Get beta_hat and residuals
       Vector tmp;
-      tmp.Dimension(trans.fixedEffects);
-      for(int j=0;j<trans.fixedEffects;j++)
-	 tmp[j] =trans.Y.InnerProduct(transX[j]);
-
-      inv.Product(transX,trans.X);
-      SVD svd;
-      svd.InvertInPlace(inv);
-
-      for(int i=0;i<trans.fixedEffects;i++)
-	 betaHat[i] = inv[i].InnerProduct(tmp);
-
-      residuals_unrelated.Dimension(trans.persons);
-      for(int i=0;i<trans.persons;i++)
-	 residuals_unrelated[i] = trans.Y[i] - betaHat.InnerProduct(trans.X[i]);
-
-/*
-      double var = residuals_unrelated.Var();
-      for(int r=0;r<inv.rows;r++)
-	 for(int c=0;c<inv.cols;c++)
-	    inv[r][c] *= var;
-      if(!inverseNormal)
-      {
-	 ifprintf(SCOREoutput,"##NullModelEstimates\n");
-	 ifprintf(SCOREoutput,"##Name\tBetaHat\tSE(BetaHat)\n");
-	 ifprintf(SCOREoutput,"##Intercept\t%g\t%g\n",betaHat[0],sqrt(inv[0][0]));
-	 if(betaHat.Length()>1)
-	    for(int b=1;b<betaHat.Length();b++)
-	    {
-	       ifprintf(SCOREoutput,"##%s\t%g\t%g\n",ped.covariateNames[b-1].c_str(),betaHat[b],sqrt(inv[b][b]));
-	    }
-      }
-*/
-      //replace trait values into residuals
-      int index=0;
-      for(int i=0;i<ped.count;i++)
-	 ped[i].traits[traitNum] = _NAN_;
-
-      for (int f = 0; f < ped.familyCount; f++)
-      {
-	 for(int j=0;j<trans.pPheno[f].Length();j++)
-	 {
-	    ped[trans.pPheno[f][j]].traits[traitNum] = residuals_unrelated[index];
-	    index++;
-	 }
-      }
-/*
-   if(inverseNormal)
-   {
-      InverseNormalTransform(ped,traitNum);
-//TODO:put phenotype in vector Y
-Vector Y(trans.persons);
-
-
-    Vector tmp;
       tmp.Dimension(trans.fixedEffects);
       for(int j=0;j<trans.fixedEffects;j++)
          tmp[j] =trans.Y.InnerProduct(transX[j]);
@@ -300,15 +251,25 @@ Vector Y(trans.persons);
       for(int i=0;i<trans.fixedEffects;i++)
          betaHat[i] = inv[i].InnerProduct(tmp);
 
-   }
-*/
+      residuals_unrelated.Dimension(trans.persons);
+      for(int i=0;i<trans.persons;i++)
+         residuals_unrelated[i] = trans.Y[i] - betaHat.InnerProduct(trans.X[i]);
+      //replace trait values into residuals
+      int index=0;
+      for(int i=0;i<ped.count;i++)
+         ped[i].traits[traitNum] = _NAN_;
+
+      for (int f = 0; f < ped.familyCount; f++) {
+         for(int j=0;j<trans.pPheno[f].Length();j++) {
+            ped[trans.pPheno[f][j]].traits[traitNum] = residuals_unrelated[index];
+            index++;
+         }
+      }
       FastFit::useCovariates=false;
    }
 
    if(inverseNormal)
-   {
       InverseNormalTransform(ped,traitNum);
-   }
 
    trans.GetFixedEffectsCount(ped,useCovariates);
    beta.Clear();
@@ -334,8 +295,7 @@ void FastFit::FitModels(IFILE SCOREoutput,IFILE SCOREoutput_rec,IFILE SCOREoutpu
 
    PreFit(SCOREoutput,SCOREoutput_rec,SCOREoutput_dom,ped, tol, trans,log);
 
-   if(unrelated)
-   {
+   if(unrelated) {
       printf("  Start fitting linear model ... ");
       fprintf(log,"  Start fitting linear model ... ");
       fflush(stdout);
@@ -348,22 +308,12 @@ void FastFit::FitModels(IFILE SCOREoutput,IFILE SCOREoutput_rec,IFILE SCOREoutpu
    }
    if(unrelated)
    {
-      FitSimpleLinearModels(ped,tol,trans,kin_emp,log);
+      if (binary)
+         FitSimpleLogisticModels(ped, trans, log);
+      else
+         FitSimpleLinearModels(ped,tol,trans,kin_emp,log);
    }
-   /*
-      else if(!FastTransform::empKin && AutoFit::fitX)
-      {
-   //when fitting variance component model with sigmag2 and sigmag2X, together with pedigree kinship, use AutoFit.
-   AutoFitLinearMixModels(ped,tol,trans,kin_emp,log);
-   }
-   else if(FastTransform::empKin && AutoFit::fitX && !separateX)
-   {
-   //when fitting variance component model with sigmag2 and sigmag2X, together with empirical kinship, use AutoFit2.
-   AutoFitLinearMixModels2(ped,tol,trans,kin_emp,log);
-   }
-    */
-   else
-   {
+   else {
       //when fitting the basic variance component model, use fast fit algorithm
       FastFitPolyGenicModels(ped,tol,trans,kin_emp,log,false);
    }
@@ -400,14 +350,14 @@ void FastFit::FitModels(IFILE SCOREoutput,IFILE SCOREoutput_rec,IFILE SCOREoutpu
 	       inv[i][j] = inv_(i,j);
    }
    else {
-    inv.Dimension(trans.X.cols,trans.X.cols);
-    Eigen::MatrixXd X;
-    Eigen::MatrixXd tmp;
-    Eigen::MatrixXd inv_;
-    X.resize(trans.X.rows,trans.X.cols);
-    for(int i=0;i<trans.X.rows;i++)
-      for(int j=0;j<trans.X.cols;j++)
-         X(i,j)=trans.X[i][j];
+      inv.Dimension(trans.X.cols,trans.X.cols);
+      Eigen::MatrixXd X;
+      Eigen::MatrixXd tmp;
+      Eigen::MatrixXd inv_;
+      X.resize(trans.X.rows,trans.X.cols);
+      for(int i=0;i<trans.X.rows;i++)
+         for(int j=0;j<trans.X.cols;j++)
+            X(i,j)=trans.X[i][j];
       tmp.resize(trans.persons,trans.persons);
       inv_.resize(trans.X.cols,trans.X.cols);
       tmp = X.transpose()*X;
@@ -416,45 +366,45 @@ void FastFit::FitModels(IFILE SCOREoutput,IFILE SCOREoutput_rec,IFILE SCOREoutpu
       for(int i=0;i<inv.rows;i++)
        for(int j=0;j<inv.cols;j++)
           inv[i][j] = inv_(i,j);
-      }
-      ifprintf(SCOREoutput,"## - NullModelEstimates\n");
-      ifprintf(SCOREoutput,"## - Name\tBetaHat\tSE(BetaHat)\n");
-      ifprintf(SCOREoutput,"## - Intercept\t%g\t%g\n",betaHat[0],sqrt(inv[0][0]));
-      if(betaHat.Length()>1) {
-         for(int b=1;b<betaHat.Length();b++)
-            ifprintf(SCOREoutput,"## - %s\t%g\t%g\n",ped.covariateNames[b-1].c_str(),betaHat[b],sqrt(inv[b][b]));
-      }
+   }
+   ifprintf(SCOREoutput,"## - NullModelEstimates\n");
+   ifprintf(SCOREoutput,"## - Name\tBetaHat\tSE(BetaHat)\n");
+   ifprintf(SCOREoutput,"## - Intercept\t%g\t%g\n",betaHat[0],sqrt(inv[0][0]));
+   if(betaHat.Length()>1) {
+      for(int b=1;b<betaHat.Length();b++)
+         ifprintf(SCOREoutput,"## - %s\t%g\t%g\n",ped.covariateNames[b-1].c_str(),betaHat[b],sqrt(inv[b][b]));
+   }
 
-      Vector y;
-      for (int f = 0; f < ped.familyCount; f++) {
-         for(int j=0;j<trans.pPheno[f].Length();j++)
-            y.Push(ped[trans.pPheno[f][j]].traits[traitNum]);
-      }
-      y.Sort();
-      int first,second,middle;
-      first = (int) y.Length()/4;
-      second = first*3;
-      middle = (int) (first+second)/2;
-      ifprintf(SCOREoutput,"##AnalyzedTrait\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n",y.Min(),y[first],y[middle],y[second],y.Max(),y.Average(),y.Var());
+   Vector y;
+   for (int f = 0; f < ped.familyCount; f++) {
+      for(int j=0;j<trans.pPheno[f].Length();j++)
+         y.Push(ped[trans.pPheno[f][j]].traits[traitNum]);
+   }
+   y.Sort();
+   int first,second,middle;
+   first = (int) y.Length()/4;
+   second = first*3;
+   middle = (int) (first+second)/2;
+   ifprintf(SCOREoutput,"##AnalyzedTrait\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n",y.Min(),y[first],y[middle],y[second],y.Max(),y.Average(),y.Var());
 
-      if(unrelated)
+   if(unrelated)
       ifprintf(SCOREoutput,"##Sigma_e2_Hat\t%g\n",sigma2Hat);
-      else
-      {
-         ifprintf(SCOREoutput,"##Sigma_g2_Hat\t%g\n",sigma_g2Hat);
-         ifprintf(SCOREoutput,"##Sigma_e2_Hat\t%g\n",sigma_e2Hat);
-      }
+   else
+   {
+      ifprintf(SCOREoutput,"##Sigma_g2_Hat\t%g\n",sigma_g2Hat);
+      ifprintf(SCOREoutput,"##Sigma_e2_Hat\t%g\n",sigma_e2Hat);
+   }
 
-      printf("  done.\n");
-      fprintf(log,"  done.\n");
+   printf("  done.\n");
+   fprintf(log,"  done.\n");
 
-   //house keeping
-      if(CleanKin)
-      {
-         kin_emp.CleanUpAuto();
-         if(AutoFit::fitX)
-            kin_emp.CleanUpX();
-      }
+//house keeping
+   if(CleanKin)
+   {
+      kin_emp.CleanUpAuto();
+      if(AutoFit::fitX)
+         kin_emp.CleanUpX();
+   }
    //trans.CleanUp();
 
 
@@ -488,25 +438,20 @@ void FastFit::FastFitPolyGenicModels(Pedigree & ped,double tol,FastTransform & t
    }
    printf("\n");
    }
-    */
+   */
 
-   if(FastTransform::pedKin)
-   {
+   if(FastTransform::pedKin) {
       if(forX)
-	 trans.TransformPedkinSepX(ped,traitNum,useCovariates,log);
+         trans.TransformPedkinSepX(ped,traitNum,useCovariates,log);
       else
-	 trans.TransformPedkin(ped,traitNum,useCovariates,log);
+         trans.TransformPedkin(ped,traitNum,useCovariates,log);
    }
    else
    {
       if(forX)
-      {
-	 trans.TransformEmpkin(ped,traitNum,useCovariates,kin_emp,kin_emp.allPairsX,log);
-      }
+         trans.TransformEmpkin(ped,traitNum,useCovariates,kin_emp,kin_emp.allPairsX,log);
       else
-      {
-	 trans.TransformEmpkin(ped,traitNum,useCovariates,kin_emp,kin_emp.allPairs,log);
-      }
+         trans.TransformEmpkin(ped,traitNum,useCovariates,kin_emp,kin_emp.allPairs,log);
    }
    OptimizeDelta(0.0001,trans);
 
@@ -655,6 +600,15 @@ void FastFit::FitSimpleLinearModels(Pedigree & ped,double tol,FastTransform & tr
 {
    trans.Prepare(ped,traitNum,useCovariates,log,true);
 
+   /* debug
+   printf("\nX size = %d,%d\n", trans.X.rows, trans.X.cols);
+   printf("X:");
+   for(int i=0; i<trans.X.rows; i++) {
+      for(int j=0; j<trans.X.cols; j++)
+         printf(",%g",trans.X[i][j]);
+      printf("\n");
+   }*/
+
    Matrix inv;
    Matrix transX;
    transX.Transpose(trans.X);
@@ -665,6 +619,9 @@ void FastFit::FitSimpleLinearModels(Pedigree & ped,double tol,FastTransform & tr
       for(int j=0;j<trans.pPheno[f].Length();j++)
          Y.Push(ped[trans.pPheno[f][j]].traits[traitNum]);
    }
+   bool is_possible_binary = isBinaryY(Y);
+   if (is_possible_binary)
+      printf("Warning: only 2 values found in phenotype. Should we try --binary instead?");
 
    Vector tmp;
    tmp.Dimension(trans.fixedEffects);
@@ -690,12 +647,38 @@ void FastFit::FitSimpleLinearModels(Pedigree & ped,double tol,FastTransform & tr
    //     residuals_unrelated[i] /= sigma2Hat;
 }
 
+void FastFit::FitSimpleLogisticModels(Pedigree & ped, FastTransform & trans,FILE * log)
+{
+   trans.Prepare(ped,traitNum,useCovariates,log,true);
+
+   Vector Y;
+   for (int f = 0; f < ped.familyCount; f++) {
+      for(int j=0;j<trans.pPheno[f].Length();j++) {
+//printf("%g\n",ped[trans.pPheno[f][j]].traits[traitNum]);
+         Y.Push(ped[trans.pPheno[f][j]].traits[traitNum]);
+      }
+   }
+
+   // fit model
+   int Yplus1, Yminus1;
+   convertBinaryTrait(Y, Yplus1, Yminus1);
+   GetLogitCoeff(betaHat, trans.X, Y);
+
+   residuals_unrelated.Dimension(trans.persons);
+   for(int i=0;i<trans.persons;i++)
+      residuals_unrelated[i] = Y[i] - sigmoid(betaHat.InnerProduct(trans.X[i]));
+
+   sigma_g2Hat=0.0;
+   sigma2Hat = residuals_unrelated.SumSquares()/trans.persons;
+}
+
+
 int FastFit::GetTraitID( Pedigree & ped, const char * name,FILE * log)
 {
    int idx = ped.traitLookup.Integer(name);
-   if (idx != -1) return idx;
-   else 
-   {
+   if (idx != -1)
+      return idx;
+   else {
       fprintf(log,"Error! Trait not found. Please check .dat file for the correct trait name.\n");
       error("Error! Trait not found. Please check .dat file for the correct trait name.\n");
       return -1;
@@ -706,8 +689,7 @@ double FastFit::Brent(double tol,FastTransform & trans)
 {
    double temp;
 
-   if (a > c)
-   {
+   if (a > c) {
       SHIFT(temp, a, c, temp);
       SHIFT(temp, fa, fc, temp);
    }
@@ -717,83 +699,70 @@ double FastFit::Brent(double tol,FastTransform & trans)
    double fw = fb, fv = fb;
 
    double delta = 0.0;         // distance moved in step before last
-
    double u, fu, d = 0.0;      // Initializing d is not necesary, but avoids warnings
-   for (int iter = 1; iter <= ITMAX; iter++)
-   {
+   for (int iter = 1; iter <= ITMAX; iter++) {
       double middle = 0.5 * (a + c);
       double tol1 = tol * fabs(min) + ZEPS;
       double tol2 = 2.0 * tol1;
 
       if (fabs(min - middle) <= (tol2 - 0.5 * (c - a)))
-	 return fmin;
+         return fmin;
 
-      if (fabs(delta) > tol1)
-	 // Try a parabolic fit
-      {
-	 double r = (min - w) * (fmin - fv);
-	 double q = (min - v) * (fmin - fw);
-	 double p = (min - v) * q - (min - w) * r;
+      if (fabs(delta) > tol1) {// Try a parabolic fit
+         double r = (min - w) * (fmin - fv);
+         double q = (min - v) * (fmin - fw);
+         double p = (min - v) * q - (min - w) * r;
 
-	 q = 2.0 * (q - r);
-	 if (q > 0.0) p = -p;
-	 q = fabs(q);
+         q = 2.0 * (q - r);
+         if (q > 0.0) p = -p;
+            q = fabs(q);
 
-	 temp = delta;
-	 delta = d;
+         temp = delta;
+         delta = d;
 
-	 if (fabs(p) >= fabs(0.5 * q * temp) ||
-	       p <= q * (a - min) || p >= q * (c - min))
-	    // parabolic doesn't look like a good idea
-	 {
-	    delta = min >= middle ? a - min : c - min;
-	    d = CGOLD * delta;
-	 }
-	 else
-	    // parabolic fit is the way to go
-	 {
-	    d = p / q;
-	    u = min + d;
-	    if (u - a < tol2 || c - u < tol2)
-	       d = sign(tol1, middle - min);
-	 }
+         if (fabs(p) >= fabs(0.5 * q * temp) || p <= q * (a - min) || p >= q * (c - min)) {
+            // parabolic doesn't look like a good idea
+            delta = min >= middle ? a - min : c - min;
+            d = CGOLD * delta;
+         }
+         else {
+         // parabolic fit is the way to go
+            d = p / q;
+            u = min + d;
+            if (u - a < tol2 || c - u < tol2)
+               d = sign(tol1, middle - min);
+         }
       }
-      else
-      {
-	 // Golden ratio for first step
-	 delta = min >= middle ? a - min : c - min;
-	 d = CGOLD * delta;
+      else { // Golden ratio for first step
+         delta = min >= middle ? a - min : c - min;
+         d = CGOLD * delta;
       }
 
       // Don't take steps smaller than tol1
       u = fabs(d) >= tol1 ? min + d : min + sign(tol1, d);
       fu = -1.0*Evaluate(u,trans,false);
 
-      if (fu <= fmin)
-      {
-	 if (u >= min)
-	    a = min;
-	 else
-	    c = min;
-	 SHIFT(v, w, min, u);
-	 SHIFT(fv, fw, fmin, fu);
+      if (fu <= fmin) {
+         if (u >= min)
+            a = min;
+         else
+            c = min;
+         SHIFT(v, w, min, u);
+         SHIFT(fv, fw, fmin, fu);
       }
-      else
-      {
-	 if (u < min)
-	    a = u;
-	 else
-	    c = u;
-	 if (fu <= fw || w == min)
-	 {
-	    SHFT3(v, w, u);
-	    SHFT3(fv, fw, fu);
-	 }
-	 else if (fu <= fv || v == min || v == w)
-	 {
-	    v = u;
-	    fv = fu;
-	 }
+      else {
+         if (u < min)
+            a = u;
+         else
+            c = u;
+         if (fu <= fw || w == min) {
+            SHFT3(v, w, u);
+            SHFT3(fv, fw, fu);
+         }
+         else if (fu <= fv || v == min || v == w) {
+            v = u;
+            fv = fu;
+         }
       }
    }
    numerror("ScalarMinimizer::Brent got stuck");

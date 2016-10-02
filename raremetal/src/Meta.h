@@ -93,10 +93,9 @@ class Meta
 
 	// for exact method
 	Vector Ydelta; // yk - ymean
-	Vector Ysigma; // sigmak(variance), divided by nk-1
+	Vector Ysigma2; // sigmak(variance), divided by nk-1
 	StringDoubleHash V2; // sum(4*nk*fk^2)
-	StringDoubleHash V3; // sum(2*nk*fk)
-	StringDoubleHash residual_adj; // sigma outside
+	double residual_adj; // sigma tilda outside
 
 	//these are for conditional analysis
 	StringArray commonVar,common_chr,common_ref,common_alt;
@@ -147,8 +146,7 @@ class Meta
 	void UpdateExcludedMarker(int & study, String & chr_pos, int filter,String markername);
 	void UpdateStrIntHash(String & chr_pos, int val, StringIntHash & sihash);
 	void UpdateACInfo(String & chr_pos,double AC);
-	void UpdateStats(String & markerName,double stat,double vstat,bool flip);
-	void updateExactStats( String & markerName, int study, int current_AC, int current_N );
+	void UpdateStats(int study, String & markerName,double stat,double vstat,bool flip);
 	char GetDirection(String & chr_pos,double effsize,bool flip);
 	int MatchTwoAlleles(String refalt_current,int & marker_idx,String & chr_pos);
 	int MatchOneAllele(String refalt_current, int & marker_idx);

@@ -178,159 +178,138 @@ void FastTransform::ScreenSampleID(Pedigree & ped,bool useCovariates)
 //Prepare is to get pPheno filled up and useful persons and families clarified.
 void FastTransform::Prepare(Pedigree & ped, int traitNum,bool useCovariates,FILE * log,bool shortVersion)
 {
-   if(!shortVersion)
-   {
-      printf("  Matching individuals in phenotype and genotypes ...\n");
-      fprintf(log,"  Matching individuals in phenotype and genotypes ...\n");
-      pPheno = new IntArray [ped.familyCount];
+	if(!shortVersion) {
+		printf("  Matching individuals in phenotype and genotypes ...\n");
+		fprintf(log,"  Matching individuals in phenotype and genotypes ...\n");
+		pPheno = new IntArray [ped.familyCount];
 
-      //if genotpye is read from vcf file, need to make sure to eliminate individuals who are not genotyped.
+		//if genotpye is read from vcf file, need to make sure to eliminate individuals who are not genotyped.
+		for(int p=0;p<ped.count;p++) {
+			if(ped[p].isFounder())
+				foundersHash.SetInteger(ped[p].pid,p);
+     }
 
-      for(int p=0;p<ped.count;p++)
-      {
-	 if(ped[p].isFounder())
-	    foundersHash.SetInteger(ped[p].pid,p);
-      }
+		numFounder =0;
+		analyzedFounders=0;
+		numFamily =ped.familyCount;
+		if(PreMeta::genoFromVCF || PreMeta::dosage) {
+			for (int f = 0; f < ped.familyCount; f++) {
+	    	pPheno[f].Dimension(0);
+	    	for (int i = ped.families[f]->first; i <= ped.families[f]->last; i++)  {
+	      	if(ped[i].isFounder())
+		  			numFounder++;
+		  		int p;
+					if(mergedVCFID) {
+						String sample = ped[i].famid+"_"+ped[i].pid;
+						p = sampleVCFIDHash.Integer(sample);
+					}
+					else
+						p = sampleVCFIDHash.Integer(ped[i].pid);
 
-      numFounder =0;
-      analyzedFounders=0;
-      numFamily =ped.familyCount;
-      if(PreMeta::genoFromVCF || PreMeta::dosage)
-      {
-	 for (int f = 0; f < ped.familyCount; f++)
-	 {
-	    pPheno[f].Dimension(0);
-	    for (int i = ped.families[f]->first; i <= ped.families[f]->last; i++) 
-	    {
-	       if(ped[i].isFounder())
-		  numFounder++;
-	       int p;
-	       if(mergedVCFID)
-	       {
-		  String sample = ped[i].famid+"_"+ped[i].pid;
-		  p = sampleVCFIDHash.Integer(sample);
-	       }
-	       else
-		  p = sampleVCFIDHash.Integer(ped[i].pid);
+					if (ped[i].isPhenotyped(traitNum) && (!useCovariates || ped[i].isFullyControlled()) && p!=-1){
+						pPheno[f].Push(i);
+						if(ped[i].isFounder()) 
+							analyzedFounders++;
+					}
+					else
+						ped[i].traits[traitNum] = _NAN_;
+				}
+			}
+		}
+		else {
+			totalN = ped.count;
+			// If we are using covariates, we only consider individuals
+			// for which all covariates have been recorded
+			for (int f = 0; f < ped.familyCount; f++) {
+				pPheno[f].Dimension(0);
+				for (int i = ped.families[f]->first; i <= ped.families[f]->last; i++) {
+					if(ped[i].isFounder())
+						numFounder++;
+					int p=samplePEDIDHash.Integer(ped[i].pid);
 
-	       if (ped[i].isPhenotyped(traitNum) && (!useCovariates || ped[i].isFullyControlled()) && p!=-1)
-	       {
-		  pPheno[f].Push(i);
-		  if(ped[i].isFounder()) 
-		     analyzedFounders++;
-		  //printf("%s\n",ped[i].pid.c_str());
-	       }
-	       else ped[i].traits[traitNum] = _NAN_;
-	    }
-	 }
-      }
-      else
-      {
-	 totalN = ped.count;
-	 // If we are using covariates, we only consider individuals
-	 // for which all covariates have been recorded
-	 for (int f = 0; f < ped.familyCount; f++)
-	 {
-	    pPheno[f].Dimension(0);
-	    for (int i = ped.families[f]->first; i <= ped.families[f]->last; i++) 
-	    {
-	       if(ped[i].isFounder())
-		  numFounder++;
-	       int p=samplePEDIDHash.Integer(ped[i].pid);
+					if (ped[i].isPhenotyped(traitNum) && (!useCovariates || ped[i].isFullyControlled()) && p!=-1) {
+						pPheno[f].Push(i);
+						if(ped[i].isFounder())
+							analyzedFounders++;
+					}
+					else
+						ped[i].traits[traitNum] = _NAN_;
+				}
+			}
+		}
+		//printf("num of founder is: %d\n",numFounder);
+		// Number of families with non-null kinships and phenotypes
+		families = persons = 0;
+		// Count useful families
+		for (int f = 0; f < ped.familyCount; f++) {
+			if (pPheno[f].Length()) {
+				families++;
+				persons += pPheno[f].Length();
+			}
+		}
+		if (families == 0) {
+			printf("Trait %s has no informative families\n\n",
+			(const char *) ped.traitNames[traitNum]);
+			fprintf(log,"Trait %s has no informative families\n\n",
+			(const char *) ped.traitNames[traitNum]);
+		}
+		printf("    Found %d phenotyped AND genotyped individuals from %d families.\n",persons,families);
+		fprintf(log,"    Found %d phenotyped AND genotyped individuals from %d families.\n",persons,families);
+		printf("  done.\n\n");
+		fprintf(log,"  done.\n\n");
+	}
 
-	       if (ped[i].isPhenotyped(traitNum) && (!useCovariates || ped[i].isFullyControlled()) && p!=-1)
-	       {
-		  pPheno[f].Push(i);
-		  if(ped[i].isFounder())
-		     analyzedFounders++;
-	       }
-	       else ped[i].traits[traitNum] = _NAN_;
-	    }
-	 }
-      }
-      //printf("num of founder is: %d\n",numFounder);
-      // Number of families with non-null kinships and phenotypes
-      families = persons = 0;
-      // Count useful families
-      for (int f = 0; f < ped.familyCount; f++)
-      {
-	 if (pPheno[f].Length()) {
-	    families++;
-	    persons += pPheno[f].Length();
-	 }
-      }
-      if (families == 0)
-      {
-	 printf("Trait %s has no informative families\n\n",
-	       (const char *) ped.traitNames[traitNum]);
-	 fprintf(log,"Trait %s has no informative families\n\n",
-	       (const char *) ped.traitNames[traitNum]);
-      }
-      printf("    Found %d phenotyped AND genotyped individuals from %d families.\n",persons,families);
-      fprintf(log,"    Found %d phenotyped AND genotyped individuals from %d families.\n",persons,families);
-      printf("  done.\n\n");
-      fprintf(log,"  done.\n\n");
-   }
+	fixedEffects = 1 + (useCovariates ? ped.covariateCount : 0);
 
-   fixedEffects = 1 + (useCovariates ? ped.covariateCount : 0);
+	Vector trait; 
+	trait.Dimension(persons); 
+	int index=0;
+	for (int f = 0; f < ped.familyCount; f++) {	    
+		for(int j=0;j<pPheno[f].Length();j++) {
+			if(ped[pPheno[f][j]].isFounder())
+				founders.Push(ped[pPheno[f][j]].pid);
+			trait[index]=ped[pPheno[f][j]].traits[traitNum]; 
+		index++;
+		}
+	}
 
-   Vector trait; 
-   trait.Dimension(persons); 
-   int index=0;
-   for (int f = 0; f < ped.familyCount; f++)
-   {	    
-      for(int j=0;j<pPheno[f].Length();j++) 
-      {
-	 if(ped[pPheno[f][j]].isFounder())
-	    founders.Push(ped[pPheno[f][j]].pid);
-	 trait[index]=ped[pPheno[f][j]].traits[traitNum]; 
-	 index++;
-      }
-   }
+	traitVar = trait.Var();
+	traitMean=trait.Average();
+	UY.Dimension(persons);
+	UY.Zero();
+	UX.Dimension(persons,fixedEffects);
+	Y.Dimension(persons);
+	transU_del.Dimension(0,0);
+	// UDY.Dimension(persons);
+	//  UDX.Dimension(persons,fixedEffects);
+	// UD.Dimension(persons,persons);
+	//inv.Dimension(fixedEffects,fixedEffects);
 
-   traitVar = trait.Var();
-   traitMean=trait.Average();
-   UY.Dimension(persons);
-   UY.Zero();
-   UX.Dimension(persons,fixedEffects);
-   Y.Dimension(persons);
-   transU_del.Dimension(0,0);
-   // UDY.Dimension(persons);
-   //  UDX.Dimension(persons,fixedEffects);
-   // UD.Dimension(persons,persons);
-   //inv.Dimension(fixedEffects,fixedEffects);
+	//Fill in X and Y
+	index=0;
+	for (int f = 0; f < ped.familyCount; f++) {
+		int ct = pPheno[f].Length();
+		for(int i=0;i<ct;i++) {
+			Y[index]=ped[pPheno[f][i]].traits[traitNum];
+			index++;
+		}
+	}
+	// Setup matrix of fixed effects for each family
+	X.Dimension(persons, fixedEffects);
+	for (int i = 0; i < persons; i++) // Constant for regressing grand mean
+		X[i][0] = 1.0;
 
-   //Fill in X and Y
-   index=0;
-   for (int f = 0; f < ped.familyCount; f++) {
-      int ct = pPheno[f].Length();
-      for(int i=0;i<ct;i++)
-      {
-	 Y[index]=ped[pPheno[f][i]].traits[traitNum];
-	 index++;
-      }
-   }
-   // Setup matrix of fixed effects for each family
-   X.Dimension(persons, fixedEffects);
-   for (int i = 0; i < persons; i++)
-   {
-      // Constant for regressing grand mean
-      X[i][0] = 1.0;
-   }
-
-   if (useCovariates)
-   {
-      int index =0;
-      for(int f=0;f<ped.familyCount;f++){
-	 int count = pPheno[f].Length();
-	 for(int i=0;i<count;i++){
-	    // User specified covariates
-	    for (int j = 1; j <= ped.covariateCount; j++)
-	       X[index][j] = ped[pPheno[f][i]].covariates[j-1];
-	    index++;
-	 }
-      }
-   }
+	if (useCovariates) {
+		int index =0;
+		for(int f=0;f<ped.familyCount;f++){
+			int count = pPheno[f].Length();
+			for(int i=0;i<count;i++){ // User specified covariates
+				for (int j = 1; j <= ped.covariateCount; j++)
+					X[index][j] = ped[pPheno[f][i]].covariates[j-1];
+				index++;
+			}
+		}
+	}
 }
 
 void FastTransform::TransformEmpkinX(Matrix & covMatrix)

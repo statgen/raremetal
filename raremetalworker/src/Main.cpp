@@ -58,6 +58,7 @@ int main(int argc, char ** argv)
 	LONG_STRINGPARAMETER("dat", &datfile)
 	LONG_STRINGPARAMETER("vcf", &PreMeta::vcfInput)
 	LONG_PARAMETER("dosage", &PreMeta::dosage)
+    LONG_PARAMETER("binary", &FastFit::binary)
 	LONG_STRINGPARAMETER("flagDosage", &PreMeta::dosageFlag)
 	LONG_PARAMETER("noeof", &noeof)
 	LONG_PARAMETER_GROUP("Output Files")
@@ -104,6 +105,7 @@ int main(int argc, char ** argv)
 	LONG_PARAMETER("useCovariates", &FastFit::useCovariates)
 	LONG_STRINGPARAMETER("range", &PreMeta::Region)
     LONG_STRINGPARAMETER("variantList", &PreMeta::varListName) // list of variants to calculate score and cov
+    LONG_PARAMETER("splitUV", &PreMeta::splitUV)
 
     END_LONG_PARAMETERS();
 
@@ -113,11 +115,12 @@ int main(int argc, char ** argv)
 
     PhoneHome::checkVersion("raremetalworker",VERSION);
 
-    if(noeof)
-    {
-       // Set that the eof block is not required.
-    	BgzfFileType::setRequireEofBlock(false);
-    }
+    if(noeof) // Set that the eof block is not required.
+        BgzfFileType::setRequireEofBlock(false);
+
+
+    if (FastFit::makeResiduals && FastFit::binary)
+       error("Cannot regress out covariates for logistic model! Please consider the following options:\n   1. treat your binary trait as quantitative by removing --binary option.\n    2. specify --useCovariates instead of --makeResiduals. If you're doing this, --useExact is NOT recommended when running Raremetal after this.\n");
 
 
     String logFile;
@@ -430,35 +433,35 @@ int main(int argc, char ** argv)
     			fprintf(log,"  %s", filenamePlots_dom.c_str());
     		}
 
-	  if ( PreMeta::zipOutput ) { // do tabix at last
-	  // tabix score
-	  	printf( "\nTabixing output .gz files...\n" );
-	  	fprintf(log, "\nTabixing output .gz files...\n" );
-	  	String cmd = String("tabix -c \"#\" -s 1 -b 2 -e 2 -f ") + filename;
-	  	int sys_status = system( cmd.c_str() );
-	  	if ( sys_status == 0 ) {
-	  		printf( "\nSingle variant stats %s has been tabixed\n",filename.c_str() );
-	  		fprintf(log, "\nSingle variant stats %s has been tabixed\n",filename.c_str() );
-	  	}
-	  	else {
-	  		printf("\nUnable to tabix %s\n", filename.c_str());
-	  		fprintf(log, "\nUnable to tabix %s\n", filename.c_str());
-	  	}
-	  // tabix cov		
-	  	cmd = String("tabix -c \"#\" -s 1 -b 2 -e 2 -f ") + filename_COV;
-	  	sys_status = system( cmd.c_str() );
-	  	if ( sys_status == 0 ) {
-	  		printf( "\nVar-cov matrix %s has been tabixed\n",filename_COV.c_str() );
-	  		fprintf(log, "\nVar-cov matrix %s has been tabixed\n",filename_COV.c_str() );
-	  	}
-	  	else {
-	  		printf("\nUnable to tabix %s\n", filename_COV.c_str());
-	  		fprintf(log, "\nUnable to tabix %s\n", filename_COV.c_str());
-	  	}  	
-	  }
+            if ( PreMeta::zipOutput ) { // do tabix at last
+            // tabix score
+            	printf( "\nTabixing output .gz files...\n" );
+            	fprintf(log, "\nTabixing output .gz files...\n" );
+            	String cmd = String("tabix -c \"#\" -s 1 -b 2 -e 2 -f ") + filename;
+            	int sys_status = system( cmd.c_str() );
+            	if ( sys_status == 0 ) {
+            		printf( "\nSingle variant stats %s has been tabixed\n",filename.c_str() );
+            		fprintf(log, "\nSingle variant stats %s has been tabixed\n",filename.c_str() );
+            	}
+            	else {
+            		printf("\nUnable to tabix %s\n", filename.c_str());
+            		fprintf(log, "\nUnable to tabix %s\n", filename.c_str());
+            	}
+            // tabix cov		
+            	cmd = String("tabix -c \"#\" -s 1 -b 2 -e 2 -f ") + filename_COV;
+            	sys_status = system( cmd.c_str() );
+            	if ( sys_status == 0 ) {
+            		printf( "\nVar-cov matrix %s has been tabixed\n",filename_COV.c_str() );
+            		fprintf(log, "\nVar-cov matrix %s has been tabixed\n",filename_COV.c_str() );
+            	}
+            	else {
+            		printf("\nUnable to tabix %s\n", filename_COV.c_str());
+            		fprintf(log, "\nUnable to tabix %s\n", filename_COV.c_str());
+            	}  	
+            }
 
-	  printf("\n");
-	  fprintf(log,"\n");
+        printf("\n");
+        fprintf(log,"\n");
 	}
 	printf("\nLog file listing current options stored in %s\n",logFile.c_str());
 	fprintf(log,"\nLog file listing current options stored in %s\n",logFile.c_str());

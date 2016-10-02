@@ -53,7 +53,6 @@ Meta::Meta( FILE * plog )
 {
 	log = plog;
 	V2 = 0;
-	V3 = 0;
 }
 
 Meta::~Meta()
@@ -90,9 +89,9 @@ void Meta::PoolSummaryStat(GroupFromAnnotation & group)
 
 	if (useExactMetaMethod) {
 		Ydelta.Dimension( scorefile.Length() );
-		Ysigma.Dimension( scorefile.Length() );
+		Ysigma2.Dimension( scorefile.Length() );
 		for(int s=0; s<scorefile.Length(); s++) // no need to initialize ydelta
-			Ysigma[s] = -1;
+			Ysigma2[s] = -1;
 		for(int s=0;s<scorefile.Length();s++) {
 			bool y_status = updateYstat(s);
 			if (!y_status)
@@ -107,6 +106,15 @@ void Meta::PoolSummaryStat(GroupFromAnnotation & group)
 			ymean += (double)SampleSize[s] / (double)n * Ydelta[s];
 		for(int s=0; s<scorefile.Length(); s++)
 			Ydelta[s] -= ymean;
+		residual_adj = 0;
+		for(int s=0; s<scorefile.Length(); s++) {
+			double new_r = (double)(SampleSize[s]-1) * Ysigma2[s] + (double)SampleSize[s]*Ydelta[s]*Ydelta[s];
+			residual_adj += new_r;
+		}
+for(int s=0; s<scorefile.Length(); s++)
+printf("s=%d,Ydelta=%g,Ysigma2=%g\n",s,Ydelta[s],Ysigma2[s]);		
+printf("ymean=%g,ra=%g,n=%d\n",ymean,residual_adj,n);				
+		residual_adj /= (double)(n-1);		
 	}
 
 	// pool stats by reading
@@ -726,11 +734,21 @@ bool Meta::updateYstat( int study )
 				SampleSize[study] = tokens[1].AsInteger();
 			}
 		}
+/*		if (buffer.Find("#AnalyzedTrait") != -1) {
+			StringArray tokens;
+			tokens.AddTokens(buffer, "\t ");
+			Ydelta[study] = tokens[6].AsDouble();
+			Ysigma2[study] = tokens[7].AsDouble();
+			status = 1;
+			break;
+		}
+		if (buffer.Find("#")==-1)
+			break;*/	
 		if (found_y) { // name min 25% median 75th max mean(7th) variance(8th)
 			StringArray tokens;
 			tokens.AddTokens(buffer, "\t ");
 			Ydelta[study] = tokens[6].AsDouble();
-			Ysigma[study] = tokens[7].AsDouble();
+			Ysigma2[study] = tokens[7].AsDouble();
 			status = 1;
 			break;
 		}
@@ -742,7 +760,6 @@ bool Meta::updateYstat( int study )
 			if (buffer.Find("#")==-1)
 				break;
 		}
-
 	}
 	return status;
 }
@@ -848,7 +865,7 @@ void Meta::UpdateACInfo(String & chr_pos,double AC)
 
 // simply add up u and v
 // for exact method, v passed here is vk/sigmak. V will be further adjusted in print meta record
-void Meta::UpdateStats(String & markerName,double stat,double vstat,bool flip)
+void Meta::UpdateStats(int study, String & markerName,double stat,double vstat,bool flip)
 {
 	//update SNPstat
 	double flip_factor = 1.0;
@@ -856,6 +873,8 @@ void Meta::UpdateStats(String & markerName,double stat,double vstat,bool flip)
 		flip_factor = -1.0;
 	vstat = vstat*vstat;
 	stat *= flip_factor;
+	if (useExactMetaMethod)
+		vstat *= Ysigma2[study];
 	
 	int stat_idx = SNPstat.Find(markerName);
 	if(stat_idx<0)
@@ -876,45 +895,6 @@ void Meta::UpdateStats(String & markerName,double stat,double vstat,bool flip)
 		double prev =  SNP_Vstat.Double(stat_idx);
 		prev += vstat;
 		SNP_Vstat.SetDouble(markerName,prev);
-	}
-}
-
-
-// only used when useExactMethod is specified
-void Meta::updateExactStats( String & markerName, int study, int current_AC, int current_N )
-{
-	// V2=sum(4*nk*fk^2)
-	// V3=sum(2*nk*fk)
-	// V = residual_adj * ( sum(Vk/sigmak^2) + sum(4*nk*fk^2) - 1/n*sum(2*nk*fk)*sum(2*nk*fk) )	
-	int stat_idx = V2.Find(markerName);
-	double v2 = 4 * current_AC*current_AC / current_N;
-	if (stat_idx == -1)
-		V2.SetDouble(markerName,v2);
-	else {
-		double prev = V2.Double(stat_idx);
-		prev += v2;
-		V2.SetDouble( markerName, prev );
-	}
-	// now V3
-	stat_idx = V3.Find(markerName);
-	double v3 = 2 * current_AC;
-	if (stat_idx == -1)
-		V3.SetDouble(markerName, v3);
-	else {
-		double prev = V3.Double(stat_idx);
-		prev += v3;
-		V3.SetDouble(markerName, v3);
-	}
-	//  here residual_adj = (true)residual_adj * (n-1)
-	// (true)residual_adj = sum( (nk-1)*sigmak +nk*deltak ) / (n-1)
-	stat_idx = residual_adj.Find(markerName);
-	double new_r = (SampleSize[study]-1) * Ysigma[study] + SampleSize[study]*Ydelta[study];
-	if (stat_idx==-1)
-		residual_adj.SetDouble(markerName, new_r);
-	else {
-		double prev = residual_adj.Double(markerName);
-		prev += new_r;
-		residual_adj.SetDouble(markerName, new_r);
 	}
 }
 
@@ -1094,16 +1074,25 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 	double u = tokens[13-adjust].AsDouble();
 	double v = tokens[14-adjust].AsDouble();
 	double raw_v = v;
+	double raw_u = u;
 	if ( useExactMetaMethod ) {
 		// check these vectors first
-		if (Ydelta.Length() == 0 || Ysigma.Length() == 0)
-			ErrorToLog("Ydelta or Ysigma is empty!");
+		if (Ydelta.Length() == 0 || Ysigma2.Length() == 0)
+			ErrorToLog("Ydelta or Ysigma2 is empty!");
 		// Adjust if using exact method:
-		//	u = u - 2*n*delta*f = u - 2*ac*delta, delta = y_mean - y(k)_mean
-		u -= (double)(2*current_AC)*Ydelta[study];
-		v /= SampleSize[study] * Ysigma[study];
-		String markerName = study+":"+tokens[0]+":"+tokens[1];
-		updateExactStats( markerName, study, current_AC, current_N );
+		//	u += - 2*n*delta*(f-fk) = ac*delta-2*nk*f (last part add in setPoolAF), delta = y_mean - y(k)_mean
+		u *= Ysigma2[study];
+		u += (double)current_AC*Ydelta[study];
+		String snp_no_allele = tokens[0]+":"+tokens[1];
+		int stat_idx = V2.Find(snp_no_allele);
+		double v2 = (double)current_AC / current_N *current_AC;
+		if (stat_idx == -1)
+			V2.SetDouble(snp_no_allele,v2);
+		else {
+			double prev = V2.Double(stat_idx);
+			prev += v2;
+			V2.SetDouble( snp_no_allele, prev );
+		}
 	}
 	if(marker_idx == -1) //if this position is never hashed before
 	{
@@ -1128,7 +1117,7 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 			UpdateACInfo(chr_pos,current_AC);
 			if(SampleSize[study]!=current_N)
 				UpdateStrIntHash(chr_pos,SampleSize[study]-current_N, usefulSize);
-			UpdateStats( chr_pos,u,v,flip);
+			UpdateStats( study, chr_pos,u,v,flip);
 		}
 	}
 	else //if this position has been seen from previous studies
@@ -1192,7 +1181,7 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 				UpdateACInfo(chr_pos,2*c1+c2);
 				char direct = GetDirection(chr_pos,tokens[15-adjust].AsDouble(),true);
 				UpdateDirection( direction_idx,study,direct,chr_pos,false);
-				UpdateStats( chr_pos,u,v,flip);
+				UpdateStats( study,chr_pos,u,v,flip);
 			}
 			if(match==0)
 			{
@@ -1201,12 +1190,14 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 				UpdateACInfo(chr_pos,current_AC);
 				char direct = GetDirection(chr_pos,tokens[15-adjust].AsDouble(),false);
 				UpdateDirection( direction_idx,study,direct,chr_pos,false);
-				UpdateStats( chr_pos,u,v,flip);
+				UpdateStats( study,chr_pos,u,v,flip);
 			}
 		}
 	}
-	if (useExactMetaMethod) // get it back for calculating gc
+	if (useExactMetaMethod)  { // get it back for calculating gc
 		v = raw_v;
+		u = raw_u;
+	}
 	
 	if(flip) {
 		flipCount++;
@@ -1462,18 +1453,22 @@ void Meta::printSingleMetaVariant( GroupFromAnnotation & group, int i, IFILE & o
 	int N = SNP_effect_N[i];
 	double U = SNPstat.Double(SNPname_noallele);
 	double V = SNP_Vstat.Double(SNPname_noallele);
-	if (useExactMetaMethod) { // here V = sum(vk / sigmak)
-		// V = residual_adj * ( sum(Vk/sigmak^2) + sum(4*nk*fk^2) - 1/n*sum(2*nk*fk)*sum(2*nk*fk) )
-		double v2 = V2.Find( SNPname_noallele );
-		double v3 = V3.Find(SNPname_noallele);
-		double new_r = residual_adj.Find(SNPname_noallele);
-		if (v2==-1 || v3==-1 || new_r==-1)
-			ErrorToLog("[Meta::printSingleMetaVariant] v2 v3 or new_r is not set\n");
-		v3 = v3 * v3 / N;
-		new_r /= (N-1);
-		V = new_r * (V + v2 - v3);
-	}
 	double maf = SNPmaf_maf[i];
+	if (useExactMetaMethod) { // here V = sum(vk / sigmak)
+printf("U'=%g,V'=%g",U,V);		
+		for(int k=0;k<scorefile.Length();k++) {
+			U -= 2*SampleSize[k]*Ydelta[k]*maf;
+		}
+		for(int k=0;k<scorefile.Length();k++) {
+			V -= 4*SampleSize[k]*maf*maf;
+		}
+		// V = residual_adj * ( sum(Vk/sigmak^2) + sum(4*nk*fk^2) - 1/n*sum(2*nk*fk)*sum(2*nk*fk) )
+		double v2 = V2.Double( SNPname_noallele );
+printf(",V''=%g,v2=%g\n",V,v2);		
+		if (v2==-1 )
+			ErrorToLog("[Meta::printSingleMetaVariant] v2 is not set\n");
+		V = residual_adj * (V + v2);
+	}
 	int direction_idx = directionByChrPos.Integer(SNPname_noallele);
 		
 	String direction = directions[direction_idx];
@@ -1490,6 +1485,7 @@ void Meta::printSingleMetaVariant( GroupFromAnnotation & group, int i, IFILE & o
 		return;
 
 	double chisq = U*U/V;
+printf("U=%g,V=%g,chisq=%g\n",U,V,chisq);	
 	//chisq_before_GC.Push(chisq);
 	double pvalue = pchisq(chisq,1,0,0);
 	double effSize = U/V;

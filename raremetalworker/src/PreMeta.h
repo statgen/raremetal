@@ -60,6 +60,7 @@ public:
       static bool Simplify;
       static String Region;
       static String varListName;
+      static bool splitUV;
 
       int warnings;
       int numFounders;
