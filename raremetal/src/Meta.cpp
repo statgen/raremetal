@@ -111,9 +111,9 @@ void Meta::PoolSummaryStat(GroupFromAnnotation & group)
 			double new_r = (double)(SampleSize[s]-1) * Ysigma2[s] + (double)SampleSize[s]*Ydelta[s]*Ydelta[s];
 			residual_adj += new_r;
 		}
-for(int s=0; s<scorefile.Length(); s++)
-printf("s=%d,Ydelta=%g,Ysigma2=%g\n",s,Ydelta[s],Ysigma2[s]);		
-printf("ymean=%g,ra=%g,n=%d\n",ymean,residual_adj,n);				
+//for(int s=0; s<scorefile.Length(); s++)
+//printf("s=%d,Ydelta=%g,Ysigma2=%g\n",s,Ydelta[s],Ysigma2[s]);		
+//printf("ymean=%g,ra=%g,n=%d\n",ymean,residual_adj,n);				
 		residual_adj /= (double)(n-1);		
 	}
 
@@ -719,7 +719,7 @@ bool Meta::setCondMarkers()
 bool Meta::updateYstat( int study )
 {
 	bool found_y = 0;
-	bool status = 0;
+	int status = 0;
 	String fname = scorefile[study];
 	IFILE file = ifopen(fname, "r");
 	if (file==NULL)
@@ -737,31 +737,32 @@ bool Meta::updateYstat( int study )
 /*		if (buffer.Find("#AnalyzedTrait") != -1) {
 			StringArray tokens;
 			tokens.AddTokens(buffer, "\t ");
-			Ydelta[study] = tokens[6].AsDouble();
 			Ysigma2[study] = tokens[7].AsDouble();
-			status = 1;
-			break;
-		}
+			status++;
+			if (status==2)
+				break;
+		}*/
 		if (buffer.Find("#")==-1)
-			break;*/	
+			break;
 		if (found_y) { // name min 25% median 75th max mean(7th) variance(8th)
 			StringArray tokens;
 			tokens.AddTokens(buffer, "\t ");
 			Ydelta[study] = tokens[6].AsDouble();
 			Ysigma2[study] = tokens[7].AsDouble();
-			status = 1;
-			break;
+			status++;
+			found_y = 0;
+			if (status==1)
+				break;
 		}
 		if (buffer.Find("##TraitSummaries") != -1) {
 			found_y = 1;
 			continue;
 		}
-		else {
-			if (buffer.Find("#")==-1)
-				break;
-		}
 	}
-	return status;
+	if (status ==1)
+		return 1;
+	else
+		return 0;
 }
 
 void Meta::UpdateDirection(int & direction_idx,int study,char marker_direction,String & chr_pos,bool exclude)
@@ -1455,7 +1456,7 @@ void Meta::printSingleMetaVariant( GroupFromAnnotation & group, int i, IFILE & o
 	double V = SNP_Vstat.Double(SNPname_noallele);
 	double maf = SNPmaf_maf[i];
 	if (useExactMetaMethod) { // here V = sum(vk / sigmak)
-printf("U'=%g,V'=%g",U,V);		
+//printf("U'=%g,V'=%g",U,V);		
 		for(int k=0;k<scorefile.Length();k++) {
 			U -= 2*SampleSize[k]*Ydelta[k]*maf;
 		}
@@ -1464,7 +1465,7 @@ printf("U'=%g,V'=%g",U,V);
 		}
 		// V = residual_adj * ( sum(Vk/sigmak^2) + sum(4*nk*fk^2) - 1/n*sum(2*nk*fk)*sum(2*nk*fk) )
 		double v2 = V2.Double( SNPname_noallele );
-printf(",V''=%g,v2=%g\n",V,v2);		
+//printf(",V''=%g,v2=%g\n",V,v2);		
 		if (v2==-1 )
 			ErrorToLog("[Meta::printSingleMetaVariant] v2 is not set\n");
 		V = residual_adj * (V + v2);
@@ -1485,7 +1486,7 @@ printf(",V''=%g,v2=%g\n",V,v2);
 		return;
 
 	double chisq = U*U/V;
-printf("U=%g,V=%g,chisq=%g\n",U,V,chisq);	
+//printf("U=%g,V=%g,chisq=%g\n",U,V,chisq);	
 	//chisq_before_GC.Push(chisq);
 	double pvalue = pchisq(chisq,1,0,0);
 	double effSize = U/V;
