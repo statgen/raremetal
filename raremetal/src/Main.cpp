@@ -48,7 +48,7 @@ int main(int argc, char ** argv)
 	LONG_PARAMETER("burden", &Meta::Burden)
 	LONG_PARAMETER("MB", &Meta::MB)
 	LONG_PARAMETER("SKAT", &Meta::SKAT)
-	//LONG_PARAMETER("SKATO", &Meta::SKATO)
+	LONG_PARAMETER("SKATO", &Meta::SKATO)
 	LONG_PARAMETER("VT", &Meta::VTa)
 	LONG_STRINGPARAMETER("condition", &Meta::cond)
 	//LONG_PARAMETER("permute", &Meta::VTp)
@@ -69,6 +69,8 @@ int main(int argc, char ** argv)
 	LONG_STRINGPARAMETER("range", &Meta::Region)
 	LONG_PARAMETER("geneOnly", &Meta::GeneOnly)
 	LONG_PARAMETER("useExact", &Meta::useExactMetaMethod)
+	LONG_PARAMETER("normPop", &Meta::normPop)
+	LONG_STRINGPARAMETER("popFile", &Meta::popfile_name)
 	
 	LONG_PHONEHOME(VERSION)
 	END_LONG_PARAMETERS();
@@ -81,6 +83,15 @@ int main(int argc, char ** argv)
 	pl.Status();
 	
 	PhoneHome::checkVersion("raremetalworker",VERSION);
+
+	if (Meta::normPop && !Meta::useExactMetaMethod)
+		error("population correction only works for exact method. Please specify --useExact!\n");
+
+	if (Meta::useExactMetaMethod)
+		printf("\n\nWARNING: This method only works for unrelated samples! Plus if you have covariates, please make sure --makeResiduals is specified when running Raremetalworker!\n\n");
+
+	if (Meta::normPop && Meta::popfile_name=="")
+		Meta::popfile_name="/net/fantasia/home/yjingj/METAL/1KG/MAF_1KG.txt";
 	
 	FILE * logFile;
 	String filename;

@@ -12,6 +12,9 @@
 #include "SummaryFileReader.h"
 #include "WritePDF.h"
 
+#include <map>
+#include <vector>
+
 class Meta
 {
     public:
@@ -51,6 +54,8 @@ class Meta
 	FILE * log;
 
 	static bool useExactMetaMethod;
+	static bool normPop;
+	static String popfile_name;
 
 	//saved single variant information from pooled studies
 	StringArray scorefile;
@@ -91,11 +96,17 @@ class Meta
 	int target;
 	double target_pvalue;
 
+// /net/fantasia/home/yjingj/METAL/1KG/MAF_1KG.txt
 	// for exact method
 	Vector Ydelta; // yk - ymean
 	Vector Ysigma2; // sigmak(variance), divided by nk-1
 	StringDoubleHash V2; // sum(4*nk*fk^2)
-	double residual_adj; // sigma tilda outside
+	StringDoubleHash residual_adj; // sigma tilda outside	
+	StringDoubleHash NkDeltak; // nk * deltak
+	StringDoubleHash regressedTotalAF; // for pop stratification, update f-tilda
+	std::map<String, std::vector<double> > af1KG; // 1000g pop af for all markers...
+	Matrix pgamma; // coefficients for population in each study
+	int nPop; // number of populations
 
 	//these are for conditional analysis
 	StringArray commonVar,common_chr,common_ref,common_alt;
@@ -145,6 +156,7 @@ class Meta
 	void UpdateDirection(int & direction_idx,int study,char marker_direction,String & chr_pos,bool exclude);
 	void UpdateExcludedMarker(int & study, String & chr_pos, int filter,String markername);
 	void UpdateStrIntHash(String & chr_pos, int val, StringIntHash & sihash);
+	void UpdateStrDoubleHash(String & chr_pos, double val, StringDoubleHash & sdhash);
 	void UpdateACInfo(String & chr_pos,double AC);
 	void UpdateStats(int study, String & markerName,double stat,double vstat,bool flip);
 	char GetDirection(String & chr_pos,double effsize,bool flip);
@@ -170,8 +182,17 @@ class Meta
 	void VTassoc( GroupFromAnnotation & group );
 	double VTassocSingle(GroupFromAnnotation & group, Vector & maf_cutoff, IFILE reportOutput, IFILE output, int & g,bool condition,String & method);
 	void SKATassoc( GroupFromAnnotation & group );
-
 	void CalculateLambda(Matrix & cov, double * weight, double * lambda);
+
+	// pop correction
+	void FitPgamma();
+	void fitpGammaForSingleStudy( int study);
+	bool add1kgMafToX( Matrix & X, String & markername, int current_index );
+	void setGammaFromRegression( int study, Matrix & X, Vector & Y );
+	void load1kgPopMAF();
+	void updateRegressedTotalAF( String & markername, double total );
+	double getAFtilda( String & markername, double raw_af, int study );
+
 	void ErrorToLog(const char * msg);
 };
 

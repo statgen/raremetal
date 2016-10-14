@@ -18,8 +18,11 @@
 #include <Eigen/SVD>
 #include <Eigen/Dense>
 
+#include <iterator>
+
 String Meta::summaryFiles="";
 String Meta::covFiles = "";
+String Meta::popfile_name = "";
 String Meta::prefix = "";
 bool Meta::correctGC = false;
 bool Meta::Burden = false;
@@ -48,6 +51,7 @@ String Meta::Chr = "";
 int Meta::Start = -1;
 int Meta::End = -1;
 bool Meta::useExactMetaMethod = false; // use Jingjing's exact method
+bool Meta::normPop = false; // correct for population stratification
 
 Meta::Meta( FILE * plog )
 {
@@ -62,17 +66,181 @@ Meta::~Meta()
 //and save the names in the StringArray files
 void Meta::Prepare()
 {
-	if (useExactMetaMethod) {
-		printf("WARNING: this method is still under development and not recommended to use in this version!!!\n");
-	}
-
+//	if (useExactMetaMethod) {
+//		printf("WARNING: this method is still under development and not recommended to use in this version!!!\n");
+//	}
 	setMetaStatics();
 	openMetaFiles();
+
+	if (normPop)
+		FitPgamma();
 	
 	//if conditional analysis says yes
 	if(cond!="")
 		prepareConditionalAnalysis();
 }
+
+// fit pgamma based on af in each study
+// need to read through all score files
+void Meta::FitPgamma()
+{
+	load1kgPopMAF();
+	pgamma.Dimension( scorefile.Length(),nPop+1 );
+	for(int study=0;study<scorefile.Length();study++) {
+		fitpGammaForSingleStudy(study);
+	}
+}
+
+void Meta::fitpGammaForSingleStudy( int study)
+{
+	Matrix X; // 1kg mafs
+	Vector Y; // sample maf
+	int Nmarkers = 2000;
+	X.Dimension( Nmarkers, nPop+1 );
+	int current_index = 0;
+
+	/** load mafs from sites **/
+	String filename = scorefile[study];
+	IFILE file;
+	file = ifopen(filename,"r");
+	if(file == NULL)
+		error("Cannot open file: %s!\nInput file has to be bgzipped and tabix indexed using the following command:\n bgzip your.summary.file; tabix -c \"#\" -s 1 -b 2 -e 2 your.summary.file.gz\n",scorefile[study].c_str());
+	bool first_line = 1;
+	bool adjust;
+	while (!ifeof(file)) {	
+		String buffer;
+		buffer.ReadLine(file);
+		if (first_line) {
+			tellRvOrRmw( buffer, adjust, marker_col, cov_col );
+			first_line = 0;
+			continue;
+		}
+		if(buffer.FindChar('#') != -1)
+			continue;
+		StringArray tokens;
+		tokens.AddTokens(buffer, SEPARATORS);
+		if(tokens[0].Find("chr")!=-1)
+			tokens[0] = tokens[0].SubStr(3);
+
+		String chr_pos = tokens[0] + ":" + tokens[1];
+		String markername = tokens[0] + ":" + tokens[1] + ":" + tokens[2] + ":" + tokens[3];
+		bool fail = isDupMarker( tokens[0], chr_pos );
+		if (fail)
+			continue;
+		int c1,c2,c3;
+//printf("%s\n",markername.c_str());			
+		if(dosage)
+		{
+			c3 = tokens[4].AsDouble()*tokens[6].AsDouble()*tokens[6].AsDouble();
+			c2 = tokens[4].AsDouble()*2.0*tokens[6].AsDouble()*(1.0-tokens[6].AsDouble());
+			c1 = tokens[4].AsDouble()*(1.0-tokens[6].AsDouble())*(1.0-tokens[6].AsDouble());
+		}
+		else
+		{
+			c1 = tokens[10-adjust].AsDouble();
+			c2 = tokens[11-adjust].AsDouble();
+			c3 = tokens[12-adjust].AsDouble();
+		}	
+		if ((tokens[2]=="." && tokens[3]==".") || (tokens[2]==tokens[3] && c1+c2!=0 && c2+c3!=0))
+			continue;
+		if(tokens[8-adjust].AsDouble()<CALLRATE || tokens[9-adjust].AsDouble()<HWE)
+			continue;
+		double current_AC;
+		int  current_N;
+		current_N = c1+c2+c3;
+		current_AC = 2*c3+c2;	
+		if (current_AC==0)
+			continue;
+
+		/** save to maf matrix **/
+		Y.Push( current_AC/current_N/2 );
+		X[current_index][0] = 1;
+		bool status = add1kgMafToX( X, markername, current_index );
+		if (!status) { // not found in 1kg marker, use 1/4N
+			for(int i=0; i<nPop; i++)
+				X[current_index][i+1] = (double)0.25/current_N;
+		}
+		current_index++;
+		if (current_index >= Nmarkers)
+			break;
+	}
+	ifclose(file);
+	if (current_index < Nmarkers)
+		X.Dimension( current_index,nPop+1 );
+	hashToRemoveDuplicates.Clear();
+
+	// perform regression & save to fk
+	setGammaFromRegression( study,X,Y);
+}
+
+bool Meta::add1kgMafToX( Matrix & X, String & markername, int current_index )
+{
+//printf("markername=%s\n",markername.c_str());
+	// match allele first
+	std::map<String, std::vector<double> >::iterator ptr;
+	ptr = af1KG.find(markername);
+	if ( ptr == af1KG.end() ) { // check if flip
+		StringArray tokens;
+		tokens.AddTokens( markername, ":" );
+		String flip_markername = tokens[0] + ":" + tokens[1] + ":" + tokens[3] + ":" + tokens[2];
+		ptr = af1KG.find(flip_markername);
+		if (ptr==af1KG.end()) { // does not exist...
+			return false;
+		}
+		else { // make a flip vector
+			for(int i=0; i<nPop; i++)
+				X[current_index][i+1] = 1 - ptr->second[i];
+		}
+	}
+	else {
+		X[current_index][0] = 1;
+		for(int i=0; i<nPop; i++)
+			X[current_index][i+1] = ptr->second[i];
+	}
+	return true;
+}
+
+// do regression, set coefficient
+void Meta::setGammaFromRegression( int study, Matrix & X, Vector & Y )
+{
+	if (X.rows != Y.Length())
+		error("[Meta::setGammaFromRegression] X.row=%d, Y length=%d. Something is wrong...\n",X.rows,Y.Length());
+	if (Y.Length()==0)
+		error("No available non-zero maf in study #%d. Please check your input file!\n",study+1);
+
+/* print x & y
+printf("x:\n");
+for(int i=0;i<X.rows;i++) {
+	for(int j=0;j<X.cols;j++)
+		printf("%g,",X[i][j]);
+	printf("\n");
+}
+printf("\ny:\n");
+for(int i=0;i<Y.Length();i++)
+	printf("%g,",Y[i]);
+printf("\n");
+*/
+	// (X'X)^-1
+	Matrix transX;
+	transX.Transpose(X);
+	Matrix inv;
+	inv.Product(transX,X);
+	SVD svd;
+	svd.InvertInPlace(inv);
+	// X'Y
+	Vector XY;
+	XY.Dimension(nPop+1);
+	for(int i=0;i<=nPop; i++)
+		XY[i] = Y.InnerProduct(transX[i]);
+	// get coefficient
+//printf("study=%d",study);
+	for(int i=0;i<=nPop; i++) {
+		pgamma[study][i] = inv[i].InnerProduct(XY);	
+//printf(",%g",pgamma[study][i]);		
+	}
+//printf("\n\n");
+}
+
 
 //this function will read through summary statistics of each study and pool the information.
 //At the end, single variant meta-analysis will be completed.
@@ -106,15 +274,15 @@ void Meta::PoolSummaryStat(GroupFromAnnotation & group)
 			ymean += (double)SampleSize[s] / (double)n * Ydelta[s];
 		for(int s=0; s<scorefile.Length(); s++)
 			Ydelta[s] -= ymean;
-		residual_adj = 0;
-		for(int s=0; s<scorefile.Length(); s++) {
-			double new_r = (double)(SampleSize[s]-1) * Ysigma2[s] + (double)SampleSize[s]*Ydelta[s]*Ydelta[s];
-			residual_adj += new_r;
-		}
+//		residual_adj = 0;
+//		for(int s=0; s<scorefile.Length(); s++) {
+//			double new_r = (double)(SampleSize[s]-1) * Ysigma2[s] + (double)SampleSize[s]*Ydelta[s]*Ydelta[s];
+//			residual_adj += new_r;
+//		}
 //for(int s=0; s<scorefile.Length(); s++)
 //printf("s=%d,Ydelta=%g,Ysigma2=%g\n",s,Ydelta[s],Ysigma2[s]);		
 //printf("ymean=%g,ra=%g,n=%d\n",ymean,residual_adj,n);				
-		residual_adj /= (double)(n-1);		
+//		residual_adj /= (double)(n-1);		
 	}
 
 	// pool stats by reading
@@ -850,6 +1018,19 @@ void Meta::UpdateStrIntHash(String & chr_pos, int val, StringIntHash & sihash)
 	}	
 }
 
+void Meta::UpdateStrDoubleHash(String & chr_pos, double val, StringDoubleHash & sdhash)
+{
+	int idx = sdhash.Find(chr_pos);
+	if(idx==-1)
+		sdhash.SetDouble(chr_pos,val);
+	else
+	{
+		double old_N = sdhash.Double(chr_pos);
+		old_N += val;
+		sdhash.SetDouble(chr_pos,old_N);
+	}	
+}
+
 void Meta::UpdateACInfo(String & chr_pos,double AC)
 {
 	int idx = usefulAC.Find(chr_pos);
@@ -1071,6 +1252,7 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 	//STEP2: check if this position has been hashed. If yes, match alleles; if not, hash position and ref alt alleles.
 	int marker_idx = directionByChrPos.Integer(chr_pos);
 	String refalt_current = tokens[2]+':'+ tokens[3];
+	String markername = chr_pos + ":" + refalt_current;
 	bool flip=false;
 	double u = tokens[13-adjust].AsDouble();
 	double v = tokens[14-adjust].AsDouble();
@@ -1081,12 +1263,32 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 		if (Ydelta.Length() == 0 || Ysigma2.Length() == 0)
 			ErrorToLog("Ydelta or Ysigma2 is empty!");
 		// Adjust if using exact method:
+		double new_r = (current_N-1)*Ysigma2[study] + current_N*Ydelta[study]*Ydelta[study];
+		UpdateStrDoubleHash(chr_pos,new_r,residual_adj);
+		double nkdeltak = Ydelta[study] * current_N;
+		UpdateStrDoubleHash(chr_pos,nkdeltak,NkDeltak);
 		//	u += - 2*n*delta*(f-fk) = ac*delta-2*nk*f (last part add in setPoolAF), delta = y_mean - y(k)_mean
-		u *= Ysigma2[study];
-		u += (double)current_AC*Ydelta[study];
+		u *= Ysigma2[study];		
 		String snp_no_allele = tokens[0]+":"+tokens[1];
 		int stat_idx = V2.Find(snp_no_allele);
-		double v2 = (double)current_AC / current_N *current_AC;
+		double v2;
+		if (normPop) { // adjust for population stratification by regression
+//			if (current_AC != 0) {
+				double raw_af = (double)current_AC / current_N / 2;
+				double fk = getAFtilda( markername, raw_af,study );
+				updateRegressedTotalAF( markername, fk*current_N );
+				u += 2 * fk * Ydelta[study];
+				v2 = 4 * fk * fk * current_N;
+//			}
+//			else {
+//				updateRegressedTotalAF(markername, 0);
+//				v2 = 0;
+//			}
+		}
+		else {
+			u += (double)current_AC*Ydelta[study];
+			v2 = (double)current_AC / current_N *current_AC;
+		}
 		if (stat_idx == -1)
 			V2.SetDouble(snp_no_allele,v2);
 		else {
@@ -1455,20 +1657,30 @@ void Meta::printSingleMetaVariant( GroupFromAnnotation & group, int i, IFILE & o
 	double U = SNPstat.Double(SNPname_noallele);
 	double V = SNP_Vstat.Double(SNPname_noallele);
 	double maf = SNPmaf_maf[i];
+	double exact_maf;	
+	if (normPop) {
+		String markername = tmp[0] + ":" + tmp[1]+":"+tmp[2]+":"+tmp[3];
+		int idx = regressedTotalAF.Find(markername);
+		if (idx==-1)
+			error("Cannot find regressed MAF for marker: %s. Something is wrong!\n",markername.c_str());
+//printf("%g,%d\n",regressedTotalAF.Double(markername),N);		
+		exact_maf = regressedTotalAF.Double(markername) / N;
+//printf("snp=%s,maf=%g,exact_maf=%g\n",SNPname.c_str(),maf,exact_maf);		
+	}
+	else
+		exact_maf = maf;	
 	if (useExactMetaMethod) { // here V = sum(vk / sigmak)
-//printf("U'=%g,V'=%g",U,V);		
-		for(int k=0;k<scorefile.Length();k++) {
-			U -= 2*SampleSize[k]*Ydelta[k]*maf;
-		}
-		for(int k=0;k<scorefile.Length();k++) {
-			V -= 4*SampleSize[k]*maf*maf;
-		}
+//printf("U'=%g,V'=%g",U,V);
+		double nkdeltak = NkDeltak.Double(SNPname_noallele);
+		U -= 2* nkdeltak *exact_maf;
+		V -= 4*N* exact_maf*exact_maf;
 		// V = residual_adj * ( sum(Vk/sigmak^2) + sum(4*nk*fk^2) - 1/n*sum(2*nk*fk)*sum(2*nk*fk) )
 		double v2 = V2.Double( SNPname_noallele );
 //printf(",V''=%g,v2=%g\n",V,v2);		
 		if (v2==-1 )
 			ErrorToLog("[Meta::printSingleMetaVariant] v2 is not set\n");
-		V = residual_adj * (V + v2);
+		double new_r = residual_adj.Double(SNPname_noallele);
+		V = new_r/N * (V + v2);
 	}
 	int direction_idx = directionByChrPos.Integer(SNPname_noallele);
 		
@@ -2937,7 +3149,14 @@ void Meta::SKATassoc( GroupFromAnnotation & group )
 		ifclose(reportOutput);
 	printf("Done.\n\n");
 }
-		
+
+/*
+void Meta::SKAToptimized( GroupFromAnnotation & group)
+{
+	double rho;
+}
+*/
+
 void Meta::CalculateLambda(Matrix & cov,double * weight, double * lambda)
 {
 	int n = cov.rows;
@@ -2976,4 +3195,76 @@ void Meta::ErrorToLog( const char* msg )
 	error(msg);
 }
 
+
+/*** pop stratification ***/
+
+// load 1KG MAF
+void Meta::load1kgPopMAF()
+{
+	IFILE popfile = ifopen(popfile_name, "r");
+	if (popfile==NULL)
+		error("Cannot open 1000G population MAF file: %s\n", popfile_name.c_str());
+	bool header_line = 1;
+	while(!ifeof(popfile)) {
+		String buffer;
+		buffer.ReadLine(popfile);
+		StringArray tokens;
+		tokens.AddTokens(buffer, '\t');
+		if (header_line) {
+			nPop = tokens.Length() - 8;
+			header_line = 0;
+			if (nPop<=0)
+				error("No population in %s after column 8. Wrong format?\n",popfile_name.c_str());
+			continue;
+		}
+		String markername = tokens[0]+":"+tokens[1]+":"+tokens[3]+":"+tokens[4];
+		af1KG[markername].resize(nPop);
+		for(int i=0; i<nPop; i++)
+			af1KG[markername][i] = tokens[8+i].AsDouble();
+	}
+	ifclose(popfile);
+}
+
+// this must be divided by N finally
+void Meta::updateRegressedTotalAF( String & markername, double total )
+{
+	int marker_idx = regressedTotalAF.Find( markername );
+	if (marker_idx != -1) {
+		double prev = regressedTotalAF.Double(markername);
+		prev += total;
+		regressedTotalAF.SetDouble( markername, prev );
+	}
+	else
+		regressedTotalAF.SetDouble( markername, total );	
+}
+
+
+// find the marker in 1KG again
+// calculate fk~tilda
+double Meta::getAFtilda( String & markername, double raw_af, int study )
+{
+	double fk = raw_af - pgamma[study][0];
+	// match allele first & get fk
+	std::map<String, std::vector<double> >::iterator ptr;
+	ptr = af1KG.find(markername);
+	if ( ptr == af1KG.end() ) { // check if flip
+		StringArray tokens;
+		tokens.AddTokens( markername, ":" );
+		String flip_markername = tokens[0] + ":" + tokens[1] + ":" + tokens[3] + ":" + tokens[2];
+		ptr = af1KG.find(flip_markername);
+		if (ptr==af1KG.end()) { // does not exist, use 1/4N
+			for(int i=0;i<nPop;i++)
+				fk -= pgamma[study][i+1] * 0.25;
+		}
+		else { // make a flip vector
+			for(int i=0; i<nPop; i++)
+				fk -= pgamma[study][i+1] * (1-(ptr->second[i]));
+		}
+	}
+	else {
+		for(int i=0; i<nPop; i++)
+			fk -= pgamma[study][i+1] * (ptr->second[i]);
+	}
+	return fk;
+}
 
