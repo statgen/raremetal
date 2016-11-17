@@ -41,15 +41,13 @@ void FastFit::OptimizeDelta(double tol,FastTransform & trans)
       b = (a+c)/2.0; fb=-1.0*Evaluate(b,trans,false);
 
       double ll = -Brent(tol,trans);
-      if(i==0) 
-      {
-	 logLikelihood = ll;
-	 deltaHat = min;
+      if(i==0) {
+         logLikelihood = ll;
+         deltaHat = min;
       }
-      if(ll>logLikelihood) 
-      {
-	 logLikelihood = ll;
-	 deltaHat = min;
+      if(ll>logLikelihood) {
+         logLikelihood = ll;
+         deltaHat = min;
       }
       //printf("logLikelihood is:%g,deltaHat is:%g\n",logLikelihood,deltaHat);
    }
@@ -489,8 +487,8 @@ void FastFit::FastFitPolyGenicModels(Pedigree & ped,double tol,FastTransform & t
    {
       if(CleanKin)
       {
-	 kin_emp.CleanUpX();
-	 kin_emp.CleanUpAuto();
+         kin_emp.CleanUpX();
+         kin_emp.CleanUpAuto();
       }
    }
    /*
@@ -621,7 +619,7 @@ void FastFit::FitSimpleLinearModels(Pedigree & ped,double tol,FastTransform & tr
    }
    bool is_possible_binary = isBinaryY(Y);
    if (is_possible_binary)
-      printf("Warning: only 2 values found in phenotype. Should we try --binary instead?");
+      printf("\nWarning: only 2 values found in phenotype. Should we try --binary instead?\n");
 
    Vector tmp;
    tmp.Dimension(trans.fixedEffects);

@@ -106,6 +106,7 @@ int main(int argc, char ** argv)
 	LONG_STRINGPARAMETER("range", &PreMeta::Region)
     LONG_STRINGPARAMETER("variantList", &PreMeta::varListName) // list of variants to calculate score and cov
     LONG_PARAMETER("splitUV", &PreMeta::splitUV)
+    LONG_PARAMETER("newFormat", &PreMeta::newFormat)
 
     END_LONG_PARAMETERS();
 
@@ -361,9 +362,9 @@ int main(int argc, char ** argv)
     		path = argv[0];
     		GroupFromAnnotation group;
     		group.Run(path);
-    		PreMeta preMeta;
+    		PreMeta preMeta(log, SCOREoutput, SCOREoutput_rec, SCOREoutput_dom, SCOREcov, SCOREcov_rec, SCOREcov_dom);
     		start = clock();
-    		preMeta.Run(SCOREoutput,SCOREoutput_rec,SCOREoutput_dom,SCOREcov,SCOREcov_rec,SCOREcov_dom,ped,trans,engine,group,log,checkData,kin_emp);
+    		preMeta.Run(ped,trans,engine,group,checkData,kin_emp);
 
 	  //printf("\n  Generating association statistics and LD matrices used %.1f minutes.\n",( std::clock() - start ) / (double)CLOCKS_PER_SEC/60.0);
     		fprintf(log,"  Generating association statistics and LD matrices used %.1f minutes.\n",( std::clock() - start ) / (double)CLOCKS_PER_SEC/60.0);

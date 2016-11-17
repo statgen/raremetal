@@ -851,44 +851,39 @@ void FastTransform::SubSet(Matrix & allPairs,Pedigree & ped,Matrix & tmp)
 
 int FastTransform::EigenDecompose(Matrix & matrix_in, Matrix & U, Vector & D)
 {
-   if(matrix_in.rows==0 || matrix_in.cols==0)
-      return -1;
-   if(U.rows==0 || U.cols==0)
-      return -1;
-   if(D.Length()==0)
-      return -1;
-   if(matrix_in.rows!=matrix_in.cols)
-      error("Your kinship matrix is not symmetric!\n");
+	if(matrix_in.rows==0 || matrix_in.cols==0)
+		return -1;
+	if(U.rows==0 || U.cols==0)
+	  return -1;
+	if(D.Length()==0)
+	  return -1;
+	if(matrix_in.rows!=matrix_in.cols)
+	  error("Your kinship matrix is not symmetric!\n");
 
-   int n = matrix_in.rows;
-   Eigen::MatrixXf todo(n,n);
+	int n = matrix_in.rows;
+	Eigen::MatrixXf todo(n,n);
 
-   for(int i=0;i<n;i++)
-      for(int j=0;j<n;j++)
-	 todo(i,j) = matrix_in[i][j];
+	for(int i=0;i<n;i++)
+		for(int j=0;j<n;j++)
+			todo(i,j) = matrix_in[i][j];
 
-   Eigen::SelfAdjointEigenSolver<Eigen::MatrixXf> solver(todo);
+	Eigen::SelfAdjointEigenSolver<Eigen::MatrixXf> solver(todo);
 
-   if (solver.info() == Eigen::Success)
-   {
-      //copy eigen vectors and eigenvalues
-      for(int i=0;i<n;i++)
-	 for(int j=0;j<n;j++)
-	    U[i][j] = solver.eigenvectors()(i,j);
-      for(int i=0;i<n;i++)
-      {
-	 D[i] = solver.eigenvalues()[i];
-	 if(D[i]<0)
-	 {
-	    for(int j=0;j<n;j++)
-	       U[j][i] *= -1.0;
-	    D[i] *= -1.0;
-	 }
-      }
-
-      return 0;
-   }
-   return -1;
+	if (solver.info() == Eigen::Success) { //copy eigen vectors and eigenvalues
+	  for(int i=0;i<n;i++)
+	  	for(int j=0;j<n;j++)
+	  		U[i][j] = solver.eigenvectors()(i,j);
+	  	for(int i=0;i<n;i++) {
+	  		D[i] = solver.eigenvalues()[i];
+	  		if(D[i]<0) {
+	  			for(int j=0;j<n;j++)
+	  				U[j][i] *= -1.0;
+	  			D[i] *= -1.0;
+	  		}
+	  	}
+	  return 0;
+	}
+	return -1;
 }
 
 bool FastTransform::FinalizeProducts()

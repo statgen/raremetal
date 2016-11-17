@@ -30,3 +30,4 @@ double GetBetaDensity(double a, double b, double x);
 double CalculateCorrCoef(Vector & a,Vector & b);
 
 void RevertAllele(String SNP, String & newSNP);
+

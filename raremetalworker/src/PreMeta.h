@@ -32,8 +32,10 @@
 class PreMeta
 {
 public:
-      PreMeta();
+      PreMeta( FILE * logfile,IFILE & SCOREoutput1,IFILE & SCOREoutput_rec1,IFILE & SCOREoutput_dom1,IFILE & SCOREcov1,IFILE & SCOREcov_rec1,IFILE & SCOREcov_dom1);
       ~PreMeta();
+
+      FILE * log;
 
       static bool vcfAnnotated;
       static bool zipOutput;
@@ -61,6 +63,7 @@ public:
       static String Region;
       static String varListName;
       static bool splitUV;
+      static bool newFormat;
 
       int warnings;
       int numFounders;
@@ -77,13 +80,15 @@ public:
       Eigen::VectorXf genotype, genotype_rec, genotype_dom;
       Eigen::VectorXf transGeno, transGeno_rec,transGeno_dom;
       Vector residuals;
-      Vector  chisq_before_GCcorrect_rec, chisq_before_GCcorrect_dom, chisq_before_GCcorrect;
+      Vector chisq_before_GCcorrect_rec, chisq_before_GCcorrect_dom, chisq_before_GCcorrect;
       Vector pvalueAll,pvalueAll_rec,pvalueAll_dom;
       Vector pos_plot,pos_plot_rec,pos_plot_dom;
       StringArray chr_plot,chr_plot_rec,chr_plot_dom;
       Vector maf_GC,maf_GC_rec,maf_GC_dom;
       IFILE SCOREoutput,SCOREoutput_rec,SCOREoutput_dom;
       IFILE SCOREcov,SCOREcov_rec,SCOREcov_dom;
+      Matrix genotypeAll,genotypeAll_rec,genotypeAll_dom; //this matrix has the all marker genotype within a window
+      IntArray markerInLD;
 
       Vector chisqred;
       double lambda;
@@ -92,21 +97,28 @@ public:
 
       void CalculateProjectionMatrix(FastTransform & trans,FastFit & engine,Vector & sigma2);
 
-      void Run(IFILE SCOREoutput, IFILE SCOREoutput_rec,IFILE SCOREoutput_dom, IFILE SCOREcov, IFILE SCOREcov_rec,IFILE SCOREcov_dom,Pedigree & ped, FastTransform & trans,FastFit & engine,GroupFromAnnotation & group, FILE * log,SanityCheck & checkData,KinshipEmp & kin_emp);
+      void Run(Pedigree & ped, FastTransform & trans,FastFit & engine,GroupFromAnnotation & group,SanityCheck & checkData,KinshipEmp & kin_emp);
+      void runGenoFromPed(Pedigree & ped, FastTransform & trans, FastFit & engine, SanityCheck & checkData, KinshipEmp & kin_emp, Vector & sigma2);
+      void runGenoFromVcf(Pedigree & ped, FastTransform & trans, FastFit & engine, SanityCheck & checkData, KinshipEmp & kin_emp, Vector & sigma2);
+      void smallSanityCheck( double averageAF, int marker_count );
+
+
       void VCFSanityCheck();
       bool GetGenotypeVectorVCFDosage(FastTransform & trans, Pedigree & ped);
       bool GetGenotypeVectorVCF(FastTransform & trans, Pedigree & ped,SanityCheck & checkData,FILE * log);
       int GetGenotypeVectorPED(FastTransform & trans, Pedigree & ped,int markerid,FILE *log);
       //bool GetGenotypeVector(FastTransform & trans, Pedigree & ped,int markerid);
-      void PrintHeader(IFILE output,FastFit & engine,FastTransform & trans,Pedigree & ped);
-      double CalculateCov(FastFit & engine,FastTransform & trans, Pedigree & ped, Matrix & genotypeAl,Vector & sigma2,int m);
+      void PrintScoreFileHeader(IFILE & output,FastFit & engine,FastTransform & trans,Pedigree & ped);
+      void PrintCovFileHeader( IFILE & file );
+      void PrintToCovOutput( IFILE & file, Matrix & gt, String & chr, int pos, Pedigree & ped, FastTransform & trans, FastFit & engine,Vector & sigma2);
+      double CalculateCovWithSigma(FastFit & engine,FastTransform & trans, Pedigree & ped, Matrix & genotypeAl,Vector & sigma2,int m);
+      double CalculatePlainCov( Matrix & gt, Vector & sigma2, int m, FastTransform & trans );
 
       void CalculateUnrelatedAssocStats(double & effSize,double & pvalue, double & chisq, double & numerator,double & denominator, Eigen::VectorXf & genotype,FastFit & engine,FastTransform & trans,Vector & sigma2);
       void CalculateAssocStats(double & effSize,double &pvalue,double &numerator,double &denominator,double &chisq, Eigen::VectorXf & transGeno,FastFit & engine,FastTransform & trans,Vector & sigma2);
 
       void RelatedAssoc(IFILE SCOREoutput, IFILE SCOREoutput_rec,IFILE SCOREoutput_dom, Pedigree & ped,FastFit & engine,FastTransform & trans,Vector & sigma2);
-
-      void UnrelatedAssoc(IFILE SCOREoutput, IFILE SCOREoutput_rec,IFILE SCOREoutput_dom, Pedigree & ped,FastFit & engine,FastTransform & trans,Vector & sigma2);
+      void UnrelatedAssoc(Pedigree & ped,FastFit & engine,FastTransform & trans,Vector & sigma2);
 
       void GeneratePlots(String & filename,Vector & pvalueAll,StringArray & chr_plot,Vector & pos_plot,GroupFromAnnotation & group,IFILE & SCOREoutput,Vector & chisq_before_GCcorrect,Vector & maf_GC,String & model);
       void GetRealPrefix(String & file);

@@ -13,7 +13,6 @@
 #include "WritePDF.h"
 
 #include <map>
-#include <vector>
 
 class Meta
 {
@@ -31,8 +30,10 @@ class Meta
 	static bool tabix;
 	static bool Burden;
 	static bool MB;
+	static bool MAB;
+	static bool BBeta;
 	static bool SKAT;
-	static bool SKATO;
+//	static bool SKATO;
 	static bool VTa;
 	static bool report;
 	static bool fullResult;
@@ -45,7 +46,6 @@ class Meta
 	static int marker_col;
 	static int cov_col;
 	static bool altMAF; // if TRUE, exclude size of studies that do not contain that variant
-	static bool GeneOnly; // only perform gene based test
 	static bool RegionStatus; // if TRUE, restrict gene-based test to the specified region
 	static String Region; // raw region option
 	static String Chr;
@@ -77,6 +77,7 @@ class Meta
 	Vector SNPmaf_maf;
 	StringArray SNPmaf_name;
 	IntArray SNP_effect_N;
+	int Nsamples;
 	int flipCount;
 	int skip_count;
 
@@ -100,11 +101,13 @@ class Meta
 	// for exact method
 	Vector Ydelta; // yk - ymean
 	Vector Ysigma2; // sigmak(variance), divided by nk-1
-	StringDoubleHash V2; // sum(4*nk*fk^2)
-	StringDoubleHash residual_adj; // sigma tilda outside	
-	StringDoubleHash NkDeltak; // nk * deltak
-	StringDoubleHash regressedTotalAF; // for pop stratification, update f-tilda
-	std::map<String, std::vector<double> > af1KG; // 1000g pop af for all markers...
+	std::map< String, std::vector<double> > variant_fk; //fk of each variant for each study. will turn into fk-tilda if --normPop. last one is total maf
+	std::map< String, std::vector<double> > variant_nk; // nk of each variant for each study. last one is new
+//	StringDoubleHash V2; // sum(4*nk*fk^2)
+//	StringDoubleHash residual_adj; // sigma tilda outside	
+//	StringDoubleHash NkDeltak; // nk * deltak
+//	StringDoubleHash regressedTotalAF; // for pop stratification, update f-tilda
+	std::map< String, std::vector<double> > af1KG; // 1000g pop af for all markers...
 	Matrix pgamma; // coefficients for population in each study
 	int nPop; // number of populations
 
@@ -182,9 +185,11 @@ class Meta
 	void VTassoc( GroupFromAnnotation & group );
 	double VTassocSingle(GroupFromAnnotation & group, Vector & maf_cutoff, IFILE reportOutput, IFILE output, int & g,bool condition,String & method);
 	void SKATassoc( GroupFromAnnotation & group );
-	void CalculateLambda(Matrix & cov, double * weight, double * lambda);
+	void CalculateLambda(Matrix & cov, Vector& weight, double * lambda);
 
 	// pop correction
+	void addToMapStrVec( std::map<String, std::vector<double> >& variant, int study, String & markername, double fk, int vsize);
+	void SetWeight( String & method, Vector & weight, Vector& maf);
 	void FitPgamma();
 	void fitpGammaForSingleStudy( int study);
 	bool add1kgMafToX( Matrix & X, String & markername, int current_index );
@@ -192,7 +197,7 @@ class Meta
 	void load1kgPopMAF();
 	void updateRegressedTotalAF( String & markername, double total );
 	double getAFtilda( String & markername, double raw_af, int study );
-
+	void addToMapStrVec( std::map<String, Vector>& variant, int study, String & markername, double fk);
 	void ErrorToLog(const char * msg);
 };
 
