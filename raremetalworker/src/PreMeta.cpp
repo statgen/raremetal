@@ -518,8 +518,8 @@ void PreMeta::Run(Pedigree & ped, FastTransform & trans,FastFit & engine,GroupFr
     ifprintf(SCOREoutput,"#Xheritabilit is %.2f.\n",engine.Xheritability);
   }
 
-  printf("completed.\n\n");
-  fprintf(log,"completed.\n\n");
+  printf("\ncompleted.\n\n");
+  fprintf(log,"\ncompleted.\n\n");
 }
 
 void PreMeta::runGenoFromPed(Pedigree & ped, FastTransform & trans, FastFit & engine, SanityCheck & checkData, KinshipEmp & kin_emp, Vector & sigma2)
@@ -1301,13 +1301,21 @@ bool PreMeta::GetGenotypeVectorVCF(FastTransform & trans, Pedigree & ped,SanityC
   bool status = false;
 
   founderMaf = markerMaf = 0.0;
-  rareAllele = record.getAltStr();
-  refAllele = record.getRefStr();
   chr = record.getChromStr();
   pos = record.get1BasedPosition();
+  rareAllele = record.getAltStr();
+  refAllele = record.getRefStr();
 
   if(checkData.skippedSNPs.Integer(chr + ":" + pos)!=-1)
     return status;
+
+  // check if multi-allelic
+  StringArray alt_tokens;
+  alt_tokens.AddTokens( rareAllele,',' );
+  if (alt_tokens.Length()>1) {
+    fprintf(log,"Multi-allelic at chr%s:%d:%s:%s. Rare allele transformed as %s!\n",chr.c_str(),pos,refAllele.c_str(),rareAllele.c_str(),alt_tokens[0].c_str());
+    rareAllele = alt_tokens[0];
+  }
 
   //Loop through samples according to trans.pPheno 
   int hwe_het=0,hwe_hom1=0,hwe_hom2=0;
