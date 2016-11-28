@@ -4,7 +4,8 @@ Raremetal: A tool for rare variants meta-analyse
 For more info, please see wiki page
 http://genome.sph.umich.edu/wiki/RAREMETAL
 
-Newest version: v.4.13.9 released at 07/14/2016
+Newest version: v.4.14.9 released at 11/27/2016
+	Updated method for unbalanced studies.
 	View change log at: http://genome.sph.umich.edu/wiki/RAREMETAL_Change_Log
 
 This version contains code for incoming method improvements (but not enabled)
