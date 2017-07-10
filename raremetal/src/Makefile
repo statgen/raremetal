@@ -1,4 +1,4 @@
-EXE=raremetalTest
+EXE=raremetal
 TOOLBASE = Meta MetaUtility QuadProg GroupFromAnnotation WritePDF SummaryFileReader
 SRCONLY = Main.cpp 
 HDRONLY = MixChidist.h My_mvt.h qfc.h Rmath.h WriteLog.h imhof.h Rmath.h
