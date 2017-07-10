@@ -21,6 +21,8 @@ void openMetaResultFile( String & prefix, String & filename, IFILE & output, Str
 
 /*************************************************************************/
 
+void removeChrFromString( String & chr_token );
+
 /******* math part **********/
 
 double GetGenomicControlFromPvalue(Vector & pvalue);
@@ -30,4 +32,13 @@ double GetBetaDensity(double a, double b, double x);
 double CalculateCorrCoef(Vector & a,Vector & b);
 
 void RevertAllele(String SNP, String & newSNP);
+
+// for Dajiang's binary method
+
+//double dnorm_mean0( double x );
+
+//double c_inte( double x, void * params );
+
+//double getCorrectC( double ymean,double sigma);
+
 

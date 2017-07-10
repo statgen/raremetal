@@ -107,6 +107,8 @@ int main(int argc, char ** argv)
     LONG_STRINGPARAMETER("variantList", &PreMeta::varListName) // list of variants to calculate score and cov
     LONG_PARAMETER("splitUV", &PreMeta::splitUV)
     LONG_PARAMETER("newFormat", &PreMeta::newFormat)
+    LONG_PARAMETER("printCaseAC",&PreMeta::printCaseAC)
+    LONG_PARAMETER("debug",&PreMeta::debug)
 
     END_LONG_PARAMETERS();
 
@@ -216,6 +218,9 @@ int main(int argc, char ** argv)
     	{
     		traits = ped.traitNames;
     	}
+
+		if (traits.Length()!=1 && PreMeta::printCaseAC)
+			error("Option --printCaseAC only works with single trait analysis!\n");
 
     	for(int i=0;i<traits.Length();i++)
     	{
@@ -364,7 +369,7 @@ int main(int argc, char ** argv)
     		group.Run(path);
     		PreMeta preMeta(log, SCOREoutput, SCOREoutput_rec, SCOREoutput_dom, SCOREcov, SCOREcov_rec, SCOREcov_dom);
     		start = clock();
-    		preMeta.Run(ped,trans,engine,group,checkData,kin_emp);
+    		preMeta.Run(pedfile,ped,trans,engine,group,checkData,kin_emp);
 
 	  //printf("\n  Generating association statistics and LD matrices used %.1f minutes.\n",( std::clock() - start ) / (double)CLOCKS_PER_SEC/60.0);
     		fprintf(log,"  Generating association statistics and LD matrices used %.1f minutes.\n",( std::clock() - start ) / (double)CLOCKS_PER_SEC/60.0);

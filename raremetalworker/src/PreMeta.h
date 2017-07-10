@@ -64,6 +64,8 @@ public:
       static String varListName;
       static bool splitUV;
       static bool newFormat;
+      static bool printCaseAC;
+      static bool debug; // if run debug info
 
       int warnings;
       int numFounders;
@@ -71,6 +73,11 @@ public:
       VcfFileReader reader;
       VcfHeader header;
       VcfRecord record;
+
+	// indicate a sample is case or control. used in printCaseAC
+	std::map<int, bool> sampleCaseIndicator; // sample id in vcf -> if case, true
+	int caseAC = 0;
+	int controlAC = 0;
 
       //this is the position of each marker in a gene for output
       int pos,hom1,het,hom2;
@@ -95,9 +102,10 @@ public:
       Matrix projectionMat,inv;
       std::map< std::string, std::vector<int> > varList; // variant list if needed
 
+	bool SetCaseControlMap( String& pedname);
       void CalculateProjectionMatrix(FastTransform & trans,FastFit & engine,Vector & sigma2);
 
-      void Run(Pedigree & ped, FastTransform & trans,FastFit & engine,GroupFromAnnotation & group,SanityCheck & checkData,KinshipEmp & kin_emp);
+      void Run(String& pedname,Pedigree & ped, FastTransform & trans,FastFit & engine,GroupFromAnnotation & group,SanityCheck & checkData,KinshipEmp & kin_emp);
       void runGenoFromPed(Pedigree & ped, FastTransform & trans, FastFit & engine, SanityCheck & checkData, KinshipEmp & kin_emp, Vector & sigma2);
       void runGenoFromVcf(Pedigree & ped, FastTransform & trans, FastFit & engine, SanityCheck & checkData, KinshipEmp & kin_emp, Vector & sigma2);
       void smallSanityCheck( double averageAF, int marker_count );

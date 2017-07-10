@@ -52,6 +52,8 @@ String PreMeta::Region = "";
 String PreMeta::varListName = "";
 bool PreMeta::splitUV = false; // split Vgg,Vgz for conditional analysis & adding covariates
 bool PreMeta::newFormat = false; // new storage for covariance matrix
+bool PreMeta::printCaseAC = false; // append AC in case & control in final RMW output
+bool PreMeta::debug = false;
 
 PreMeta::PreMeta(FILE * logfile,IFILE & SCOREoutput1,IFILE & SCOREoutput_rec1,IFILE & SCOREoutput_dom1,IFILE & SCOREcov1,IFILE & SCOREcov_rec1,IFILE & SCOREcov_dom1)
 {
@@ -320,6 +322,13 @@ void PreMeta::UnrelatedAssoc(Pedigree & ped,FastFit & engine,FastTransform & tra
     //calculate standard error here
     chisq_before_GCcorrect.Push(chisq);
   }
+  
+  if (markerMaf==0) { // set zero for non-existing markers
+  	numerator = 0;
+  	denominator = 0;
+  	effSize = _NAN_;
+  	pvalue = _NAN_;
+  }
 
   if(pvalue==_NAN_) {
     if(hwe_pvalue!=_NAN_  || hwe_pvalue != 6.66666e-66)
@@ -333,6 +342,8 @@ void PreMeta::UnrelatedAssoc(Pedigree & ped,FastFit & engine,FastTransform & tra
     else
       ifprintf(SCOREoutput,"%s\t%d\t%s\t%s\t%d\t%g\t%g\t%g\t%g\tNA\t%d\t%d\t%d\t%g\t%g\t%g\t%g",chr.c_str(),pos,refAllele.c_str(),rareAllele.c_str(),trans.persons,founderMaf,markerMaf,mac,callRate,hom1,het,hom2,numerator,sqrt(denominator),effSize,pvalue);
   }
+  if (printCaseAC)
+  	ifprintf(SCOREoutput,"\t%d\t%d",caseAC,controlAC);
   ifprintf(SCOREoutput,"\n");
 
   //recessive model
@@ -422,12 +433,73 @@ void PreMeta::CalculateUnrelatedAssocStats(double & effSize,double & pvalue, dou
   pvalue = pchisq(chisq, 1,0,0);
 }
 
-void PreMeta::Run(Pedigree & ped, FastTransform & trans,FastFit & engine,GroupFromAnnotation & group, SanityCheck & checkData,KinshipEmp & kin_emp)
+// sed the map for case-control ID
+bool PreMeta::SetCaseControlMap( String& pedname)
 {
+	// read ped file
+	StringIntHash hs;
+	IFILE file = ifopen(pedname,"r");
+	while(!ifeof(file)) {
+		String buffer;
+		buffer.ReadLine(file);
+		StringArray tokens;
+		tokens.AddTokens(buffer,"\t ");
+		if (tokens.Length()<6)
+			error("Bad line at ped file:\n%s\n",buffer.c_str());
+		int trait_val = tokens[5].AsInteger();
+		if (trait_val != 0 && trait_val != 1)
+			error("--printCaseAC only works for binary trait coding as 0 or 1!\n");
+		hs.SetInteger(tokens[0],trait_val);
+	}
+	ifclose(file);
+
+	// match ID
+	int n_unmatch = 0;
+	bool status = false;
+	if (!genoFromVCF)
+		error("Option --printCaseAC only works when you have vcf as input!\n");
+	IFILE vcf = ifopen(vcfInput,"r");
+	while(!ifeof(vcf)) {
+		String buffer;
+		buffer.ReadLine(vcf);
+		if (buffer.FindChar('#')==-1)
+			error("Looks like the vcf doesn't have header line starting with #CHR or #Chr or #chr?\n");
+		if (buffer.Find("#CHR")!=-1 || buffer.Find("#Chr")!=-1||buffer.Find("#chr")!=-1) {
+			StringArray tokens;
+			tokens.AddTokens(buffer,"\t");
+			for(int i=9;i<tokens.Length();i++) {
+				String sample_name = tokens[i];
+				int idx = hs.Find(sample_name);
+				if (idx == -1) {
+					if (debug)
+						printf("Warning: cannot find person %s in ped file. This individual will not be counted for caseAC or controlAC!\n",sample_name.c_str());
+					n_unmatch++;
+					continue;
+				}
+				int trait_val = hs.Integer(sample_name);
+				sampleCaseIndicator[i-9] = trait_val==0 ? false : true;
+			}
+			status = true;
+			break;
+		}
+	}
+	ifclose(vcf);
+	if (!status)
+		error("Looks like the vcf doesn't have header line starting with #CHR or #Chr or #chr?\n");	
+	if (n_unmatch>0)
+		printf("Warning: total %d individuals do not have ped information. Will be skipped in counting caseAC and controlAC!\n",n_unmatch);
+	return status;
+}
+
+void PreMeta::Run(String& pedname,Pedigree & ped, FastTransform & trans,FastFit & engine,GroupFromAnnotation & group, SanityCheck & checkData,KinshipEmp & kin_emp)
+{
+	if (printCaseAC)
+		SetCaseControlMap(pedname);
+
 	if ( PreMeta::varListName != "" ) {
-    printf("\nReading variant list...\n");
-    setVarList();
-    printf("  done.\n\n ");
+    	printf("\nReading variant list...\n");
+    	setVarList();
+    	printf("  done.\n\n ");
   }
 
   warnings = 0;
@@ -1152,6 +1224,7 @@ bool PreMeta::GetGenotypeVectorVCFDosage(FastTransform & trans, Pedigree & ped)
 
 int n=0,nf=0;
 double fmaf = 0.0, maf=0.0;
+caseAC = 0, controlAC = 0; // to print case & control AC
 founderMaf = markerMaf = 0.0;
 VcfRecordGenotype & genoInfo = record.getGenotypeInfo();
    /*
@@ -1200,6 +1273,12 @@ VcfRecordGenotype & genoInfo = record.getGenotypeInfo();
 		*/
       n++;
       maf += genotype[idx];
+      if (printCaseAC && sampleCaseIndicator.find(s) != sampleCaseIndicator.end()) {
+		if (sampleCaseIndicator[s])
+      		caseAC+=genotype[idx];
+      	else
+      		controlAC+=genotype[idx];     
+      }
       int founder = trans.foundersHash.Integer(sample);
       if(founder!=-1)
       {
@@ -1301,6 +1380,7 @@ bool PreMeta::GetGenotypeVectorVCF(FastTransform & trans, Pedigree & ped,SanityC
   bool status = false;
 
   founderMaf = markerMaf = 0.0;
+  caseAC = 0, controlAC = 0;
   chr = record.getChromStr();
   pos = record.get1BasedPosition();
   rareAllele = record.getAltStr();
@@ -1420,6 +1500,12 @@ bool PreMeta::GetGenotypeVectorVCF(FastTransform & trans, Pedigree & ped,SanityC
           sum += a;
         }
         if(!miss_stat) {
+        	if (printCaseAC && sampleCaseIndicator.find(s) != sampleCaseIndicator.end()) {
+				if (sampleCaseIndicator[s])
+      				caseAC+=sum;
+      		else
+      			controlAC+=sum;     
+     		}
           n+=2;
           maf+=sum;
           if(founder!=-1) {
@@ -1903,6 +1989,8 @@ void PreMeta::PrintScoreFileHeader(IFILE & output,FastFit & engine,FastTransform
   ifprintf(output,"#CHROM\tPOS\tREF\tALT\tN_INFORMATIVE\tFOUNDER_AF\tALL_AF\tINFORMATIVE_ALT_AC\tCALL_RATE\tHWE_PVALUE\tN_REF\tN_HET\tN_ALT\tU_STAT\tSQRT_V_STAT\tALT_EFFSIZE\tPVALUE");
   if(calculateOR)
     ifprintf(output,"\tOddsRatio");
+	if (printCaseAC)
+		ifprintf(output,"\tcaseAC\tcontrolAC");
   ifprintf(output,"\n");
 }
 

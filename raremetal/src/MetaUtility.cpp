@@ -1,4 +1,7 @@
 #include "MetaUtility.h"
+#include <math.h>
+#include <complex>
+#include <gsl/gsl_integration.h> // integration for Dajiang's method
 
 bool SetIfilePosition( IFILE & sfile, Tabix & myTabix, String Chr, int pos )
 {
@@ -116,4 +119,49 @@ void RevertAllele(String SNP, String & newSNP)
     newSNP = tmp[0]+":"+tmp[1]+":"+tmp[3]+":"+tmp[2];
 }
 
+void removeChrFromString( String & chr_token )
+{
+    if (chr_token.Find("chr")!=-1)
+        chr_token = chr_token.SubStr(3);
+}
+
+/*
+a = log(y.binary.mean / (1-y.binary.mean))
+f = exp(a+e) / (1+exp(a+e)^2 * dnorm(e))
+m = integrate: f(-500,500)
+*/
+/*
+// density function for normal distribution N(0,sigma)
+double dnorm_mean0( double x )
+{
+    double p;
+    double cst = 0.3989423;
+    p = cst * exp(-x*x/2);
+    return p;
+}
+
+// integration of c
+double c_inte( double x, void * params )
+{
+    double a = *(double*) params;
+    double f = exp(a+x) / ( 1+exp(a+x)*exp(a+x) * dnorm_mean0(x) );
+    return f;
+}
+
+double getCorrectC( double ymean,double sigma)
+{
+    double alpha = std::log( ymean / (1-ymean));
+
+    gsl_integration_workspace* w = gsl_integration_workspace_alloc (1000);
+    gsl_function F;
+//    F.function = &f;
+    F.params = &alpha;
+    double result, error;
+    gsl_integration_qags( &F,0,1,0,1e-7,1000,w,&result,&error );
+    double c = result;
+    gsl_integration_workspace_free(w);
+    
+    return c;
+}
+*/
 

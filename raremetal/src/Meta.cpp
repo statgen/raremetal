@@ -1,7 +1,6 @@
 #include "StringArray.h"
 #include "Error.h"
 #include <stdio.h>
-#include "math.h"
 #include <iostream>
 #include "StringHash.h"
 #include "MixChidist.h"
@@ -19,6 +18,7 @@
 #include <Eigen/Dense>
 #include "QuadProg.h"
 #include <iterator>
+#include <math.h> // pow, abs
 
 String Meta::summaryFiles="";
 String Meta::covFiles = "";
@@ -53,6 +53,17 @@ int Meta::Start = -1;
 int Meta::End = -1;
 bool Meta::useExactMetaMethod = false; // use Jingjing's exact method
 bool Meta::normPop = false; // correct for population stratification
+bool Meta::simplifyCovLoad = false; // only load cov matrix between selected marker for group test
+bool Meta::relateBinary = false;
+bool Meta::debug = false; // show debug info & debug output
+bool Meta::matchOnly = false; // only use matched SNP in 1000G
+bool Meta::matchByAbs = false; // use min abs to calculate dist
+double Meta::matchDist = 0; // in --normPop, exclude variants with dist > matchDist
+double Meta::minMatchMAF = 0; // MAF threshold for adjustment
+double Meta::maxMatchMAF = 1;
+//bool Meta::noAdjustUnmatch = false; // do not adjust f~tilda for variants that do not match 1000G
+String Meta::dosageOptionFile = "";
+bool Meta::sumCaseAC = false;
 
 Meta::Meta( FILE * plog )
 {
@@ -72,10 +83,33 @@ void Meta::Prepare()
 //	}
 	setMetaStatics();
 	openMetaFiles();
+	
+	SampleSize.Dimension( scorefile.Length() );
+	for(int s=0; s<scorefile.Length(); s++)
+		SampleSize[s] = -1;
+	
+	if (dosageOptionFile != "") { // read dosage
+		IFILE file = ifopen(dosageOptionFile,"r");
+		while(!ifeof(file)) {
+			String buffer;
+			buffer.ReadLine(file);
+			bool status;
+			if (buffer=="dosage")
+				status = true;
+			else if (buffer=="genotype")
+				status = false;
+			else
+				error("Invalid option in dosageOptionFile! Allowed option is dosage or genotype!\n");
+			dosageOptions.push_back(status);
+		}
+		ifclose(file);
+	}
+	if (dosageOptionFile != ""&& dosageOptions.size() != scorefile.Length())
+		error("DosageOptionFile should have the same line number as score files. Please check your input files!\n");
 
 	if (normPop)
 		FitPgamma();
-	
+			
 	//if conditional analysis says yes
 	if(cond!="")
 		prepareConditionalAnalysis();
@@ -90,15 +124,37 @@ void Meta::FitPgamma()
 	for(int study=0;study<scorefile.Length();study++) {
 		fitpGammaForSingleStudy(study);
 	}
+	if (debug) {
+		String filename = prefix + ".debug.maf-gammas.txt";
+		IFILE file = ifopen(filename,"w",InputFile::UNCOMPRESSED);
+		ifprintf(file,"#STUDY Intercept Gamma\n");
+		for(int study=0;study<scorefile.Length();study++) {
+			ifprintf(file,"%d",study);
+			for(int i=0;i<nPop;i++)
+				ifprintf(file," %g",pgamma[study][i]);
+			ifprintf(file,"\n");
+		}
+		ifclose(file);
+	}
 }
 
 void Meta::fitpGammaForSingleStudy( int study)
 {
+	printf("Doing population correction for study %d...\n",study);
 	Matrix X; // 1kg mafs
 	Vector Y; // sample maf
-	int Nmarkers = 2000;
-	X.Dimension( Nmarkers, nPop );
+//	int Nmarkers = 2000;
+//	X.Dimension( Nmarkers, nPop );
 	int current_index = 0;
+
+	String match_id_file_name = prefix + ".debug.match_id_study";
+	match_id_file_name += study;
+	match_id_file_name += ".txt";
+	IFILE match_id_file;
+	if (debug) {
+		match_id_file = ifopen(match_id_file_name,"w",InputFile::UNCOMPRESSED);
+		ifprintf(match_id_file,"#ID MAF Match1KG_MAF\n");
+	}
 
 	/** load mafs from sites **/
 	String filename = scorefile[study];
@@ -108,6 +164,16 @@ void Meta::fitpGammaForSingleStudy( int study)
 		error("Cannot open file: %s!\nInput file has to be bgzipped and tabix indexed using the following command:\n bgzip your.summary.file; tabix -c \"#\" -s 1 -b 2 -e 2 your.summary.file.gz\n",scorefile[study].c_str());
 	bool first_line = 1;
 	bool adjust;
+	int dist_skipped = 0;
+	int matchonly_skipped = 0;
+	int match_maf_skipped = 0;
+	
+	bool use_dosage = false;
+	if (dosageOptionFile != "")
+		use_dosage = dosageOptions[study];
+	else
+		use_dosage = dosage;
+	
 	while (!ifeof(file)) {	
 		String buffer;
 		buffer.ReadLine(file);
@@ -130,7 +196,7 @@ void Meta::fitpGammaForSingleStudy( int study)
 			continue;
 		int c1,c2,c3;
 //printf("%s\n",markername.c_str());			
-		if(dosage)
+		if(use_dosage)
 		{
 			c3 = tokens[4].AsDouble()*tokens[6].AsDouble()*tokens[6].AsDouble();
 			c2 = tokens[4].AsDouble()*2.0*tokens[6].AsDouble()*(1.0-tokens[6].AsDouble());
@@ -147,29 +213,104 @@ void Meta::fitpGammaForSingleStudy( int study)
 		if(tokens[8-adjust].AsDouble()<CALLRATE || tokens[9-adjust].AsDouble()<HWE)
 			continue;
 		double current_AC;
-		int  current_N;
+		int current_N;
 		current_N = c1+c2+c3;
 		current_AC = 2*c3+c2;	
 //		if (current_AC==0)
 //			continue;
 
 		/** save to maf matrix **/
-		Y.Push( current_AC/current_N/2 );
+		if (X.rows < current_index+1)
+			X.Dimension( current_index+1,nPop );
+
 //		X[current_index][0] = 1;
 		bool status = add1kgMafToX( X, markername, current_index );
-		if (!status) { // not found in 1kg marker, use 1/4N
+		// now check distatnce
+		double dist = 0;
+		double maf = current_AC/current_N/2;
+
+		if (!status) { // not found in 1kg marker, use 1/4N or skip
+			if (matchOnly) {
+				if (matchonly_skipped==0)
+					printf("With --matchOnly flag, the following markers cannot be found in 1000G VCF and will be excluded in population stratification correction:\n");
+				printf("    %s \n", markername.c_str());
+				matchonly_skipped++;
+				continue;
+			}
 			for(int i=0; i<nPop; i++)
 				X[current_index][i] = (double)0.25/current_N;
 		}
+		else { // check matchDist and MAF
+			// check MAF first
+			if (maf<minMatchMAF || maf>maxMatchMAF) {
+				if (match_maf_skipped==0)
+					printf("With --minMatchMAF=%g,--maxMatchMAF=%g, markers with MAF out of this range will be excluded in population correction!\n",minMatchMAF,maxMatchMAF);
+				match_maf_skipped++;
+				continue;
+			}			
+			// then check dist
+			if (matchByAbs) { // dist = min( |MAF_study - MAF_pop| )
+				for(int i=0;i<nPop;i++) {
+					double di = abs(maf - X[current_index][i]);
+					if (dist==0)
+						dist = di;
+					else {
+						if (di<dist)
+							dist = di;
+					}
+				}
+			}
+			else { // dist = sqrt( sum(MAF_study - MAF_pop)^2 )
+				for(int i=0;i<nPop;i++)
+					dist += (maf - X[current_index][i])*(maf - X[current_index][i]);
+				dist = sqrt(dist/nPop);			
+			}
+			if (matchDist > 0 && dist > matchDist) {
+				if (dist_skipped==0)
+					printf("With --matchDist %g flag, the following markers with dist>%g in 1000G VCF will be excluded in population stratification correction:\n", matchDist, matchDist);
+				if (debug)
+					printf("    %s, dist=%g\n", markername.c_str(),dist );
+				if (dist_skipped==0) {
+					if (matchByAbs)
+						printf("Distance calculation method: dist = min( |MAF_study - MAF_pop| )\n\n");
+					else
+						printf("Distance calculation method: dist = sqrt( sum(MAF_study - MAF_pop)^2 )\n\n");
+				}
+				dist_skipped++;
+				continue;
+			}		
+		}
+
+		Y.Push( current_AC/current_N/2 );
+		if (debug) {
+			ifprintf(match_id_file,"%s %g",markername.c_str(),current_AC/current_N/2);
+			for(int i=0; i<nPop; i++)
+				ifprintf(match_id_file," %g",X[current_index][i]);
+			ifprintf(match_id_file,"\n");
+		}
 		current_index++;
-		if (current_index >= Nmarkers)
-			break;
+//	printf("index=%d\n",current_index);
+//		if (current_index >= Nmarkers)
+//			break;
 	}
 	ifclose(file);
-	if (current_index < Nmarkers)
-		X.Dimension( current_index,nPop );
+	printf("Finish loading and match to 1000G VCF!\n");
+	if (matchOnly)
+		printf("In pop correction, total %d variants that do not have a match in 1000G were skipped.\n",matchonly_skipped);
+	if (matchDist > 0)
+		printf("In pop correction, total %d variants with dist>%g were skipped.\n",dist_skipped,matchDist);
+	if (match_maf_skipped>0)
+		printf("In pop correction, total %d variants were skipped because maf is not in range of %g~%g",match_maf_skipped,minMatchMAF,maxMatchMAF);
+	if (debug)
+		ifclose(match_id_file);
+	if ( matchOnly && X.rows == Y.Length()+1) // if last element is not added
+		X.Dimension(Y.Length(),nPop);
+//	if (current_index < Nmarkers)
+//		X.Dimension( current_index,nPop );
 	hashToRemoveDuplicates.Clear();
 
+	if (X.rows > 10000)
+		printf("Warning: regressing %d markers for population stratification. This process might be very slow...\n\n", X.rows);
 	// perform regression & save to fk
 	setGammaFromRegression( study,X,Y);
 }
@@ -280,15 +421,19 @@ printf("\n\n");
 //this function will read through summary statistics of each study and pool the information.
 //At the end, single variant meta-analysis will be completed.
 // information will be stored for gene-based analysis
-void Meta::PoolSummaryStat(GroupFromAnnotation & group)
+void Meta::PoolSummaryStat( GroupFromAnnotation & group )
 {	
 	total_N=0;
 	flipCount =0;
 	skip_count=0;
-	
-	SampleSize.Dimension( scorefile.Length() );
-	for(int s=0; s<scorefile.Length(); s++)
-		SampleSize[s] = -1;
+
+	if (relateBinary) {
+		Const_binary.Dimension(scorefile.Length());
+		for(int s=0;s<scorefile.Length();s++) {
+			double sigma = Ysigma2g[s] + Ysigma2e[s];
+//			Const_binary[s] = getCorrectC( Ymean[s],sigma );
+		}
+	}
 
 	if (useExactMetaMethod) {
 		Ydelta.Dimension( scorefile.Length() );
@@ -362,6 +507,8 @@ void Meta::PoolSummaryStat(GroupFromAnnotation & group)
 		bool pass_header = 0;
 		while (!ifeof(file)) {
 			buffer.ReadLine(file);
+			if (buffer.Length()<2)
+				continue;
 			if (!pass_header) {
 				if (SampleSize[study]==-1) {
 					if(buffer.Find("##AnalyzedSamples")!=-1) {
@@ -398,6 +545,8 @@ void Meta::PoolSummaryStat(GroupFromAnnotation & group)
 		}
 		printf("  done\n");
 	}
+	 
+	
 	if(skip_count>1)
 		printf("Warning: %d variants have been excluded from analysis due to un-matched alleles. Please check log file for details.\n",skip_count);
 			
@@ -445,7 +594,7 @@ void Meta::Run(GroupFromAnnotation & group)
 	if(outvcf)
 		return;
 	
-	if(!SKAT && !Burden && !MB && !VTa) {
+	if(!SKAT && !Burden && !MB && !MAB && !BBeta && !VTa) {
 		printf("\nWarning: none of the gene-level tests was requested; only single variant meta-analysis was done.\n");
 		return;
 	}
@@ -1248,7 +1397,12 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 
 	//check allele counts to see if the site is monomorphic
 	int c1,c2,c3;
-	if(dosage)
+	bool use_dosage = false;
+	if (dosageOptionFile != "")
+		use_dosage = dosageOptions[study];
+	else
+		use_dosage = dosage;
+	if(use_dosage)
 	{
 		c3 = tokens[4].AsDouble()*tokens[6].AsDouble()*tokens[6].AsDouble();
 		c2 = tokens[4].AsDouble()*2.0*tokens[6].AsDouble()*(1.0-tokens[6].AsDouble());
@@ -1269,15 +1423,21 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 	String markername = chr_pos + ":" + refalt_current;
 	if ( useExactMetaMethod ) {
 		String snp_no_allele = tokens[0]+":"+tokens[1];
-		double raw_af = (double)current_AC / current_N / 2;
+		double raw_af;
+		if (current_N==0) {
+			printf("Warning: effective sample size of %s:%s is zero. Are you using the correct --dosage or --dosageOptionFile?\n\n",tokens[0].c_str(),tokens[1].c_str());
+			raw_af = 0;
+		}
+		else
+			raw_af = (double)current_AC / current_N / 2;
 		if (normPop) { // adjust for population stratification by regression
 				double fk = getAFtilda( markername, raw_af,study );
-				addToMapStrVec( variant_fk, study, chr_pos, fk, scorefile.Length()+1);
-				addToMapStrVec( variant_nk, study, chr_pos, (double)current_N, scorefile.Length()+1);
+				addToMapStrVec( variant_fk, study, chr_pos, fk, scorefile.Length()+1,0);
+				addToMapStrVec( variant_nk, study, chr_pos, (double)current_N, scorefile.Length()+1,current_N);
 		}
 		else {
-			addToMapStrVec( variant_fk, study, chr_pos, raw_af, scorefile.Length()+1);
-			addToMapStrVec( variant_nk, study, chr_pos, (double)current_N, scorefile.Length()+1);
+			addToMapStrVec( variant_fk, study, chr_pos, raw_af, scorefile.Length()+1,0);
+			addToMapStrVec( variant_nk, study, chr_pos, (double)current_N, scorefile.Length()+1,current_N);
 		}
 	}
 
@@ -1304,6 +1464,10 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 	bool flip=false;
 	double u = tokens[13-adjust].AsDouble();
 	double v = tokens[14-adjust].AsDouble();
+	if (relateBinary) {
+		u *= Const_binary[study];
+		v *= Const_binary[study];
+	}
 	double raw_v = v;
 	double raw_u = u;
 	if(marker_idx == -1) //if this position is never hashed before
@@ -1414,6 +1578,31 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 	if(flip) {
 		flipCount++;
 		flipSNP.SetInteger(study+":"+chr_pos,flipCount);
+	}
+	
+	if (sumCaseAC && tokens.Length()==19) {
+		if (caseAC.Integer(chr_pos)==-1) {
+			if (flip) {
+				caseAC.SetInteger(chr_pos,current_N*2-tokens[17].AsInteger());
+				controlAC.SetInteger(chr_pos,current_N*2-tokens[18].AsInteger());				
+			}
+			else {
+				caseAC.SetInteger(chr_pos,tokens[17].AsInteger());
+				controlAC.SetInteger(chr_pos,tokens[18].AsInteger());
+			}
+		}
+		else {
+			int c1 = caseAC.Integer(chr_pos);
+			int c2 = controlAC.Integer(chr_pos);
+			if (flip) {
+				caseAC.SetInteger(chr_pos,c1+current_N*2-tokens[17].AsInteger());
+				controlAC.SetInteger(chr_pos,c2+current_N*2-tokens[18].AsInteger());				
+			}
+			else {
+				caseAC.SetInteger(chr_pos,c1+tokens[17].AsInteger());
+				controlAC.SetInteger(chr_pos,c2+tokens[18].AsInteger());
+			}
+		}
 	}
 	
 	//if a variant is monomorphic then update the count of sample size and generate warning
@@ -1635,9 +1824,12 @@ void Meta::printSingleMetaHeader( String & filename, IFILE & output )
 	ifprintf(output,"##STUDY_NUM=%d\n",scorefile.Length());
 	ifprintf(output,"##TotalSampleSize=%d\n",total_N);
 	if(cond=="")
-		ifprintf(output,"#CHROM\tPOS\tREF\tALT\tN\tPOOLED_ALT_AF\tDIRECTION_BY_STUDY\tEFFECT_SIZE\tEFFECT_SIZE_SD\tH2\tPVALUE\n");
+		ifprintf(output,"#CHROM\tPOS\tREF\tALT\tN\tPOOLED_ALT_AF\tDIRECTION_BY_STUDY\tEFFECT_SIZE\tEFFECT_SIZE_SD\tH2\tPVALUE");
 	else
-		ifprintf(output,"#CHROM\tPOS\tREF\tALT\tN\tPOOLED_ALT_AF\tDIRECTION_BY_STUDY\tEFFECT_SIZE\tEFFECT_SIZE_SD\tH2\tPVALUE\tCOND_EFFSIZE\tCOND_EFFSIZE_SD\tCOND_H2\tCOND_PVALUE\n");
+		ifprintf(output,"#CHROM\tPOS\tREF\tALT\tN\tPOOLED_ALT_AF\tDIRECTION_BY_STUDY\tEFFECT_SIZE\tEFFECT_SIZE_SD\tH2\tPVALUE\tCOND_EFFSIZE\tCOND_EFFSIZE_SD\tCOND_H2\tCOND_PVALUE");
+	if (sumCaseAC)
+		ifprintf(output,"\tsumCaseAC\tsumControlAC");
+	ifprintf(output,"\n");
 }
 
 void Meta::printOutVcfHeader( String & vcf_filename, IFILE & vcfout )
@@ -1785,7 +1977,7 @@ void Meta::printSingleMetaVariant( GroupFromAnnotation & group, int i, IFILE & o
 			cond_h2=0.0;
 			cond_effSize_se = 0.0;
 		}
-		ifprintf(output,"%s\t%s\t%s\t%s\t%d\t%g\t%s\t%g\t%g\t%g\t%s%g\t%g\t%g\t%g\t%s%g\n",tmp[0].c_str(),tmp[1].c_str(),tmp[2].c_str(),tmp[3].c_str(),N,maf,direction.c_str(),effSize,effSize_se,h2,disect?"<":"",pvalue,cond_effSize,cond_effSize_se,cond_h2,cond_disect?"<":"",cond_pvalue);
+		ifprintf(output,"%s\t%s\t%s\t%s\t%d\t%g\t%s\t%g\t%g\t%g\t%s%g\t%g\t%g\t%g\t%s%g",tmp[0].c_str(),tmp[1].c_str(),tmp[2].c_str(),tmp[3].c_str(),N,maf,direction.c_str(),effSize,effSize_se,h2,disect?"<":"",pvalue,cond_effSize,cond_effSize_se,cond_h2,cond_disect?"<":"",cond_pvalue);
 			
 		pvalueAll_cond.Push(cond_pvalue);
 		if(maf<0.01)
@@ -1794,13 +1986,24 @@ void Meta::printSingleMetaVariant( GroupFromAnnotation & group, int i, IFILE & o
 			pvalue5_cond.Push(cond_pvalue);		
 	}
 	else
-		ifprintf(output,"%s\t%s\t%s\t%s\t%d\t%g\t%s\t%g\t%g\t%g\t%s%g\n",tmp[0].c_str(),tmp[1].c_str(),tmp[2].c_str(),tmp[3].c_str(),N,maf,direction.c_str(),effSize,effSize_se,h2,disect?"<":"",pvalue);
+		ifprintf(output,"%s\t%s\t%s\t%s\t%d\t%g\t%s\t%g\t%g\t%g\t%s%g",tmp[0].c_str(),tmp[1].c_str(),tmp[2].c_str(),tmp[3].c_str(),N,maf,direction.c_str(),effSize,effSize_se,h2,disect?"<":"",pvalue);
+
+	if (sumCaseAC) {
+		int c1 = caseAC.Integer(SNPname_noallele);
+		int c2 = controlAC.Integer(SNPname_noallele);
+		if (c1==-1||c2==-1)
+			printf("Warning: variant doesn't have caseAC or controlAC count!\n");
+		ifprintf(output,"\t%d\t%d",c1,c2);
+	}
+
+	ifprintf(output,"\n");
 
 	if(outvcf)
 		ifprintf(vcfout,"%s\t%s\t%s\t%s\t%s\t.\t.\tALT_AF=;\n",tmp[0].c_str(),tmp[1].c_str(),tmp[1].c_str(),tmp[2].c_str(),tmp[3].c_str());
 
 	// annotation if needed
-	annotateSingleVariantToGene( group, pvalue, cond_pvalue, tmp );
+	if (group.labelHits)
+		annotateSingleVariantToGene( group, pvalue, cond_pvalue, tmp );
 }
 
 //Annotate single variants to gene
@@ -1889,7 +2092,7 @@ void Meta::plotSingleMetaGC( IFILE & output, bool calc_gc )
 		GC3 = GetGenomicControlFromPvalue(pvalue5);
 	demo3="GC=";
 	demo3 += GC3;
-	writepdf.Draw(pdf,geneLabel,pvalueAll,pvalue1,pvalue5,chr_plot,pos_plot,title,demo1,demo2,demo3,true);
+	writepdf.Draw(pdf,geneLabel,pvalueAll,pvalue1,pvalue5,chr_plot,pos_plot,title,demo1,demo2,demo3,false);
 		
 	//Calculate genomic control
 	if (calc_gc) {
@@ -2027,18 +2230,19 @@ void Meta::loadSingleStatsInGroup( GroupFromAnnotation & group )
 //loop through cov matrices of all studies and update cov
 void Meta::loadSingleCovInGroup( GroupFromAnnotation & group )
 {
+	if (simplifyCovLoad) { // only load markers in group
+		for(int g=0;g<group.annoGroups.Length();g++) {
+			int gvar_count = group.SNPlist[g].Length();
+			for(int i=0;i<gvar_count;i++)
+				groupAnchor[group.SNPNoAllele[g][i]] = 0;
+		}
+	}
+
 	for(int study=0;study<covfile.Length();study++)
 	{
 		SummaryFileReader covReader;
-		StringIntHash markerPosHash;
-		StringArray markersInWindow,markersCov;
 		String covFilename = covfile[study];
 		setFromRvOrRmwAdjust( FormatAdjust[study], marker_col, cov_col );
-/*		if(tabix) {
-			if(!covReader.ReadTabix(covFilename))
-				error("Cannot open file %s.\n",covfile[study].c_str());
-		}
-		else {*/
 		printf("Reading cov matrix from study %d ...\n",study+1);
 		String filename = covfile[study];
 		IFILE covfile_;
@@ -2055,192 +2259,148 @@ void Meta::loadSingleCovInGroup( GroupFromAnnotation & group )
 			if ( !status )
 				error( "Cannot find position %s:%d-%d in cov file %s!\n", Chr.c_str(), Start, End, filename.c_str() );
 		}
-		String buffer;
-		StringArray tokens;
+
 		int m=0;
+		bool pass_header = 0;
+		bool newFormat = 0;
 		while (!ifeof(covfile_)) {
+			String buffer;
 			buffer.ReadLine(covfile_);
-			if(buffer.FindChar('#')!=-1 || buffer.Find("CHROM")!=-1)
+			if (!pass_header) {
+				if (buffer.Find("CHROM")==-1)
+					continue;
+				// now check new or old format
+				StringArray tokens;
+				tokens.AddTokens(buffer,"\t ");
+				if (tokens[2]=="MARKERS_IN_WINDOW" && tokens[3]=="COV_MATRICES")
+					newFormat = 0;
+				else if (tokens[2]=="EXP" && tokens[3]=="COV_MATRICES")
+					newFormat = 1;
+				else if (tokens[3]=="NUM_MARKER" && tokens[4]=="MARKER_POS" && tokens[5]=="COV")
+					newFormat = 0;
+				else
+					error("Covariance matrix is neither new or old format...are you using the right file?\n");
+				pass_header = 1;
 				continue;
-			tokens.Clear();
-			tokens.AddTokens(buffer, "\t ");
+			}
+			StringArray tokens;
+			tokens.AddTokens(buffer,"\t ");
 			if ( RegionStatus ) {
 				if ( tokens[1].AsInteger() > End || tokens[0] != Chr ) // out of this region or into another chromosome
-					break;
+				break;
 			}
-			if(tokens[0].Find("chr")!=-1)
-				tokens[0] = tokens[0].SubStr(3);
-			String SNP = tokens[0] + ":" + tokens[1];
-			//exclude variants that have different REF and ALT
-			if(SNPexclude.Integer(study+":"+SNP)!=-1)
-				continue;
-			m++;
-			markerPosHash.SetInteger(SNP,m);
-			markersInWindow.Push(tokens[marker_col]);
-			markersCov.Push(tokens[cov_col]);
+			if (FormatAdjust[study]) // rvtest
+				readCovOldFormatLine(study,tokens,m);
+			else {
+				if (newFormat)
+					readCovNewFormatLine(study,tokens,m);
+				else
+					readCovOldFormatLine(study,tokens,m);
+			}
 		}
 		ifclose(covfile_);
 		printf("done\n");
 
 		//   printf("Updating group stats ...\n");
 		//update group statistics
-		for(int g=0;g<group.annoGroups.Length();g++) {
-			//printf("doing group %d\n",g);
-			int count = group.SNPlist[g].Length();
-			StringArray chr,pos;
-			for(int i=0;i<count;i++) {
-				StringArray tmp;
-				tmp.AddTokens(group.SNPNoAllele[g][i],":");
-				chr.Push(tmp[0]);
-				pos.Push(tmp[1]);
-//				ref_allele.Push(tmp[2]);
-//				alt_allele.Push(tmp[2]);
-			} //now pos has all the positions of markers in group g.
-			
-			Matrix cov_i,GX;
-			cov_i.Dimension(count,count,0.0);
-			if(cond!="") {
-				GX.Dimension(count,XX_inv[study].cols,0.0);
-				//GX_beta.Dimension(count);
-			}
-/*			
-			if(tabix)
-			for(int m=0;m<count;m++) {
-				int skip = SNPexclude.Integer(study+":"+group.SNPNoAllele[g][m]);
-				if(skip!=-1)
-				//printf("SNP %s in stuy %d is skipped %d.\n",group.SNPNoAllele[g][m].c_str(),study,skip);
-					continue;
-				if(cond!="") {
-					StringArray name;
-					name.AddTokens(group.SNPlist[g][m],":");
-					CalculateGenotypeCov(covReader,chr[m],pos[m].AsInteger(),study,GX[m]);
-					//GX_beta[m] = GX[m].InnerProduct(commonVar_betaHat[study]);
-					//cond_stats[g][m] = stats[g][m]-GX_beta[m];
-					cond_stats[g][m] = SNPstat_cond.Double(name[0]+":"+name[1]);
-				}
-				for(int s=m;s<count;s++) {
-					cov_i[m][s] = GrabGenotypeCov(covReader,study,chr[m],pos[m],chr[s],pos[s],group.SNPlist[g][m],group.SNPlist[g][s]);
-				}
-			}
-			else
-*/			
-			for(int m=0;m<count;m++) {
-				int loc = markerPosHash.Integer(group.SNPNoAllele[g][m]);
-				//If this SNP is not genotpyed in this study, then skip
-				if(loc==-1)
-					continue;
-				
-				//If this SNP from this study should be excluded due to non consistent ref/alt allele
-				//then skip
-				int skip = SNPexclude.Integer(study+":"+group.SNPNoAllele[g][m]);
-				if(skip!=-1)
-				continue;				
-				//if this marker is flipped then markers from the entire row
-				//should have cov multiply by -1.0.
-				int flip = flipSNP.Integer(study+":"+group.SNPNoAllele[g][m]);
-				double multiplyFactor=1.0;
-				if(flip!=-1)
-					multiplyFactor=-1.0;
-				//read through markersInWindow and find the selected markers
-				StringArray markers,markerscov;
-				markers.AddTokens(markersInWindow[loc-1],",");
-				markerscov.AddTokens(markersCov[loc-1],",");
-				
-				//fill in the mth row of cov
-				for(int s=m;s<count;s++) {
-					int p = markers.Find(pos[s]);
-					if(p==-1)
-						continue;
-					else {
-						String markerName = study+":"+chr[s]+":"+pos[s];
-						//String markername = markerName + ":"+ref_allele[s] + ":"+alt_allele[s];
-						//if the marker in window is supposed to be excluded due to non-consistent ref/alt allele
-						//then skip
-						int skip = SNPexclude.Integer(markerName);
-						if(skip!=-1)
-							continue;
-						int flip = flipSNP.Integer(markerName);
-						double factor=1.0;
-						if(flip!=-1)
-							factor=-1.0;
-						cov_i[m][s]= multiplyFactor*factor*markerscov[p].AsDouble()*SampleSize[study];
-						if (useExactMetaMethod) {
-							String markername = chr[m] + ":" + pos[m];
-							String markername2 = chr[s] + ":" + pos[s];
-							std::map< String, std::vector<double> >::iterator pnk = variant_nk.find(markername);
-							/*if (p == variant_nk.end()) {
-								markername = markerName + ":" + alt_allele[s] + ":"+ref_allele[s];
-								p = variant_nk.find(markername);
-							}*/
-							if( pnk==variant_nk.end())
-								error("error2137\n");
-							std::map< String, std::vector<double> >::iterator pfk = variant_fk.find(markername);
-							std::map< String, std::vector<double> >::iterator pnk2;
-							std::map< String, std::vector<double> >::iterator pfk2;
-							if (m==s) {
-								pnk2 = pnk;
-								pfk2 = pfk;
-							}
-							else {
-								pnk2 = variant_nk.find(markername2);
-								pfk2 = variant_fk.find(markername2);
-							}
-							int nk = pnk->second[study];
-							double nkfk2 = nk * pfk->second[study] * pfk2->second[study];
-							double new_r = pnk->second[scorefile.Length()];
-							double ff = pfk->second[scorefile.Length()]*pfk2->second[scorefile.Length()];
-							// Vexact=Vrmw*sigma4
-							cov_i[m][s] = new_r*(cov_i[m][s]*Ysigma2[study] - 4*nk*ff + 4*nkfk2);
-						}
-					}
-				}
-				//fill in GX
-				if(cond!="")
-				{
-					StringArray name;
-					name.AddTokens(group.SNPlist[g][m],":");
-					cond_stats[g][m] = SNPstat_cond.Double(name[0]+":"+name[1]);
-					String pos_str;
-					for(int s=0;s<commonVar_study[study].Length();s++)
-					{
-						if(pos[m].AsInteger()<common_pos[commonVar_study[study][s]]) { // direct fill in
-							pos_str = common_pos[commonVar_study[study][s]];
-							int p = markers.Find(pos_str);
-							if(p==-1)
-								continue;
-							GX[m][s]= markerscov[p].AsDouble()*SampleSize[study];
-						}
-						else { // need to put the smaller one first
-							int loc = markerPosHash.Integer(common_chr[commonVar_study[study][s]]+":"+common_pos[commonVar_study[study][s]]);
-							//If this SNP is not genotpyed in this study, then skip
-							if(loc==-1)
-								continue;
-							//read through markersInWindow and find the selected markers
-							StringArray new_markers, new_markerscov;
-							new_markers.AddTokens(markersInWindow[loc-1],",");
-							new_markerscov.AddTokens(markersCov[loc-1],",");
-							pos_str = pos[m];
-							int p = new_markers.Find(pos_str);
-							if (p==-1)
-								continue;
-							GX[m][s]= new_markerscov[p].AsDouble()*SampleSize[study];
-						}
-					}
-				}
-			}
-			cov[g].Add(cov_i);
-			if(cond!="")
-			{
-				cond_cov[g].Add(cov_i);
-				Matrix GX_trans,tmp,extra_cov_i;
-				GX_trans.Transpose(GX);
-				tmp.Product(GX,XX_inv[study]);
-				extra_cov_i.Product(tmp,GX_trans);
-				extra_cov_i.Multiply(-1.0);
-				cond_cov[g].Add(extra_cov_i);
-			}
-		}
+		for(int g=0;g<group.annoGroups.Length();g++)
+			updateGroupStats(group,study,g,newFormat);
+
+		// clear after filling up each study
+		markerPosHash.Clear();
+		markersExp.Clear(); // for new format
+		markersInWindow.Clear(); // for old format
+		markersCov.Clear();			
 	}	
+}
+
+void Meta::readCovOldFormatLine( int study,StringArray & tokens, int & m )
+{
+	removeChrFromString(tokens[0]);
+	String SNP = tokens[0] + ":" + tokens[1];
+	//exclude variants that have different REF and ALT
+	if ( simplifyCovLoad && groupAnchor.Integer(SNP) != -1)
+		return;
+	if(SNPexclude.Integer(study+":"+SNP)!=-1)
+		return;
+	m++;
+	markerPosHash.SetInteger(SNP,m);
+	markersInWindow.Push(tokens[marker_col]);
+	markersCov.Push(tokens[cov_col]);
+}
+
+
+// do not have markersInWindow. Instead, read from markerList
+void Meta::readCovNewFormatLine( int study,StringArray & tokens, int & m)
+{
+	removeChrFromString(tokens[0]);
+	String SNP = tokens[0] + ":" + tokens[1];
+	//exclude variants that have different REF and ALT
+	if (simplifyCovLoad && groupAnchor.Integer(SNP) != -1)
+		return;
+	if(SNPexclude.Integer(study+":"+SNP)!=-1)
+		return;
+	m++;
+	markerPosHash.SetInteger(SNP,m);
+//	markerChrList.Push(tokens[0]);
+//	markerPosList.Push(tokens[1]);
+	markersExp.Push(tokens[2]);
+	markersCov.Push(tokens[cov_col]);
+}
+
+// for new format
+// read marker cov then add to vector
+void Meta::addNewFormatCov( int mexp,String & cov_str, Vector & covs)
+{
+	StringArray commas;
+	commas.AddTokens(cov_str,',');
+	// length of covs
+	int n = commas.Length();
+	if (n<1)
+		error("At line: %s:...,no index of covariance matrices! Are you using the right cov file?\n",cov_str.c_str());
+	bool index_exist = 0;
+	// now check if index exists
+	StringArray first_tokens;
+	first_tokens.AddTokens(commas[0],":");
+	if (first_tokens.Length()==2)
+		index_exist = 1;
+	else if (first_tokens.Length()!=1)
+		error("At line: %s:...,abnormal index of covariance matrices! Are you using the right cov file?\n",cov_str.c_str());
+
+	// if no index, add directly
+	if (index_exist) {
+		int cov_len = -1;
+		for(int i=n-1;i>=0;i--) {
+			StringArray tokens;
+			tokens.AddTokens( commas[i],':' );
+			if (tokens.Length()==1)
+				continue;
+			cov_len = tokens[1].AsInteger()+1;
+			break;
+		}
+		if (cov_len==-1)
+			error("At line: %s:...,no index of covariance matrices! Are you using the right cov file?\n",commas[0].c_str());
+		covs.Dimension(cov_len,0);
+		// now add
+		int last_index = 0;
+		for(int i=0;i<n;i++) {
+			StringArray tokens;
+			tokens.AddTokens( commas[i],':' );		
+			if (tokens.Length()>2||tokens.Length()<1)
+				error("At line: ...:%s:...,abnormal separation!\n",commas[i].c_str());
+			if (tokens.Length()==1)
+				last_index++;
+			else // tokens ==2
+				last_index = tokens[1].AsInteger();
+	//printf("covlen=%d,last_index=%d\n",cov_len,last_index);		
+			covs[last_index] = tokens[0].AsDouble()*pow(10,mexp);
+		}
+	}
+	else {
+		covs.Dimension(n,0);
+		for(int i=0;i<n;i++)
+			covs[i] = commas[i].AsDouble()*pow(10,mexp);
+	}
 }
 
 void Meta::BurdenAssoc(String method,GroupFromAnnotation & group,Vector *& maf,Vector *& stats,Vector *& cond_stats,Matrix *& cov,Matrix *& cond_cov,Vector *& singleEffSize,Vector *& singlePvalue)
@@ -2293,7 +2453,7 @@ void Meta::BurdenAssoc(String method,GroupFromAnnotation & group,Vector *& maf,V
 	for(int g=0;g<group.annoGroups.Length();g++)
 	{
 		if(maf[g].Length()==0)
-		continue;
+			continue;
 		
 		double average_af = maf[g].Average();
 		double min_af = maf[g].Min();
@@ -3014,31 +3174,42 @@ void Meta::SKATassoc( GroupFromAnnotation & group )
 		
 		bool disect_davies=false,disect_liu = false,cond_disect_davies=false,cond_disect_liu=false;
 		int disect_itr=0;
-		while( (pvalue<=0.0 ||pvalue==2.0 || std::isnan(pvalue)) && disect_itr<10000)
-		{
-			disect_davies=true;
-			Qstat_dav*=0.9999;
-			pvalue = MixChidist(lambda, n, Qstat_dav,"Davies");
-			disect_itr++;
+		if (debug)
+			printf("Qstat=%g, pvalue=%g\n",Qstat,pvalue);
+			
+		if (Qstat==_NAN_) {
+			Qstat_dav = _NAN_;
+			Qstat_liu = _NAN_;
+			pvalue = _NAN_;
+			pvalue_liu = _NAN_;
 		}
-		while((pvalue<=0.0 ||pvalue==2.0 || std::isnan(pvalue)))
-		{
-			Qstat_dav*=0.99;
-			pvalue = MixChidist(lambda, n, Qstat_dav,"Davies");
-		}
-		pvalue_liu = MixChidist(lambda, n, Qstat_liu,"Liu");
-		disect_itr=0;
-		while( (pvalue_liu<=0.0 ||pvalue_liu==2.0 || std::isnan(pvalue_liu)) && disect_itr<10000)
-		{
-			disect_liu=true;
-			Qstat_liu*=0.9999;
+		else {
+			while( (pvalue<=0.0 ||pvalue==2.0 || std::isnan(pvalue)) && disect_itr<10000)
+			{
+				disect_davies=true;
+				Qstat_dav*=0.9999;
+				pvalue = MixChidist(lambda, n, Qstat_dav,"Davies");
+				disect_itr++;
+			}
+			while((pvalue<=0.0 ||pvalue==2.0 || std::isnan(pvalue)))
+			{
+				Qstat_dav*=0.99;
+				pvalue = MixChidist(lambda, n, Qstat_dav,"Davies");
+			}
 			pvalue_liu = MixChidist(lambda, n, Qstat_liu,"Liu");
-			disect_itr++;
-		}
-		while((pvalue_liu<=0.0 ||pvalue_liu==2.0 || std::isnan(pvalue_liu)))
-		{
-			Qstat_liu*=0.99;
-			pvalue_liu = MixChidist(lambda, n, Qstat_liu,"Liu");
+			disect_itr=0;
+			while( (pvalue_liu<=0.0 ||pvalue_liu==2.0 || std::isnan(pvalue_liu)) && disect_itr<10000)
+			{
+				disect_liu=true;
+				Qstat_liu*=0.9999;
+				pvalue_liu = MixChidist(lambda, n, Qstat_liu,"Liu");
+				disect_itr++;
+			}
+			while((pvalue_liu<=0.0 ||pvalue_liu==2.0 || std::isnan(pvalue_liu)))
+			{
+				Qstat_liu*=0.99;
+				pvalue_liu = MixChidist(lambda, n, Qstat_liu,"Liu");
+			}
 		}
 		
 		if(cond!="")
@@ -3254,7 +3425,7 @@ void Meta::load1kgPopMAF()
 		StringArray tokens;
 		tokens.AddTokens(buffer, '\t');
 		if (header_line) {
-			nPop = tokens.Length() - 8;
+			nPop = tokens.Length() - 7;
 			header_line = 0;
 			if (nPop<=0)
 				error("No population in %s after column 8. Wrong format?\n",popfile_name.c_str());
@@ -3267,7 +3438,7 @@ void Meta::load1kgPopMAF()
 			af1KG[markername].resize(nPop);
 			for(int i=0; i<nPop; i++) {
 				StringArray maf_tokens;
-				maf_tokens.AddTokens(tokens[8+i],',');
+				maf_tokens.AddTokens(tokens[7+i],',');
 				if (maf_tokens.Length() != alts.Length())
 					error("1KG maf file at line: \n %s \n alleles and mafs do not match!\n",buffer.c_str());
 				af1KG[markername][i] = maf_tokens[a].AsDouble();
@@ -3301,33 +3472,75 @@ double Meta::getAFtilda( String & markername, double raw_af, int study )
 	// match allele first & get fk
 	std::map<String, std::vector<double> >::iterator ptr;
 	ptr = af1KG.find(markername);
+	// check MAF first
+	if (raw_af<minMatchMAF||raw_af>maxMatchMAF)
+		fk = 0;
+	else {
+	
+	bool flip = false;
+	bool match = true;;
 	if ( ptr == af1KG.end() ) { // check if flip
 		StringArray tokens;
 		tokens.AddTokens( markername, ":" );
 		String flip_markername = tokens[0] + ":" + tokens[1] + ":" + tokens[3] + ":" + tokens[2];
 		ptr = af1KG.find(flip_markername);
-		if (ptr==af1KG.end()) { // does not exist, use 1/4N
-			for(int i=0;i<nPop;i++)
-				fk -= pgamma[study][i] * 0.25;
+		if (ptr==af1KG.end()) { // does not exist, use 1/4N or do not adjust
+			if (matchOnly || matchDist > 0) // no adjusted MAF
+				fk = 0;
+			else {
+				for(int i=0;i<nPop;i++)
+					fk -= pgamma[study][i] * 0.25;
+			}
+			match = false;
 		}
-		else { // make a flip vector
+		else
+			flip = true;
+	}
+	// check condition and calculate fk
+	if (match) {
+		double dist = 0;
+		if (matchDist > 0) {
+			bool correct = false;
+			if (matchByAbs) {
+				for(int i=0;i<nPop;i++) {
+					double di = flip? abs(raw_af - (1-(ptr->second[i]))) : abs(raw_af - ptr->second[i]);
+					if (dist==0)
+						dist = di;
+					else {
+						if (di<dist)
+							dist = di;
+					}
+				}
+			}
+			else {
+				for(int i=0;i<nPop;i++)
+					dist += flip? (raw_af-(1-(ptr->second[i])))*(raw_af-(1-(ptr->second[i]))) : (raw_af - ptr->second[i])*(raw_af - ptr->second[i]);
+				dist = sqrt(dist/nPop);
+			}
+			// now do correction
+			if (dist <= matchDist) {
+				for(int i=0; i<nPop; i++)
+					fk -= flip ? pgamma[study][i] * (ptr->second[i]) : pgamma[study][i]*(1-(ptr->second[i]));
+			}
+			else
+				fk = 0;
+		}
+		else {
 			for(int i=0; i<nPop; i++)
-				fk -= pgamma[study][i] * (1-(ptr->second[i]));
+				fk -= flip? pgamma[study][i] * (ptr->second[i]) : pgamma[study][i]*(1-(ptr->second[i]));
 		}
 	}
-	else {
-		for(int i=0; i<nPop; i++)
-			fk -= pgamma[study][i] * (ptr->second[i]);
+	
 	}
 	return fk;
 }
 
 
-void Meta::addToMapStrVec( std::map<String, std::vector<double> >& variant, int study, String & markername, double fk, int vsize)
+void Meta::addToMapStrVec( std::map<String, std::vector<double> >& variant, int study, String & markername, double fk, int vsize, double initial_number)
 {
 	std::map<String, std::vector<double> >::iterator p = variant.find(markername);
 	if (p==variant.end()) {
-		variant[markername].resize( vsize );
+		variant[markername].resize( vsize, initial_number);
 		variant[markername][study] = fk;
 	}
 	else
@@ -3363,4 +3576,209 @@ void Meta::SetWeight( String & method, Vector & weight, Vector& maf )
 	else
 		error("Invalid weight %s!\n",method.c_str());
 }
+
+// update v in cov matrix in exact
+void Meta::updateExactCov( int study, int m, int s, StringArray& chr,StringArray& pos,Matrix& cov_i)
+{
+	String markername = chr[m] + ":" + pos[m];
+	String markername2 = chr[s] + ":" + pos[s];
+	std::map< String, std::vector<double> >::iterator pnk = variant_nk.find(markername);
+	/*if (p == variant_nk.end()) {
+		markername = markerName + ":" + alt_allele[s] + ":"+ref_allele[s];
+		p = variant_nk.find(markername);
+	}*/
+	if( pnk==variant_nk.end())
+		error("error2137\n");
+	std::map< String, std::vector<double> >::iterator pfk = variant_fk.find(markername);
+	std::map< String, std::vector<double> >::iterator pnk2;
+	std::map< String, std::vector<double> >::iterator pfk2;
+	if (m==s) {
+		pnk2 = pnk;
+		pfk2 = pfk;
+	}
+	else {
+		pnk2 = variant_nk.find(markername2);
+		pfk2 = variant_fk.find(markername2);
+	}
+	int nk = pnk->second[study];
+	double nkfk2 = nk * pfk->second[study] * pfk2->second[study];
+	double new_r = pnk->second[scorefile.Length()];
+	double ff = pfk->second[scorefile.Length()]*pfk2->second[scorefile.Length()];
+	// Vexact=Vrmw*sigma4
+	cov_i[m][s] = new_r*(cov_i[m][s]*Ysigma2[study] - 4*nk*ff + 4*nkfk2);
+}
+
+
+/******* update covariance matrix for group test ****/
+void Meta::updateGroupStats( GroupFromAnnotation& group,int study,int g,bool newFormat)
+{
+	//printf("doing group %d\n",g);
+	int gvar_count = group.SNPlist[g].Length();
+	StringArray chr,pos;
+	for(int i=0;i<gvar_count;i++) {
+		StringArray tmp;
+		tmp.AddTokens(group.SNPNoAllele[g][i],":");
+		chr.Push(tmp[0]);
+		pos.Push(tmp[1]);
+	}
+	//now pos has all the positions of markers in group g.
+	Matrix cov_i,GX;
+	cov_i.Dimension(gvar_count,gvar_count,0.0);
+	if(cond!="")
+		GX.Dimension(gvar_count,XX_inv[study].cols,0.0);
+
+	for(int m=0;m<gvar_count;m++)
+		updateSingleVariantGroupStats( group,study,g,cov_i,GX,chr,pos,m,gvar_count,newFormat);
+
+	cov[g].Add(cov_i);
+	if(cond!="") {
+		cond_cov[g].Add(cov_i);
+		Matrix GX_trans,tmp,extra_cov_i;
+		GX_trans.Transpose(GX);
+		tmp.Product(GX,XX_inv[study]);
+		extra_cov_i.Product(tmp,GX_trans);
+		extra_cov_i.Multiply(-1.0);
+		cond_cov[g].Add(extra_cov_i);
+	}
+}
+
+void Meta::updateSingleVariantGroupStats( GroupFromAnnotation& group,int study,int g,Matrix& cov_i,Matrix& GX,StringArray& chr,StringArray&pos,int m,int gvar_count,bool newFormat)
+{
+	int loc = markerPosHash.Integer(group.SNPNoAllele[g][m]);
+	if(loc==-1)
+		return;
+	int skip = SNPexclude.Integer(study+":"+group.SNPNoAllele[g][m]);
+	if(skip!=-1)
+		return;			
+	int flip = flipSNP.Integer(study+":"+group.SNPNoAllele[g][m]);
+	double multiplyFactor=1.0;
+	if(flip!=-1)
+		multiplyFactor=-1.0;
+	//read through markersInWindow and find the selected markers
+	if (!newFormat)
+		updateSingleVariantGroupStatsOldFormat(group,study,g,cov_i,GX,chr,pos,loc,m,gvar_count,multiplyFactor);
+	else
+		updateSingleVariantGroupStatsNewFormat(group,study,g,cov_i,GX,chr,pos,loc,m,gvar_count,multiplyFactor);
+}
+
+void Meta::updateSingleVariantGroupStatsOldFormat(GroupFromAnnotation& group,int study,int g,Matrix& cov_i,Matrix& GX,StringArray& chr,StringArray&pos,int loc,int m,int gvar_count,double multiplyFactor)
+{
+	StringArray markers,markerscov;
+	markers.AddTokens(markersInWindow[loc-1],",");
+	markerscov.AddTokens(markersCov[loc-1],",");
+	for(int s=m;s<gvar_count;s++) {
+		int p = markers.Find(pos[s]);
+		if(p==-1)
+			return;
+		String markerName = study+":"+chr[s]+":"+pos[s];
+		//String markername = markerName + ":"+ref_allele[s] + ":"+alt_allele[s];
+		//if the marker in window is supposed to be excluded due to non-consistent ref/alt allele
+		//then skip
+		int skip = SNPexclude.Integer(markerName);
+		if(skip!=-1)
+			return;
+		int flip = flipSNP.Integer(markerName);
+		double factor=1.0;
+		if(flip!=-1)
+			factor=-1.0;
+		cov_i[m][s]= multiplyFactor*factor*markerscov[p].AsDouble()*SampleSize[study];
+		if (useExactMetaMethod)
+			updateExactCov( study,m,s,chr,pos,cov_i );
+	}
+	// fill in GX
+	if (cond!="") {
+		StringArray name;
+		name.AddTokens(group.SNPlist[g][m],":");
+		cond_stats[g][m] = SNPstat_cond.Double(name[0]+":"+name[1]);
+		String pos_str;
+		for(int s=0;s<commonVar_study[study].Length();s++) {
+			if(pos[m].AsInteger()<common_pos[commonVar_study[study][s]]) { // direct fill in
+				pos_str = common_pos[commonVar_study[study][s]];
+				int p = markers.Find(pos_str);
+				if(p==-1)
+					continue;
+				GX[m][s]= markerscov[p].AsDouble()*SampleSize[study];
+			}
+			else { // need to put the smaller one first
+				int loc = markerPosHash.Integer(common_chr[commonVar_study[study][s]]+":"+common_pos[commonVar_study[study][s]]);
+				//If this SNP is not genotpyed in this study, then skip
+				if(loc==-1)
+					continue;
+				//read through markersInWindow and find the selected markers
+				pos_str = pos[m];
+				StringArray new_markers, new_markerscov;
+				new_markers.AddTokens(markersInWindow[loc-1],",");
+				new_markerscov.AddTokens(markersCov[loc-1],",");
+				int p = new_markers.Find(pos_str);
+				if (p==-1)
+					continue;
+				GX[m][s]= new_markerscov[p].AsDouble()*SampleSize[study];
+			}
+		}
+	}
+}
+
+void Meta::updateSingleVariantGroupStatsNewFormat(GroupFromAnnotation& group,int study,int g,Matrix& cov_i,Matrix& GX,StringArray& chr,StringArray&pos,int loc,int m,int gvar_count,double multiplyFactor)
+{
+	Vector markerscov;
+	addNewFormatCov( markersExp[loc-1], markersCov[loc-1],markerscov);
+	for(int s=m;s<gvar_count;s++) {
+		String mkname = chr[s] + ":" + pos[s];
+		int p = markerPosHash.Integer( mkname );
+		if(p==-1)
+			return;
+		p--;
+		p -= m;
+		String markerName = study+":"+chr[s]+":"+pos[s];
+		int skip = SNPexclude.Integer(markerName);
+		if(skip!=-1)
+			return;
+		int flip = flipSNP.Integer(markerName);
+		double factor=1.0;
+		if(flip!=-1)
+			factor=-1.0;
+		if (p >= markerscov.Length()) // zeros in the tail
+			cov_i[m][s]= 0;
+		else
+			cov_i[m][s]= multiplyFactor*factor*markerscov[p]*SampleSize[study];
+		if (useExactMetaMethod)
+			updateExactCov(study,m,s,chr,pos,cov_i);
+	}
+	// fill in GX
+	if (cond!="") {
+		String pos_str;
+		StringArray name;
+		name.AddTokens(group.SNPlist[g][m],":");
+		cond_stats[g][m] = SNPstat_cond.Double(name[0]+":"+name[1]);
+		for(int s=0;s<commonVar_study[study].Length();s++) {
+			if(pos[m].AsInteger()<common_pos[commonVar_study[study][s]]) { // direct fill in
+				pos_str = common_pos[commonVar_study[study][s]];
+				String mkname = chr[s] + ":" + pos[s];
+				int p = markerPosHash.Integer(mkname);
+				if(p==-1)
+					continue;
+				p-=m;
+				GX[m][s]= markerscov[p]*SampleSize[study];
+			}
+			else { // need to put the smaller one first
+				int loc = markerPosHash.Integer(common_chr[commonVar_study[study][s]]+":"+common_pos[commonVar_study[study][s]]);
+				//If this SNP is not genotpyed in this study, then skip
+				if(loc==-1)
+					continue;
+				//read through markersInWindow and find the selected markers
+				pos_str = pos[m];
+				StringArray new_markers;
+				Vector new_markerscov;
+				String mkname = chr[s] + ":" + pos[s];
+				int p = markerPosHash.Integer( mkname );
+				p -= m;
+				addNewFormatCov( markersExp[loc-1],markersCov[loc-1],new_markerscov);
+				if (p==-1)
+					continue;
+				GX[m][s]= new_markerscov[p]*SampleSize[study];
+			}
+		}
+	}	
+}
+
 
