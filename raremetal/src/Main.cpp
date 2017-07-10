@@ -72,7 +72,20 @@ int main(int argc, char ** argv)
 	LONG_PARAMETER("useExact", &Meta::useExactMetaMethod)
 	LONG_PARAMETER("normPop", &Meta::normPop)
 	LONG_STRINGPARAMETER("popFile", &Meta::popfile_name)
+// related binary trait: Dajiang's method
+	LONG_PARAMETER("relateBinary",&Meta::relateBinary)	
 	
+	LONG_PARAMETER("debug",&Meta::debug)
+	LONG_PARAMETER("matchOnly",&Meta::matchOnly)
+	LONG_PARAMETER("matchByAbs",&Meta::matchByAbs)
+	LONG_DOUBLEPARAMETER("matchDist",&Meta::matchDist)
+	LONG_DOUBLEPARAMETER("minMatchMAF",&Meta::minMatchMAF)
+	LONG_DOUBLEPARAMETER("maxMatchMAF",&Meta::maxMatchMAF)
+//	LONG_PARAMETER("noAdjustUnmatch",&Meta::noAdjustUnmatch)
+	LONG_STRINGPARAMETER("dosageOptionFile",&Meta::dosageOptionFile)
+	LONG_PARAMETER("sumCaseAC",&Meta::sumCaseAC)
+	
+
 	LONG_PHONEHOME(VERSION)
 	END_LONG_PARAMETERS();
 	

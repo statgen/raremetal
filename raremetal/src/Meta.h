@@ -56,10 +56,22 @@ class Meta
 	static bool useExactMetaMethod;
 	static bool normPop;
 	static String popfile_name;
+	static bool simplifyCovLoad;
+	static bool relateBinary;
+	static bool debug;
+	static bool matchOnly;
+	static bool matchByAbs;
+	static double matchDist;
+	static double minMatchMAF; // MAF threshold for adjustment
+	static double maxMatchMAF;
+	static String dosageOptionFile;
+	static bool sumCaseAC;
+//	static bool noAdjustUnmatch;
 
 	//saved single variant information from pooled studies
 	StringArray scorefile;
 	StringArray covfile;
+	std::vector<bool> dosageOptions;
  	String pdf_filename;
  	StringIntHash hashToRemoveDuplicates;
 	//flipSNP has all SNPs fliped saved. Key is study:chr:pos, value is an integer
@@ -74,12 +86,15 @@ class Meta
 	StringDoubleHash SNP_Vstat;
 	StringDoubleHash SNPstat_cond;
 	StringDoubleHash SNP_Vstat_cond;
+	StringIntHash groupAnchor;
 	Vector SNPmaf_maf;
 	StringArray SNPmaf_name;
 	IntArray SNP_effect_N;
 	int Nsamples;
 	int flipCount;
 	int skip_count;
+	StringIntHash caseAC;
+	StringIntHash controlAC;
 
 	// for pooling summary stats
 	StringIntHash usefulSize; // pooled N info
@@ -97,6 +112,12 @@ class Meta
 	int target;
 	double target_pvalue;
 
+// for cov load
+	StringIntHash markerPosHash;
+	Vector markersExp; // for new format
+	StringArray markersInWindow; // for old format
+	StringArray markersCov;	
+
 // /net/fantasia/home/yjingj/METAL/1KG/MAF_1KG.txt
 	// for exact method
 	Vector Ydelta; // yk - ymean
@@ -110,6 +131,11 @@ class Meta
 	std::map< String, std::vector<double> > af1KG; // 1000g pop af for all markers...
 	Matrix pgamma; // coefficients for population in each study
 	int nPop; // number of populations
+
+	Vector Const_binary; // Dajiang's C for binary
+	Vector Ysigma2g;
+	Vector Ysigma2e;
+	Vector Ymean;
 
 	//these are for conditional analysis
 	StringArray commonVar,common_chr,common_ref,common_alt;
@@ -188,7 +214,7 @@ class Meta
 	void CalculateLambda(Matrix & cov, Vector& weight, double * lambda);
 
 	// pop correction
-	void addToMapStrVec( std::map<String, std::vector<double> >& variant, int study, String & markername, double fk, int vsize);
+	void addToMapStrVec( std::map<String, std::vector<double> >& variant, int study, String & markername, double fk, int vsize,double initial_number);
 	void SetWeight( String & method, Vector & weight, Vector& maf);
 	void FitPgamma();
 	void fitpGammaForSingleStudy( int study);
@@ -198,7 +224,19 @@ class Meta
 	void updateRegressedTotalAF( String & markername, double total );
 	double getAFtilda( String & markername, double raw_af, int study );
 	void addToMapStrVec( std::map<String, Vector>& variant, int study, String & markername, double fk);
-	void ErrorToLog(const char * msg);
+	void ErrorToLog(const char* msg);
+
+	// old & new cov format
+	void readCovOldFormatLine( int study,StringArray & tokens, int& m );
+	void readCovNewFormatLine( int study,StringArray & tokens, int& m);
+	void addNewFormatCov( int mexp,String & cov_str, Vector & covs);
+	void updateExactCov( int study, int m, int s, StringArray& chr,StringArray& pos,Matrix& cov_i);
+
+	// cov matrix
+	void updateGroupStats(GroupFromAnnotation& group,int study,int g,bool newFormat);
+	void updateSingleVariantGroupStats(GroupFromAnnotation& group,int study,int g,Matrix& cov_i,Matrix& GX,StringArray& chr,StringArray&pos,int m,int gvar_count,bool newFormat);
+	void updateSingleVariantGroupStatsOldFormat(GroupFromAnnotation& group,int study,int g,Matrix& cov_i,Matrix& GX,StringArray& chr,StringArray&pos,int loc,int m,int gvar_count,double multiplyFactor);
+	void updateSingleVariantGroupStatsNewFormat(GroupFromAnnotation& group,int study,int g,Matrix& cov_i,Matrix& GX,StringArray& chr,StringArray&pos,int loc,int m,int gvar_count,double multiplyFactor);
 };
 
 #endif

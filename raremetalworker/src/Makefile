@@ -1,4 +1,4 @@
-EXE=raremetalworker
+EXE=raremetalworkerTest
 #OMP_EXE= raremetalworker-omp
 TOOLBASE = FastFit TransformResiduals KinshipEmp OutputKin PreMeta AutoFit AutoFit2 DataQC WritePDF GroupFromAnnotation logistic
 SRCONLY = Main.cpp 
