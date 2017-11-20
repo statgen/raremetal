@@ -3549,32 +3549,53 @@ void Meta::addToMapStrVec( std::map<String, std::vector<double> >& variant, int 
 
 void Meta::SetWeight( String & method, Vector & weight, Vector& maf )
 {
-	if(method=="burden")// equal weight
-		for(int w=0;w<weight.Length();w++)
-				weight[w] = 1.0;
-	else if(method=="MB") // weight by 1/sqrt( maf*(1-maf) )
-		for(int w=0;w<weight.Length();w++)
-			weight[w] = sqrt(maf[w]*(1.0-maf[w]));
-	else if (method=="MAB") {
-		for(int w=0;w<weight.Length();w++)
-			weight[w] = maf[w];
-	}
-	else if (method=="BBeta") { // truncated beta
-		double alpha = 0.5;
-		double beta = 0.5;
+	if(method=="burden") {
+        // All weights should be equal (set =1.0)
+        for(int w=0;w<weight.Length();w++) {
+            weight[w] = 1.0;
+        }
+    } else if(method=="MB") {
+        // Madsen-Browning: weight[w] = 1. / sqrt( maf[w] * (1. - maf[w]) );
+        //      https://doi.org/10.1371/journal.pgen.1000384
+        for(int w=0;w<weight.Length();w++) {
+            weight[w] = 1/ sqrt(maf[w]*(1.0-maf[w]));
+        }
+    } else if (method="MAB") {
+        // Determine weights based on MAF : w = 1/MAF
+		for(int w=0;w<weight.Length();w++) {
+			weight[w] = 1.0 / maf[w];
+        }
+	} else if (method="BBeta") {
+        /*
+         Truncated beta. Used by, eg, SKAT.
+         The parameters used here are the default values recommended in the original SKAT paper, and de-emphasize
+          common variants while promoting rare ones.
+           "We suggest setting a1 = 1 and a2 (beta) = 25 because it increases the weight of rare variants while still
+              putting decent nonzero weights for variants with MAF 1%–5%".
+         See https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3135811/#sec2title
+              and http://gero.usc.edu/CBPH/files/4_9_2013_PAA/15_Kardia_SequenceKernelAssociationTest.pdf
+
+         If you wish to put larger emphasis on common variants, consider using MB or burden weight method instead.
+        */
+		double alpha = 1.0;
+		double beta = 25.0;
 		double f0 = 2 / Nsamples; // truncate at 4 alleles
 		for(int w=0;w<weight.Length();w++) {
 			double xmaf = maf[w];
-			if (xmaf>0 && xmaf<f0)
-				xmaf = f0;
-			if (xmaf>0 && xmaf>(1-f0))
-				xmaf = 1-f0;
+
+			// Ensure that the allele frequency Xmaf is no smaller than 2/Nsamples or greater than 1-2/Nsamples
+			if (xmaf>0 && xmaf<f0) {
+                xmaf = f0;
+            }
+			if (xmaf>0 && xmaf>(1-f0)) {
+                xmaf = 1-f0;
+            }
 			double beta_density = GetBetaDensity(alpha,beta,xmaf);
 			weight[w] = (beta_density*beta_density);
 		}
-	}
-	else
-		error("Invalid weight %s!\n",method.c_str());
+	} else {
+        error("Invalid weight %s!\n", method.c_str());
+    }
 }
 
 // update v in cov matrix in exact
