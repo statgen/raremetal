@@ -3560,12 +3560,12 @@ void Meta::SetWeight( String & method, Vector & weight, Vector& maf )
         for(int w=0;w<weight.Length();w++) {
             weight[w] = 1/ sqrt(maf[w]*(1.0-maf[w]));
         }
-    } else if (method="MAB") {
+    } else if (method=="MAB") {
         // Determine weights based on MAF : w = 1/MAF
 		for(int w=0;w<weight.Length();w++) {
 			weight[w] = 1.0 / maf[w];
         }
-	} else if (method="BBeta") {
+	} else if (method=="BBeta") {
         /*
          Truncated beta. Used by, eg, SKAT.
          The parameters used here are the default values recommended in the original SKAT paper, and de-emphasize
