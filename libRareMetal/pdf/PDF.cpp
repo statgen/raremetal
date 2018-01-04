@@ -38,10 +38,10 @@ void PDF::OpenFile(const char * name)
    if (file == NULL)
       error("Error opening file [%s]\n", name);
 
-   char signature[] = {'%', '%', 'G' + 128, 'R' + 128, 'A' + 128, '\n', '\n', 0};
+   //char signature[] = {'%', '%', 'G' + 128, 'R' + 128, 'A' + 128, '\n', '\n', 0};
 
    fprintf(file, "%%PDF-1.4\n");
-   fprintf(file, signature);
+   fprintf(file, "%%\xC7\xD2\xC1\n\n");
    }
 
 void PDF::CloseFile()

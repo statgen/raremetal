@@ -33,12 +33,12 @@ int PDFFont::GetFontID(PDFFonts font, bool bold, bool italic )
    return (font * 4 + italic * 2 + bold);
    }
 
-char * PDFFont::GetFontName(PDFFonts font, bool bold, bool italic )
+const char * PDFFont::GetFontName(PDFFonts font, bool bold, bool italic )
    {
    return fontNames[GetFontID(font, bold, italic)];
    }
 
-char * PDFFont::GetFontName(int fontid)
+const char * PDFFont::GetFontName(int fontid)
    {
    return fontNames[fontid];
    }
@@ -80,7 +80,7 @@ void PDFFont::WriteDictionary()
    for (int i = 0; i < 14; i++)
       if (selectedFonts[i])
          {
-         char name[4] = {'F', '0' + i / 10, '0' + i % 10, 0};
+         char name[4] = {'F', static_cast<char>('0' + i / 10), static_cast<char>('0' + i % 10), 0};
          pdf.WriteReference(name, objects[i]);
          }
    pdf.CloseDictionary();
@@ -111,7 +111,7 @@ void PDFFont::MarkFont(int font)
    selectedFonts[font] = true;
    }
 
-char * PDFFont::fontNames[14] = { "Times-Roman",
+const char * PDFFont::fontNames[14] = { "Times-Roman",
                                   "Times-Bold",
                                   "Times-Italic",
                                   "Times-BoldItalic",

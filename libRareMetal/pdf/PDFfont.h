@@ -26,7 +26,7 @@ class PDF;
 class PDFFont
    {
    private:
-      static char * fontNames[14];
+      const static char * fontNames[14];
       static int  metrics[14][256];
 
       bool selectedFonts[14];
@@ -46,8 +46,8 @@ class PDFFont
       int    GetFontID  (PDFFonts font, bool bold, bool italic );
 
       // Get Type 1 font name for a specific font
-      char * GetFontName(PDFFonts font, bool bold, bool italic );
-      char * GetFontName(int fontid);
+      const char * GetFontName(PDFFonts font, bool bold, bool italic );
+      const char * GetFontName(int fontid);
 
       // Calculate width for a text string
       int  TextWidth(int font, const char * string);
