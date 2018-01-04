@@ -47,7 +47,7 @@ int main(int argc, char ** argv)
 
 	printf("\nIf you feel the software is useful, please cite:\n  RAREMETAL: fast and powerful meta-analysis for rare variants; Shuang Feng, Dajiang Liu, Xiaowei Zhan, Mary Kate Wing, Goncalo R. Abecasis; Bioinformatics 2014\n");
 
-	printf("\nPlease go to \"http://genome.sph.umich.edu/wiki/RAREMETAL_DOWNLOAD_%26_BUILD#Where_to_Download\" for the latest version.\n");
+	printf("\nPlease go to \"http://genome.sph.umich.edu/wiki/RAREMETAL_DOWNLOAD_%%26_BUILD#Where_to_Download\" for the latest version.\n");
 
 	String pedfile, datfile;
 	double tol = 0.0001;

@@ -39,8 +39,8 @@ void backward_elimination(Matrix & U, Vector & x, Vector & y);
 double distance(double a, double b);
 
 // Utility functions for printing vectors and matrices
-void print_matrix(char* name, Matrix & A, int n = -1, int m = -1);
-void print_vector(char* name, Vector& v, int n = -1);
+void print_matrix(const char* name, Matrix & A, int n = -1, int m = -1);
+void print_vector(const char* name, Vector& v, int n = -1);
 
 // The Solving function, implementing the Goldfarb-Idnani method
 
@@ -75,7 +75,7 @@ double solve_quadprog(Matrix & G, Vector & g0, Matrix & CE, Vector & ce0, Matrix
     throw std::logic_error(msg.str());
   }
   x.Dimension(n);
-  register int i, j, k, l; /* indices */
+  int i, j, k, l; /* indices */
   int ip; // this is the index of the constraint to be added to the active set
   Matrix R, J;
   R.Dimension(n,n);
@@ -462,8 +462,8 @@ l2a:/* Step 2a: determine step direction */
 
 inline void compute_d(Vector & d, Matrix & J, Vector & np)
 {
-  register int i, j, n = d.Length();
-  register double sum;
+  int i, j, n = d.Length();
+  double sum;
   
   /* compute d = H^T * np */
   for (i = 0; i < n; i++)
@@ -477,7 +477,7 @@ inline void compute_d(Vector & d, Matrix & J, Vector & np)
 
 inline void update_z(Vector & z, Matrix & J, Vector & d, int iq)
 {
-  register int i, j, n = z.Length();
+  int i, j, n = z.Length();
 	
   /* setting of z = H * d */
   for (i = 0; i < n; i++)
@@ -490,8 +490,8 @@ inline void update_z(Vector & z, Matrix & J, Vector & d, int iq)
 
 inline void update_r(Matrix & R, Vector & r, Vector & d, int iq)
 {
-  register int i, j, n = d.Length();
-  register double sum;
+  int i, j, n = d.Length();
+  double sum;
   
   /* setting of r = R^-1 d */
   for (i = iq - 1; i >= 0; i--)
@@ -509,7 +509,7 @@ bool add_constraint(Matrix & R, Matrix & J, Vector & d, int& iq, double& R_norm)
 #ifdef TRACE_SOLVER
   std::cout << "Add constraint " << iq << '/';
 #endif
-  register int i, j, k;
+  int i, j, k;
   double cc, ss, h, t1, t2, xny;
 	
   /* we have to find the Givens rotation which will reduce the element
@@ -580,7 +580,7 @@ void delete_constraint(Matrix & R, Matrix & J, Vector& A, Vector &
 #ifdef TRACE_SOLVER
   std::cout << "Delete constraint " << l << ' ' << iq;
 #endif
-  register int i, j, k, qq = -1; // just to prevent warnings from smart compilers
+  int i, j, k, qq = -1; // just to prevent warnings from smart compilers
   double cc, ss, h, xny, t1, t2;
   
   /* Find the index qq for active constraint l to be removed */
@@ -654,7 +654,7 @@ void delete_constraint(Matrix & R, Matrix & J, Vector& A, Vector &
 
 inline double distance(double a, double b)
 {
-  register double a1, b1, t;
+  double a1, b1, t;
   a1 = fabs(a);
   b1 = fabs(b);
   if (a1 > b1) 
@@ -673,8 +673,8 @@ inline double distance(double a, double b)
 
 void cholesky_decomposition(Matrix & A) 
 {
-  register int i, j, k, n = A.rows;
-  register double sum;
+  int i, j, k, n = A.rows;
+  double sum;
 	
   for (i = 0; i < n; i++)
   {
@@ -720,7 +720,7 @@ void cholesky_solve(Matrix & L, Vector &
 
 inline void forward_elimination(Matrix & L, Vector & y, Vector & b)
 {
-  register int i, j, n = L.rows;
+  int i, j, n = L.rows;
 	
   y[0] = b[0] / L[0][0];
   for (i = 1; i < n; i++)
@@ -734,7 +734,7 @@ inline void forward_elimination(Matrix & L, Vector & y, Vector & b)
 
 inline void backward_elimination(Matrix & U, Vector & x, Vector & y)
 {
-  register int i, j, n = U.rows;
+  int i, j, n = U.rows;
 	
   x[n - 1] = y[n - 1] / U[n - 1][n - 1];
   for (i = n - 2; i >= 0; i--)
@@ -746,7 +746,7 @@ inline void backward_elimination(Matrix & U, Vector & x, Vector & y)
   }
 }
 
-void print_matrix(char* name, Matrix & A, int n, int m)
+void print_matrix(const char* name, Matrix & A, int n, int m)
 {
   std::ostringstream s;
   std::string t;
@@ -769,7 +769,7 @@ void print_matrix(char* name, Matrix & A, int n, int m)
   std::cout << t << std::endl;
 }
 
-void print_vector(char* name, Vector & v, int n)
+void print_vector(const char* name, Vector & v, int n)
 {
   std::ostringstream s;
   std::string t;

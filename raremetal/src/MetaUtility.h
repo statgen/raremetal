@@ -15,7 +15,7 @@ bool SetIfilePosition( IFILE & sfile, Tabix & myTabix, String Chr, int pos );
 
 void tellRvOrRmw( String & buffer, bool & adjust, int marker_col, int cov_col );
 
-bool setFromRvOrRmwAdjust( bool adjust, int marker_col, int cov_col );
+void setFromRvOrRmwAdjust( bool adjust, int marker_col, int cov_col );
 
 void openMetaResultFile( String & prefix, String & filename, IFILE & output, String & method );
 

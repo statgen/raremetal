@@ -1,7 +1,7 @@
 #include "MetaUtility.h"
 #include <math.h>
 #include <complex>
-#include <gsl/gsl_integration.h> // integration for Dajiang's method
+//#include <gsl/gsl_integration.h> // integration for Dajiang's method
 
 bool SetIfilePosition( IFILE & sfile, Tabix & myTabix, String Chr, int pos )
 {
@@ -52,7 +52,7 @@ void tellRvOrRmw( String & buffer, bool & adjust, int marker_col, int cov_col )
     setFromRvOrRmwAdjust( adjust, marker_col, cov_col );
 }       
 
-bool setFromRvOrRmwAdjust( bool adjust, int marker_col, int cov_col )
+void setFromRvOrRmwAdjust( bool adjust, int marker_col, int cov_col )
 {
     if (adjust) { // rv test
         marker_col = 4;

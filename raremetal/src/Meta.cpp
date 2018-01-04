@@ -732,10 +732,10 @@ double Meta::GrabGenotypeCov(SummaryFileReader & covReader,int study,String chr1
 	if(chr1!=chr2)
 	return result;
 	
-	int skip = SNPexclude.Integer(study+":"+chr1+":"+pos1);
+	int skip = SNPexclude.Integer(String(std::to_string(study).c_str())+":"+chr1+":"+pos1);
 	if(skip!=-1)
 	return result;
-	skip = SNPexclude.Integer(study+":"+chr2+":"+pos2);
+	skip = SNPexclude.Integer(String(std::to_string(study).c_str())+":"+chr2+":"+pos2);
 	if(skip!=-1)
 	return result;
 	
@@ -801,9 +801,9 @@ double Meta::GrabGenotypeCov(SummaryFileReader & covReader,int study,String chr1
 	//if this marker is flipped then markers from the entire row
 	//should have cov multiply by -1.0.
 	double factor1=1.0,factor2=1.0;
-	if(flipSNP.Integer(study+":"+chr1+":"+pos1)!=-1)
+	if(flipSNP.Integer(String(std::to_string(study).c_str())+":"+chr1+":"+pos1)!=-1)
 	factor1=-1.0;
-	if(flipSNP.Integer(study+":"+chr2+":"+pos2)!=-1)
+	if(flipSNP.Integer(String(std::to_string(study).c_str())+":"+chr2+":"+pos2)!=-1)
 	factor2=-1.0;
 	result *= (factor1*factor2);
 	
@@ -1577,7 +1577,7 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 	
 	if(flip) {
 		flipCount++;
-		flipSNP.SetInteger(study+":"+chr_pos,flipCount);
+		flipSNP.SetInteger(String(std::to_string(study).c_str())+":"+chr_pos,flipCount);
 	}
 	
 	if (sumCaseAC && tokens.Length()==19) {
@@ -2195,7 +2195,7 @@ void Meta::loadSingleStatsInGroup( GroupFromAnnotation & group )
 				//update flipSNP to get the covaraince right
 				for(int s=0;s<scorefile.Length();s++)
 				{
-					String markername = s+":"+tokens[0]+":"+tokens[1];
+					String markername = String(std::to_string(s).c_str())+":"+tokens[0]+":"+tokens[1];
 					if(flipSNP.Integer(markername)!=-1)
 						flipSNP.Delete(markername);
 					else {
@@ -2321,7 +2321,7 @@ void Meta::readCovOldFormatLine( int study,StringArray & tokens, int & m )
 	//exclude variants that have different REF and ALT
 	if ( simplifyCovLoad && groupAnchor.Integer(SNP) != -1)
 		return;
-	if(SNPexclude.Integer(study+":"+SNP)!=-1)
+	if(SNPexclude.Integer(String(std::to_string(study).c_str())+":"+SNP)!=-1)
 		return;
 	m++;
 	markerPosHash.SetInteger(SNP,m);
@@ -2338,7 +2338,7 @@ void Meta::readCovNewFormatLine( int study,StringArray & tokens, int & m)
 	//exclude variants that have different REF and ALT
 	if (simplifyCovLoad && groupAnchor.Integer(SNP) != -1)
 		return;
-	if(SNPexclude.Integer(study+":"+SNP)!=-1)
+	if(SNPexclude.Integer(String(std::to_string(study).c_str())+":"+SNP)!=-1)
 		return;
 	m++;
 	markerPosHash.SetInteger(SNP,m);
@@ -3402,7 +3402,7 @@ void Meta::CalculateLambda(Matrix & cov,Vector& weight, double * lambda)
 void Meta::ErrorToLog( const char* msg )
 {
 	fprintf(log, "Error [Meta.cpp]: ");
-	fprintf(log, msg);
+	fwrite(msg, strlen(msg), 1, log);
 	fprintf(log, "\n");
 	error(msg);
 }
@@ -3555,11 +3555,11 @@ void Meta::SetWeight( String & method, Vector & weight, Vector& maf )
 	else if(method=="MB") // weight by 1/sqrt( maf*(1-maf) )
 		for(int w=0;w<weight.Length();w++)
 			weight[w] = sqrt(maf[w]*(1.0-maf[w]));
-	else if (method="MAB") {
+	else if (method=="MAB") {
 		for(int w=0;w<weight.Length();w++)
 			weight[w] = maf[w];
 	}
-	else if (method="BBeta") { // truncated beta
+	else if (method=="BBeta") { // truncated beta
 		double alpha = 0.5;
 		double beta = 0.5;
 		double f0 = 2 / Nsamples; // truncate at 4 alleles
@@ -3647,10 +3647,10 @@ void Meta::updateSingleVariantGroupStats( GroupFromAnnotation& group,int study,i
 	int loc = markerPosHash.Integer(group.SNPNoAllele[g][m]);
 	if(loc==-1)
 		return;
-	int skip = SNPexclude.Integer(study+":"+group.SNPNoAllele[g][m]);
+	int skip = SNPexclude.Integer(String(std::to_string(study).c_str())+":"+group.SNPNoAllele[g][m]);
 	if(skip!=-1)
 		return;			
-	int flip = flipSNP.Integer(study+":"+group.SNPNoAllele[g][m]);
+	int flip = flipSNP.Integer(String(std::to_string(study).c_str())+":"+group.SNPNoAllele[g][m]);
 	double multiplyFactor=1.0;
 	if(flip!=-1)
 		multiplyFactor=-1.0;
@@ -3670,7 +3670,7 @@ void Meta::updateSingleVariantGroupStatsOldFormat(GroupFromAnnotation& group,int
 		int p = markers.Find(pos[s]);
 		if(p==-1)
 			return;
-		String markerName = study+":"+chr[s]+":"+pos[s];
+		String markerName = String(std::to_string(study).c_str())+":"+chr[s]+":"+pos[s];
 		//String markername = markerName + ":"+ref_allele[s] + ":"+alt_allele[s];
 		//if the marker in window is supposed to be excluded due to non-consistent ref/alt allele
 		//then skip
@@ -3729,7 +3729,7 @@ void Meta::updateSingleVariantGroupStatsNewFormat(GroupFromAnnotation& group,int
 			return;
 		p--;
 		p -= m;
-		String markerName = study+":"+chr[s]+":"+pos[s];
+		String markerName = String(std::to_string(study).c_str())+":"+chr[s]+":"+pos[s];
 		int skip = SNPexclude.Integer(markerName);
 		if(skip!=-1)
 			return;
