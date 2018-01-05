@@ -3,9 +3,6 @@
 
 #include "IntArray.h"
 #include "StringBasics.h"
-#include "VcfRecord.h"
-#include "VcfFileReader.h"
-#include "VcfHeader.h"
 #include "StringArray.h"
 #include "Constant.h"
 #include "StringHash.h"
@@ -24,9 +21,6 @@ class GroupFromAnnotation
 	static String mapFile;
 	static bool labelHits;
 
-	VcfFileReader reader;
-	VcfHeader header;
-	VcfRecord record;
 
 	StringArray * SNPlist;
 	StringArray * SNPNoAllele;
