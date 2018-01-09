@@ -32,7 +32,7 @@ void WritePDF::Draw(PDF & pdf,StringArray & geneLabels,Vector & pvalueAll,Vector
 void WritePDF::Draw(PDF & pdf, StringArray & geneLabels,Vector & pvalueAll, StringArray & chr, Vector & pos, String title,String extraTitle,String demo,bool useDataLabels)
 {
    // Setup Q-Q plot
-   if(pvalueAll.Length()>10000000000 || !thinPoints)
+   if(!thinPoints)
       thinPoints=true;
 if(pvalueAll.Length()>0)
 {
