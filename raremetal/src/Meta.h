@@ -1,9 +1,7 @@
 #ifndef __INITIAL_H__
 #define __INITIAL_H__
 
-#include "VcfRecord.h"
-#include "VcfFileReader.h"
-#include "VcfHeader.h"
+
 #include "GroupFromAnnotation.h"
 #include "MathMatrix.h"
 #include "StringHash.h"

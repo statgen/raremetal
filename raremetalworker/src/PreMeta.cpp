@@ -810,41 +810,41 @@ void PreMeta::runGenoFromVcf(Pedigree & ped, FastTransform & trans, FastFit & en
   malehwewarning=0;
   bool fitXStatus = false;
 
-  StringArray chromosome;
-  reader.open(vcfInput,header);
-  reader.readVcfIndex();
-  const Tabix* indexPtr = reader.getVcfIndex();
+  reader = savvy::indexed_reader(vcfInput.c_str(), {""}, dosage ? savvy::fmt::dosage : savvy::fmt::allele);
+
+  std::vector<std::string> chromosomes;
   String range_chr;
   int range_start;
   int range_end;
-  if ( Region == "" ) {
-    for(int i = 0; i < indexPtr->getNumRefs(); i++) {
-      chromosome.Push(indexPtr->getRefName(i));
-    }
+  if (Region == "")
+  {
+    if (reader.good())
+      chromosomes = reader.chromosomes();
   }
-  else {
+  else
+  {
     printf("Restrict RMW to region %s!\n", Region.c_str());
     StringArray tf;
     tf.AddTokens(Region, ":-");
     range_chr = tf[0];
     range_start = tf[1].AsInteger();
     range_end = tf[2].AsInteger();
-    if ( range_end <= range_start )
+    if (range_end <= range_start)
       error("Invalid range: %s!\n", Region.c_str());
-    chromosome.Push( range_chr );
+    chromosomes = {range_chr.c_str()};
   }
-  reader.close();
 
   //loop through chromosomes by reading tabix data
-  for(int i=0;i<chromosome.Length();i++) {
-    reader.open(vcfInput,header);
-    reader.readVcfIndex();
+  for(int i=0;i<chromosomes.size();i++) {
     // see if need to specify region
-    if ( Region == "" )
-      reader.setReadSection(chromosome[i].c_str());
-    else {
-      bool section_status = reader.set1BasedReadSection(chromosome[i].c_str(), range_start, range_end);
-      if (!section_status)
+    if (Region == "")
+    {
+      reader.reset_region(savvy::region(chromosomes[i].c_str()));
+    }
+    else
+    {
+      reader.reset_region({chromosomes[i].c_str(), (unsigned)range_start, (unsigned)range_end});
+      if (!reader.good())
         error("Unable to set vcf at range: %s\n", Region.c_str());
     }
     // read from varList if needed
@@ -852,7 +852,7 @@ void PreMeta::runGenoFromVcf(Pedigree & ped, FastTransform & trans, FastFit & en
     int current_cov_var = -1;
     int current_score_index = -1;
     int current_cov_index = -1;
-    std::string chr_str = std::string(chromosome[i].c_str());
+    std::string chr_str = std::string(chromosomes[i].c_str());
     if ( varListName != "" ) {
       if ( varList.find(chr_str) == varList.end() ) // no var in this chr
         continue;
@@ -861,7 +861,8 @@ void PreMeta::runGenoFromVcf(Pedigree & ped, FastTransform & trans, FastFit & en
         current_score_var = varList[chr_str][0];
         current_cov_var = current_score_var;
         int last_end = varList[chr_str][ (int)varList[chr_str].size()-1 ] + window + 1;
-        section_status = reader.set1BasedReadSection(chr_str.c_str(), current_score_var, last_end);
+        reader.reset_region({chr_str.c_str(), std::uint32_t(current_score_var), std::uint32_t(last_end)});
+        section_status = reader.good(); // Note: Will always be true if file is open.
         if (section_status) {
           current_score_index = ii;
           current_cov_index = ii;
@@ -873,7 +874,7 @@ void PreMeta::runGenoFromVcf(Pedigree & ped, FastTransform & trans, FastFit & en
     }
 
     int initial_pos = 0;
-    while(reader.readRecord(record)) {
+    while(reader >> record) {
       bool status;
       if(dosage)
         status = GetGenotypeVectorVCFDosage(trans,ped);
@@ -1080,7 +1081,6 @@ void PreMeta::runGenoFromVcf(Pedigree & ped, FastTransform & trans, FastFit & en
       markerInLD.Delete(0);
       initial_pos = markerInLD[0];
     }
-    reader.close();
   }
   smallSanityCheck( averageAF, marker_count );
 }
@@ -1214,10 +1214,10 @@ bool PreMeta::GetGenotypeVectorVCFDosage(FastTransform & trans, Pedigree & ped)
  bool status = false;
 
  founderMaf = markerMaf = 0.0;
- rareAllele = record.getAltStr();
- refAllele = record.getRefStr();
- chr = record.getChromStr();
- pos = record.get1BasedPosition();
+ rareAllele = record.alt().c_str();
+ refAllele = record.ref().c_str();
+ chr = record.chromosome().c_str();
+ pos = record.position();
 
  if(refAllele=="."||rareAllele==".")
   return status;
@@ -1226,7 +1226,6 @@ int n=0,nf=0;
 double fmaf = 0.0, maf=0.0;
 caseAC = 0, controlAC = 0; // to print case & control AC
 founderMaf = markerMaf = 0.0;
-VcfRecordGenotype & genoInfo = record.getGenotypeInfo();
    /*
       bool XStatus = false;
       if(chr==xLabel && pos>=Xstart && pos<=Xend)
@@ -1243,57 +1242,56 @@ VcfRecordGenotype & genoInfo = record.getGenotypeInfo();
    //read in dosage into genotype vector
     int idx=0,nmiss=0;
     double mean = 0.0;
-    for (int f = 0; f < ped.familyCount; f++)
+  for (int f = 0; f < ped.familyCount; f++)
+  {
+    for(int j=0;j<trans.pPheno[f].Length();j++)
     {
-      for(int j=0;j<trans.pPheno[f].Length();j++)
-      {
-       String sample;
+      String sample;
 
-       if(trans.mergedVCFID)
+      if(trans.mergedVCFID)
         sample = ped[trans.pPheno[f][j]].famid + "_" + ped[trans.pPheno[f][j]].pid;
       else
         sample = ped[trans.pPheno[f][j]].pid;
 
-	 //get the sample number by sample ID from hash
+      //get the sample number by sample ID from hash
       int s = trans.sampleVCFIDHash.Integer(sample);
       if(s==-1)
         error("ERROR! Check sample from VCF and PED file.\n",sample.c_str());
       if(s!=-1)
       {
-        const std::string * geno = genoInfo.getString(dosageFlag.c_str(),s);
-        if(strcmp((*geno).c_str(),".")>0)
+        float dose = record.data()[s];
+        if(!std::isnan(dose))
         {
-         float dose = atof((*geno).c_str());
-         genotype[idx] = dose;
-	       /*
-		  if(XStatus && ped[trans.samplePEDIDHash.Integer(sample)].sex==maleLabel && dose >0)
-		  {
-		  genotype[idx] = 2;
-		  }
-		*/
-      n++;
-      maf += genotype[idx];
-      if (printCaseAC && sampleCaseIndicator.find(s) != sampleCaseIndicator.end()) {
-		if (sampleCaseIndicator[s])
-      		caseAC+=genotype[idx];
-      	else
-      		controlAC+=genotype[idx];     
+          genotype[idx] = dose;
+          /*
+          if(XStatus && ped[trans.samplePEDIDHash.Integer(sample)].sex==maleLabel && dose >0)
+          {
+          genotype[idx] = 2;
+          }
+          */
+          n++;
+          maf += genotype[idx];
+          if (printCaseAC && sampleCaseIndicator.find(s) != sampleCaseIndicator.end()) {
+            if (sampleCaseIndicator[s])
+              caseAC+=genotype[idx];
+            else
+              controlAC+=genotype[idx];
+          }
+          int founder = trans.foundersHash.Integer(sample);
+          if(founder!=-1)
+          {
+            fmaf+=dose;
+            nf++;
+          }
+        }
+        else
+        {
+          nmiss++;
+        }
       }
-      int founder = trans.foundersHash.Integer(sample);
-      if(founder!=-1)
-      {
-        fmaf+=dose;
-        nf++;
-      }
-    }
-    else
-    {
-      nmiss++;
+      idx++;
     }
   }
-  idx++;
-}
-}
 mac = maf;
 maf /= 2.0*n;
 fmaf /= 2.0*nf;
@@ -1381,10 +1379,10 @@ bool PreMeta::GetGenotypeVectorVCF(FastTransform & trans, Pedigree & ped,SanityC
 
   founderMaf = markerMaf = 0.0;
   caseAC = 0, controlAC = 0;
-  chr = record.getChromStr();
-  pos = record.get1BasedPosition();
-  rareAllele = record.getAltStr();
-  refAllele = record.getRefStr();
+  chr = record.chromosome().c_str();
+  pos = record.position();
+  rareAllele = record.alt().c_str();
+  refAllele = record.ref().c_str();
 
   if(checkData.skippedSNPs.Integer(chr + ":" + pos)!=-1)
     return status;
@@ -1428,14 +1426,15 @@ bool PreMeta::GetGenotypeVectorVCF(FastTransform & trans, Pedigree & ped,SanityC
       int s = trans.sampleVCFIDHash.Integer(sample);
       if(s==-1)
         error("ERROR! Check sample %s in VCF and PED file.\n",sample.c_str());
-      int numGTs = record.getNumGTs(s);
+      const std::size_t ploidy = record.data().size() / reader.samples().size();
+      std::size_t numGTs = ploidy;
       int sum = 0;
       int founder = trans.foundersHash.Integer(sample);
       if(XStatus && ped[trans.samplePEDIDHash.Integer(sample)].sex==maleLabel)
       {
         if(numGTs==1) {
-          int a = record.getGT(s,j);
-          if(a==VcfGenotypeSample::MISSING_GT)
+          float a = record.data()[s * ploidy + j];
+          if(std::isnan(a))
             miss_stat=true;
           else {
             n++;
@@ -1451,10 +1450,10 @@ bool PreMeta::GetGenotypeVectorVCF(FastTransform & trans, Pedigree & ped,SanityC
         }
         else {
           int malemissing=0;
-          int a;
+
           for(int j = 0; j < numGTs; j++) {
-            a=record.getGT(s,j);
-            if(a==VcfGenotypeSample::MISSING_GT)
+            float a = record.data()[s * ploidy + j];
+            if(std::isnan(a))
               malemissing++;
             else
               sum += a;
@@ -1488,8 +1487,8 @@ bool PreMeta::GetGenotypeVectorVCF(FastTransform & trans, Pedigree & ped,SanityC
       }
       else {
         for(int j = 0; j < numGTs; j++) {
-          int a = record.getGT(s,j); 
-          if(a==VcfGenotypeSample::MISSING_GT) {
+          float a = record.data()[s * ploidy + j];
+          if(std::isnan(a)) {
             numMiss++;
             genotype[idx] = -1.0;
             //printf("%s\t%g\n",sample.c_str(),genotype[idx]);

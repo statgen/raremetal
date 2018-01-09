@@ -1,11 +1,13 @@
 cmake_minimum_required(VERSION 3.2)
 project(raremetal VERSION 4.14.0 LANGUAGES C CXX Fortran)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 
 find_package(Threads)
 find_library(LIB_STATGEN StatGen)
 find_library(LIB_SAVVY savvy)
+find_library(LIB_ZSTD zstd)
+find_library(LIB_HTS hts)
 find_library(LIB_Z z)
 
 add_library(libraremetal
@@ -117,7 +119,7 @@ add_executable(raremetal
                raremetal/src/WritePDF.h)
 
 target_include_directories(raremetal PRIVATE otherLib/eigen-3.2.0)
-target_link_libraries(raremetal libraremetal ${LIB_Z} ${LIB_SAVVY})
+target_link_libraries(raremetal libraremetal ${LIB_Z} ${LIB_HTS})
 target_compile_definitions(raremetal PRIVATE VERSION="${PROJECT_VERSION}")
 
 #./obj/FastFit.o ../obj/TransformResiduals.o ../obj/KinshipEmp.o ../obj/OutputKin.o ../obj/PreMeta.o ../obj/AutoFit.o ../obj/AutoFit2.o ../obj/DataQC.o ../obj/WritePDF.o ../obj/GroupFromAnnotation.o ../obj/logistic.o ../obj/Main.o
@@ -154,5 +156,5 @@ add_executable(raremetalworker
 
 
 target_include_directories(raremetalworker PRIVATE otherLib/eigen-3.2.0)
-target_link_libraries(raremetalworker libraremetal ${LIB_Z} ${LIB_SAVVY})
+target_link_libraries(raremetalworker libraremetal ${LIB_Z} ${LIB_SAVVY} ${LIB_ZSTD} ${LIB_HTS})
 target_compile_definitions(raremetalworker PRIVATE VERSION="${PROJECT_VERSION}" __ZLIB_AVAILABLE__)

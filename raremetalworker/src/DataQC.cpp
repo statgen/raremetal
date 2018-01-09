@@ -1,9 +1,6 @@
 #include "DataQC.h"
 #include "StringBasics.h"
 #include "Error.h"
-#include "VcfRecord.h"
-#include "VcfFileReader.h"
-#include "VcfHeader.h"
 #include "PreMeta.h"
 
 SanityCheck::SanityCheck() {}
@@ -56,47 +53,35 @@ void SanityCheck::Check(Pedigree & ped, FILE * log)
    //DAT file is checked in PreMeta.cpp
 
    //STEP 2: summarizing VCF file.
-   VcfFileReader reader;
-   VcfHeader header;
-   VcfRecord record;
+
 
    int vcf_marker_num=0;
    if(PreMeta::vcfInput !="")
    {
 
-      String tabixName = PreMeta::vcfInput + ".tbi";
 
-      Tabix * myVcfIndex;
-      myVcfIndex = new Tabix();
-      StatGenStatus::Status indexStat = myVcfIndex->readIndex(tabixName.c_str());
+     savvy::indexed_reader reader(PreMeta::vcfInput.c_str(), {""}, savvy::fmt::allele);
 
-      if(indexStat != StatGenStatus::SUCCESS)
+      if(!reader.good())
       {
 	 fprintf(log,"FATAL ERROR! Either VCF does not exist or VCF file has to be tabix indexed. Bgzip your vcf file, then use \"tabix -p vcf your.vcf.gz\" to index.\n");
 	 error("Either VCF does not exist or VCF file has to be tabix indexed. Bgzip your vcf file, then use \"tabix -p vcf your.vcf.gz\" to index.\n");
       }
 
-      reader.open(PreMeta::vcfInput,header);
-      reader.readVcfIndex();
-      const Tabix* indexPtr = reader.getVcfIndex();
-      if(indexPtr == NULL)
+
+
+      for(const std::string& chr : reader.chromosomes())
       {
-	 // HANDLE CASE OF FAILING TO GET THE INDEX.
-	 fprintf(log,"FATAL ERROR! VCF file has to be tabix indexed. bgzip your vcf file then use tabix -p vcf your.vcf.gz to tabix.\n");
-	 error("VCF file has to be tabix indexed. bgzip your vcf file then use tabix -p vcf your.vcf.gz to tabix.\n");
-      }
-      for(int i = 0; i < indexPtr->getNumRefs(); i++)
-      {
-	 chromosomeVCF.Push(indexPtr->getRefName(i));
+	      chromosomeVCF.Push(chr.c_str());
       }
 
+     savvy::variant<std::vector<float>> record;
       //check if VCF file is empty
-      while(reader.readRecord(record))
+      while(reader >> record)
       {
 	 vcf_marker_num++;
 	 break;
       }
-      reader.close();
 
       if(vcf_marker_num>0) 
 	 PreMeta::genoFromVCF=true;
@@ -178,33 +163,33 @@ void SanityCheck::Check(Pedigree & ped, FILE * log)
    //STEP 3: Check if there are overlapping sample IDs from PED and VCF file
    if(PreMeta::genoFromVCF)
    {
-      bool status=false;
-      StringIntHash pedSampleID;
-      for(int s=0;s<ped.count;s++)
-      {
-	 if(FastTransform::mergedVCFID)
-	    pedSampleID.SetInteger(ped[s].famid+"_"+ped[s].pid,s);
-	 else
-	    pedSampleID.SetInteger(ped[s].pid,s);
-      }
+     bool status=false;
+     StringIntHash pedSampleID;
+     for(int s=0;s<ped.count;s++)
+     {
+       if(FastTransform::mergedVCFID)
+         pedSampleID.SetInteger(ped[s].famid+"_"+ped[s].pid,s);
+       else
+         pedSampleID.SetInteger(ped[s].pid,s);
+     }
 
-      reader.open(PreMeta::vcfInput,header);
-      int numSamples = header.getNumSamples();
-      for(int s=0;s<numSamples;s++)
-      {
-	 const char * sample = header.getSampleName(s);
-	 if(pedSampleID.Integer(sample)>=0)
-	 {
-	    status=true;
-	    break;
-	 }
-      }
-      reader.close();
-      if(!status)
-      {
-	 fprintf(log,"ERROR! There is no overlapping sample ID between PED and VCF file. Please double check to make sure that PED file and VCF file have some or all sample IDs matched.\n");
-	 error("There is no overlapping sample ID between PED and VCF file. Please double check to make sure that PED file and VCF file have some or all sample IDs matched.\n");
-      }
+     savvy::reader reader(PreMeta::vcfInput.c_str(), savvy::fmt::allele);
+     int numSamples = reader.samples().size();
+     for(int s=0;s<numSamples;s++)
+     {
+       const char * sample = reader.samples()[s].c_str();
+       if(pedSampleID.Integer(sample)>=0)
+       {
+         status=true;
+         break;
+       }
+     }
+
+     if(!status)
+     {
+       fprintf(log,"ERROR! There is no overlapping sample ID between PED and VCF file. Please double check to make sure that PED file and VCF file have some or all sample IDs matched.\n");
+       error("There is no overlapping sample ID between PED and VCF file. Please double check to make sure that PED file and VCF file have some or all sample IDs matched.\n");
+     }
    }
 
    //STEP 4:if X chromosome is included then check quality of genotype for chromosome X

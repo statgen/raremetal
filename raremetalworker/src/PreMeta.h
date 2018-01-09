@@ -19,12 +19,10 @@
 #define __PREMETA_H__
 
 #include "FastFit.h"
-#include "VcfRecord.h"
-#include "VcfFileReader.h"
-#include "VcfHeader.h"
 #include "InputFile.h"
 #include "GroupFromAnnotation.h"
 #include "DataQC.h"
+#include <savvy/reader.hpp>
 #include <vector>
 #include <map>
 #include <string>
@@ -70,10 +68,9 @@ public:
       int warnings;
       int numFounders;
       int malehwewarning;
-      VcfFileReader reader;
-      VcfHeader header;
-      VcfRecord record;
 
+			savvy::indexed_reader reader;
+			savvy::variant<std::vector<float>> record;
 	// indicate a sample is case or control. used in printCaseAC
 	std::map<int, bool> sampleCaseIndicator; // sample id in vcf -> if case, true
 	int caseAC = 0;

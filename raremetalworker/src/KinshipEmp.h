@@ -19,9 +19,6 @@
 #define __EMPKINSHIP_H__
 
 #include "Kinship.h"
-#include "VcfRecord.h"
-#include "VcfFileReader.h"
-#include "VcfHeader.h"
 #include "StringHash.h"
 
 
@@ -35,10 +32,6 @@ class KinshipEmp : public Kinship
       static double q;
       static double miss;
       static int cpus;
-
-      VcfFileReader reader;
-      VcfHeader header;
-      VcfRecord record;
 
       StringIntHash IDFromEmp,IDFromEmpX;
 
