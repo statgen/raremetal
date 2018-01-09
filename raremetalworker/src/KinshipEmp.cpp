@@ -1007,7 +1007,7 @@ void KinshipEmp::SetupVCFX(Pedigree & ped, IntArray & genotypedSampleVCF, String
           for(int j = 0; j < ploidy; j++)
           {
             //if marker is not biallelic, skip this marker
-            float a = record.data()[s * ploidy + j];
+            float a = record.data()[i * ploidy + j];
             if(a>1)
             {
               skipSNP=true;
@@ -1108,7 +1108,7 @@ void KinshipEmp::SetupVCFX(Pedigree & ped, IntArray & genotypedSampleVCF, String
         {
           for(int j = 0; j < ploidy; j++)
           {
-            float a = record.data()[s * ploidy + j];
+            float a = record.data()[i * ploidy + j];
             if(std::isnan(a))
             {
               nmiss++;
