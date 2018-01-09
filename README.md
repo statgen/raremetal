@@ -1,5 +1,6 @@
-Raremetal: A tool for rare variants meta-analyse
-	(c) 2012-2017 Shuang Feng, Dajiang Liu, Sai Chen, Goncalo Abecasiss
+Raremetal: A tool for rare variants meta-analysis
+
+(c) 2012-2017 Shuang Feng, Dajiang Liu, Sai Chen, Gonçalo Abecasis
 
 For more info, please see wiki page
 http://genome.sph.umich.edu/wiki/RAREMETAL
@@ -10,13 +11,8 @@ http://genome.sph.umich.edu/wiki/RAREMETAL
 
 
 Newest version: v.4.14.1 released at 07/10/2017
-	Some bug fixes
-	View change log at: http://genome.sph.umich.edu/wiki/RAREMETAL_Change_Log
+- Some bug fixes
+- View change log at: http://genome.sph.umich.edu/wiki/RAREMETAL_Change_Log
 
-We've made a brand new version, RAREMETAL2, at:
-
+We've made a brand new version, RAREMETAL2. Still in beta, but a full release is planned in the future. See:
 https://github.com/traxexx/Raremetal2
-
-You're very welcomed to try the new test version: RAREMETAL2
-
-Still a beta version but will have a full release of v1.00 soon!
