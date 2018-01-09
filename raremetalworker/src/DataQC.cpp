@@ -75,12 +75,19 @@ void SanityCheck::Check(Pedigree & ped, FILE * log)
 	      chromosomeVCF.Push(chr.c_str());
       }
 
-     savvy::variant<std::vector<float>> record;
+
+
       //check if VCF file is empty
-      while(reader >> record)
+
+      if (chromosomeVCF.Length())
       {
-	 vcf_marker_num++;
-	 break;
+        reader.reset_region({chromosomeVCF[0].c_str()});
+        savvy::variant<std::vector<float>> record;
+        while (reader >> record)
+        {
+          vcf_marker_num++;
+          break;
+        }
       }
 
       if(vcf_marker_num>0) 

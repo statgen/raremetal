@@ -394,211 +394,225 @@ void KinshipEmp::SetupPEDAuto(Pedigree & ped,IntArray & genotypedSamplePED, FILE
 
 void KinshipEmp::SetupVCFAuto(Pedigree & ped, IntArray & genotypedSampleVCF,StringArray & chromosomeVCF,FILE * log)
 {
-   printf("Estimating kinship matrix ...\n");
-   fflush(stdout);
-   fprintf(log,"Estimating kinship matrix ...\n");
+  printf("Estimating kinship matrix ...\n");
+  fflush(stdout);
+  fprintf(log,"Estimating kinship matrix ...\n");
 
-   int chr_count = chromosomeVCF.Length();
-   int N=0;
-   int total_n = genotypedSampleVCF.Length();
-   int NMISS = total_n * miss;
-   allPairs.Dimension(total_n,total_n);
+  int chr_count = chromosomeVCF.Length();
+  int N=0;
+  int total_n = genotypedSampleVCF.Length();
+  int NMISS = total_n * miss;
+  allPairs.Dimension(total_n,total_n);
 
-   for(int r=0;r<total_n;r++)
-   {
-      for(int c=r;c<total_n;c++)
-	 allPairs[r][c] = 0.0;
-   }
+  for(int r=0;r<total_n;r++)
+  {
+    for(int c=r;c<total_n;c++)
+      allPairs[r][c] = 0.0;
+  }
 
-   savvy::variant<std::vector<float>> record;
 
-   int markerCount = 0;
-   //#pragma omp parallel for
-   for(int chr_idx=0;chr_idx<chr_count;chr_idx++)
-   {
-printf("  processing chromosome %s\n",chromosomeVCF[chr_idx].c_str());
-fflush(stdout);
-fprintf(log,"  processing chromosome %s\n",chromosomeVCF[chr_idx].c_str());
+  int markerCount = 0;
+  //#pragma omp parallel for
+  for(int chr_idx=0;chr_idx<chr_count;chr_idx++)
+  {
 
-      String chr;
-      int pos;
+    printf("  processing chromosome %s\n",chromosomeVCF[chr_idx].c_str());
+    fflush(stdout);
+    fprintf(log,"  processing chromosome %s\n",chromosomeVCF[chr_idx].c_str());
 
-     if(PreMeta::dosage)
-     {
-       double mean = 0.0, var_inv = 0.0, maf=0.0;
-       int n_=0, nmiss=0;
-       savvy::indexed_reader reader(PreMeta::vcfInput.c_str(), {chromosomeVCF[chr_idx].c_str()}, savvy::fmt::dosage);
+    float * genotype = new float [total_n];
+    String chr;
+    int pos;
 
-       while(reader >> record)
-       {
-         ++markerCount;
-         chr = record.chromosome().c_str();
-         pos = record.position();
-
-         if(chr==PreMeta::xLabel)
-           if(pos>=PreMeta::Xstart && pos<=PreMeta::Xend)
-             continue;
-
-         mean = 0.0;
-         n_=0; nmiss=0;
-
-         for (int p = 0; p < genotypedSampleVCF.Length(); p++)
-         {
-           int s = genotypedSampleVCF[p];
-           //fill in genotype vector for this sample
-           if(std::isnan(record.data()[p]))
-           {
-             nmiss++;
-           }
-           else
-           {
-             mean += record.data()[p];
-             n_++;
-           }
-           if(nmiss>NMISS)
-             break;
-         }
-         if(nmiss>NMISS)
-           continue;
-         maf = mean/(2.0*n_);
-         if( maf<q || 1.0-maf<q)
-           continue;
-
-         N++;
-         mean /= n_;
-         var_inv = 1.0/(2.0*maf*(1.0-maf));
-         //standardize genotype vector
-         for(int i=0;i<total_n;i++)
-         {
-           if(std::isnan(record.data()[i]))
-             //make sure if genotype is missing, then it is not contributing
-             record.data()[i]=0.0;
-           else
-             record.data()[i] -= mean;
-         }
-         //add up to kinship
-#ifdef _OPENMP
-#pragma omp parallel for
-#endif
-         for(int r=0;r<total_n;r++)
-         {
-           for(int c=r;c<total_n;c++)
-           {
-             allPairs[r][c] += record.data()[r]*record.data()[c]*var_inv;
-           }
-         }
-       }
-     }
-     else
-     {
-       savvy::indexed_reader reader(PreMeta::vcfInput.c_str(), {chromosomeVCF[chr_idx].c_str()}, savvy::fmt::genotype);
-       double var_inv=_NAN_,mean = 0.0,maf=0.0;
-       int n_=0,nmiss=0;
-       bool skipSNP = false,skip=false;
-       while(reader >> record)
-       {
-         ++markerCount;
-         chr = record.chromosome().c_str();
-         pos = record.position();
-
-         if(chr==PreMeta::xLabel)
-           if(pos>=PreMeta::Xstart && pos<=PreMeta::Xend)
-             continue;
-
-         mean = 0.0; maf=0.0;
-         n_=0; nmiss=0;
-
-         skipSNP=false;
-         skip=false;
-         for(int s=0;s<total_n;s++)
-         {
-           skip=false;
-           int i= genotypedSampleVCF[s];
-
-           float g = record.data()[s];
-           if(std::isnan(g))
-           {
-             nmiss++;
-             if(nmiss>NMISS)
-             {
-               skipSNP = true;
-             }
-             skip = true;
-           }
-
-           if(skipSNP)
-             break;
-           if(skip)
-             continue;
-           mean+=g;
-           n_++;
-         }
-
-         if(skipSNP)
-           continue;
-         mean /= n_;
-         maf = mean/2.0;
-
-         if(nmiss > NMISS || maf<q || 1.0-maf<q)
-           continue;
-
-         N++;
-         var_inv = 1.0/((1.0-maf)*2.0*maf);
-
-         for(int i=0;i<total_n;i++)
-         {
-           if(std::isnan(record.data()[i]))
-             record.data()[i]=0.0;
-           else
-             record.data()[i] -= mean;
-         }
-#ifdef _OPENMP
-#pragma omp parallel for
-#endif
-         for(int r=0;r<total_n;r++)
-         {
-           for(int c=r;c<total_n;c++)
-           {
-             allPairs[r][c] += record.data()[r]*record.data()[c]*var_inv;
-           }
-         }
-       }
-     }
-   }
-printf("  processed %d markers in total.\n",markerCount);
-fprintf(log,"  processed %d markers in total.\n",markerCount);
-printf("  %d markers were included to calculate empirical kinship.\n",N);
-fprintf(log,"  %d markers were included to calculate empirical kinship.\n",N);
-
-   double scale = 1.0/N;
-
-   for(int i=0;i<total_n;i++)
-   {
-      allPairs[i][i] *= scale;
-      for(int j=i+1;j<total_n;j++)
+    if(PreMeta::dosage)
+    {
+      savvy::indexed_reader reader(PreMeta::vcfInput.c_str(), {chromosomeVCF[chr_idx].c_str()}, savvy::fmt::dosage);
+      savvy::variant<std::vector<float>> record;
+      double mean = 0.0, var_inv = 0.0, maf=0.0;
+      int n_=0, nmiss=0;
+      while(reader >> record)
       {
-	 allPairs[i][j] *= scale;
-	 allPairs[j][i] = allPairs[i][j];
+        ++markerCount;
+        chr = record.chromosome().c_str();
+        pos = record.position();
+
+        if(chr==PreMeta::xLabel)
+          if(pos>=PreMeta::Xstart && pos<=PreMeta::Xend)
+            continue;
+
+        mean = 0.0;
+        n_=0; nmiss=0;
+
+        for (int p = 0; p < genotypedSampleVCF.Length(); p++)
+        {
+          int s = genotypedSampleVCF[p];
+          //fill in genotype vector for this sample
+          float geno = record.data()[s];
+          if(std::isnan(geno))
+          {
+            genotype[p] = _NAN_;
+            nmiss++;
+          }
+          else
+          {
+            genotype[p] = geno;
+            mean += genotype[p];
+            n_++;
+          }
+          if(nmiss>NMISS)
+            break;
+        }
+        if(nmiss>NMISS)
+          continue;
+        maf = mean/(2.0*n_);
+        if( maf<q || 1.0-maf<q)
+          continue;
+
+        N++;
+        mean /= n_;
+        var_inv = 1.0/(2.0*maf*(1.0-maf));
+        //standardize genotype vector
+        for(int i=0;i<total_n;i++)
+        {
+          if(genotype[i]==_NAN_)
+            //make sure if genotype is missing, then it is not contributing
+            genotype[i]=0.0;
+          else
+            genotype[i] -= mean;
+        }
+        //add up to kinship
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+        for(int r=0;r<total_n;r++)
+        {
+          for(int c=r;c<total_n;c++)
+          {
+            allPairs[r][c] += genotype[r]*genotype[c]*var_inv;
+          }
+        }
       }
-   }
+    }
+    else
+    {
+      savvy::indexed_reader reader(PreMeta::vcfInput.c_str(), {chromosomeVCF[chr_idx].c_str()}, savvy::fmt::allele);
+      savvy::variant<std::vector<float>> record;
+      double var_inv=_NAN_,mean = 0.0,maf=0.0;
+      int n_=0,nmiss=0;
+      bool skipSNP = false,skip=false;
+      while(reader >> record)
+      {
+        ++markerCount;
+        chr = record.chromosome().c_str();
+        pos = record.position();
 
-   if(N==0)
-      error("ERROR! No qualified marker was included in calculating empirical kinsihp matrix.\n");
+        if(chr==PreMeta::xLabel)
+          if(pos>=PreMeta::Xstart && pos<=PreMeta::Xend)
+            continue;
 
-   printf("completed.\n\n");
-   fprintf(log,"completed.\n\n");
+        mean = 0.0; maf=0.0;
+        n_=0; nmiss=0;
+        for(int g=0;g<total_n;g++)
+          genotype[g] = 0.0;
 
-time_t now;
-    time(&now);
-    printf("Relationship inference completed at: %s\n", ctime(&now));
-    fprintf(log,"Relationship inference completed at: %s\n", ctime(&now));
+        skipSNP=false;
+        skip=false;
+        for(int s=0;s<total_n;s++)
+        {
+          skip=false;
+          int i= genotypedSampleVCF[s];
+          std::size_t ploidy = record.data().size() / reader.samples().size();
+          for(int j = 0; j < ploidy; j++)
+          {
+            float a = record.data()[i * ploidy + j];
+            if(std::isnan(a))
+            {
+              nmiss++;
+              if(nmiss>NMISS)
+              {
+                skipSNP=true;
+                break;
+              }
+              skip =true;
+              genotype[s]=_NAN_;
+              break;
+            }
+            genotype[s] += a;
+          }
+          if(skipSNP)
+            break;
+          if(skip)
+            continue;
+          mean+=genotype[s];
+          n_++;
+        }
 
-   if(OutputKin::outputKin)
-   {
-      WriteKinship(ped,allPairs,genotypedSampleVCF,true,true,log);
-   }
-   printf("\n");
-   fprintf(log,"\n");
+        if(skipSNP)
+          continue;
+        mean /= n_;
+        maf = mean/2.0;
+
+        if(nmiss > NMISS || maf<q || 1.0-maf<q)
+          continue;
+
+        N++;
+        var_inv = 1.0/((1.0-maf)*2.0*maf);
+
+        for(int i=0;i<total_n;i++)
+        {
+          if(genotype[i]==_NAN_)
+            genotype[i]=0.0;
+          else
+            genotype[i] -= mean;
+        }
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+        for(int r=0;r<total_n;r++)
+        {
+          for(int c=r;c<total_n;c++)
+          {
+            allPairs[r][c] += genotype[r]*genotype[c]*var_inv;
+          }
+        }
+      }
+    }
+    if(genotype) delete [] genotype;
+  }
+  printf("  processed %d markers in total.\n",markerCount);
+  fprintf(log,"  processed %d markers in total.\n",markerCount);
+  printf("  %d markers were included to calculate empirical kinship.\n",N);
+  fprintf(log,"  %d markers were included to calculate empirical kinship.\n",N);
+
+  double scale = 1.0/N;
+
+  for(int i=0;i<total_n;i++)
+  {
+    allPairs[i][i] *= scale;
+    for(int j=i+1;j<total_n;j++)
+    {
+      allPairs[i][j] *= scale;
+      allPairs[j][i] = allPairs[i][j];
+    }
+  }
+
+  if(N==0)
+    error("ERROR! No qualified marker was included in calculating empirical kinsihp matrix.\n");
+
+  printf("completed.\n\n");
+  fprintf(log,"completed.\n\n");
+
+  time_t now;
+  time(&now);
+  printf("Relationship inference completed at: %s\n", ctime(&now));
+  fprintf(log,"Relationship inference completed at: %s\n", ctime(&now));
+
+  if(OutputKin::outputKin)
+  {
+    WriteKinship(ped,allPairs,genotypedSampleVCF,true,true,log);
+  }
+  printf("\n");
+  fprintf(log,"\n");
 }
 
 void KinshipEmp::WriteKinship(Pedigree & ped,Matrix & allPairs, IntArray & genotypedSample, bool AUTO,bool VCF, FILE * log)
