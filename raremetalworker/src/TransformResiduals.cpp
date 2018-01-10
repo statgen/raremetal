@@ -111,7 +111,7 @@ void FastTransform::SelectSamplesVCF(Pedigree & ped,bool useCovariates)
 		std::map<int, bool> to_remove;
 		for(std::map<int, bool>::iterator t=g1.begin(); t!=g1.end(); t++) {
 			int s = t->first;
-			if(std::isnan(record_data[s]))
+			if(!std::isnan(record_data[s]))
 				to_remove[s] = 1;
 		}
 		for(std::map<int, bool>::iterator pm=to_remove.begin(); pm!=to_remove.end(); pm++)
