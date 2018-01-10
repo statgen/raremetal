@@ -32,13 +32,12 @@ void WritePDF::Draw(PDF & pdf,StringArray & geneLabels,Vector & pvalueAll,Vector
 void WritePDF::Draw(PDF & pdf, StringArray & geneLabels,Vector & pvalueAll, StringArray & chr, Vector & pos, String title,String extraTitle,String demo,bool useDataLabels)
 {
    // Setup Q-Q plot
-   if(!thinPoints)
-      thinPoints=true;
-if(pvalueAll.Length()>0)
-{
-   DrawQQplot(pdf,pvalueAll,title,extraTitle,demo);
-   DrawManhattanPlot(pdf,geneLabels,pvalueAll,chr,pos,title,useDataLabels);
-}
+   thinPoints=true;
+   if(pvalueAll.Length()>0)
+   {
+      DrawQQplot(pdf,pvalueAll,title,extraTitle,demo);
+      DrawManhattanPlot(pdf,geneLabels,pvalueAll,chr,pos,title,useDataLabels);
+   }
 }
 
 void WritePDF::DrawOverlayQQplot(PDF & pdf, Vector & pvalueAll_,Vector & pvalue1_,Vector & pvalue5_,String title)
