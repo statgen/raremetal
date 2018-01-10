@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.2)
 project(raremetal VERSION 4.14.0 LANGUAGES C CXX Fortran)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 11)
 
 find_package(Threads)
 find_library(LIB_STATGEN StatGen)
@@ -73,7 +73,6 @@ add_library(libraremetal
 
 set_target_properties(libraremetal PROPERTIES OUTPUT_NAME raremetal)
 target_include_directories(libraremetal PUBLIC libRareMetal/pdf libRareMetal/src)
-target_link_libraries(libraremetal ${LIB_STATGEN} ${CMAKE_THREAD_LIBS_INIT})
 if(APPLE)
     target_link_libraries(libraremetal ${CMAKE_SOURCE_DIR}/libRareMetal/libRmath_MAC.a)
 elseif(UNIX)
@@ -83,6 +82,7 @@ elseif(MINGW)
 elseif(CYGWIN)
     target_link_libraries(libraremetal ${CMAKE_SOURCE_DIR}/libRareMetal/libRmath_cygwin64.a)
 endif()
+target_link_libraries(libraremetal ${LIB_STATGEN} ${LIB_HTS} ${CMAKE_THREAD_LIBS_INIT} ${LIB_Z})
 
 #../obj/Meta.o ../obj/MetaUtility.o ../obj/QuadProg.o ../obj/GroupFromAnnotation.o ../obj/WritePDF.o ../obj/SummaryFileReader.o ../obj/Main.o
 add_executable(raremetal
@@ -119,7 +119,7 @@ add_executable(raremetal
                raremetal/src/WritePDF.h)
 
 target_include_directories(raremetal PRIVATE otherLib/eigen-3.2.0)
-target_link_libraries(raremetal libraremetal ${LIB_Z} ${LIB_HTS})
+target_link_libraries(raremetal libraremetal)
 target_compile_definitions(raremetal PRIVATE VERSION="${PROJECT_VERSION}")
 
 #./obj/FastFit.o ../obj/TransformResiduals.o ../obj/KinshipEmp.o ../obj/OutputKin.o ../obj/PreMeta.o ../obj/AutoFit.o ../obj/AutoFit2.o ../obj/DataQC.o ../obj/WritePDF.o ../obj/GroupFromAnnotation.o ../obj/logistic.o ../obj/Main.o
@@ -154,7 +154,6 @@ add_executable(raremetalworker
                raremetalworker/src/WritePDF.cpp
                raremetalworker/src/WritePDF.h)
 
-
 target_include_directories(raremetalworker PRIVATE otherLib/eigen-3.2.0)
-target_link_libraries(raremetalworker libraremetal ${LIB_Z} ${LIB_SAVVY} ${LIB_ZSTD} ${LIB_HTS})
-target_compile_definitions(raremetalworker PRIVATE VERSION="${PROJECT_VERSION}" __ZLIB_AVAILABLE__)
+target_link_libraries(raremetalworker libraremetal ${LIB_SAVVY} ${LIB_ZSTD})
+target_compile_definitions(raremetalworker PRIVATE VERSION="${PROJECT_VERSION}")
