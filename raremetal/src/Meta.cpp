@@ -83,11 +83,11 @@ void Meta::Prepare()
 //	}
 	setMetaStatics();
 	openMetaFiles();
-	
+
 	SampleSize.Dimension( scorefile.Length() );
 	for(int s=0; s<scorefile.Length(); s++)
 		SampleSize[s] = -1;
-	
+
 	if (dosageOptionFile != "") { // read dosage
 		IFILE file = ifopen(dosageOptionFile,"r");
 		while(!ifeof(file)) {
@@ -109,7 +109,7 @@ void Meta::Prepare()
 
 	if (normPop)
 		FitPgamma();
-			
+
 	//if conditional analysis says yes
 	if(cond!="")
 		prepareConditionalAnalysis();
@@ -167,14 +167,14 @@ void Meta::fitpGammaForSingleStudy( int study)
 	int dist_skipped = 0;
 	int matchonly_skipped = 0;
 	int match_maf_skipped = 0;
-	
+
 	bool use_dosage = false;
 	if (dosageOptionFile != "")
 		use_dosage = dosageOptions[study];
 	else
 		use_dosage = dosage;
-	
-	while (!ifeof(file)) {	
+
+	while (!ifeof(file)) {
 		String buffer;
 		buffer.ReadLine(file);
 		if (first_line) {
@@ -195,7 +195,7 @@ void Meta::fitpGammaForSingleStudy( int study)
 		if (fail)
 			continue;
 		int c1,c2,c3;
-//printf("%s\n",markername.c_str());			
+//printf("%s\n",markername.c_str());
 		if(use_dosage)
 		{
 			c3 = tokens[4].AsDouble()*tokens[6].AsDouble()*tokens[6].AsDouble();
@@ -207,7 +207,7 @@ void Meta::fitpGammaForSingleStudy( int study)
 			c1 = tokens[10-adjust].AsDouble();
 			c2 = tokens[11-adjust].AsDouble();
 			c3 = tokens[12-adjust].AsDouble();
-		}	
+		}
 		if ((tokens[2]=="." && tokens[3]==".") || (tokens[2]==tokens[3] && c1+c2!=0 && c2+c3!=0))
 			continue;
 		if(tokens[8-adjust].AsDouble()<CALLRATE || tokens[9-adjust].AsDouble()<HWE)
@@ -215,7 +215,7 @@ void Meta::fitpGammaForSingleStudy( int study)
 		double current_AC;
 		int current_N;
 		current_N = c1+c2+c3;
-		current_AC = 2*c3+c2;	
+		current_AC = 2*c3+c2;
 //		if (current_AC==0)
 //			continue;
 
@@ -247,7 +247,7 @@ void Meta::fitpGammaForSingleStudy( int study)
 					printf("With --minMatchMAF=%g,--maxMatchMAF=%g, markers with MAF out of this range will be excluded in population correction!\n",minMatchMAF,maxMatchMAF);
 				match_maf_skipped++;
 				continue;
-			}			
+			}
 			// then check dist
 			if (matchByAbs) { // dist = min( |MAF_study - MAF_pop| )
 				for(int i=0;i<nPop;i++) {
@@ -263,7 +263,7 @@ void Meta::fitpGammaForSingleStudy( int study)
 			else { // dist = sqrt( sum(MAF_study - MAF_pop)^2 )
 				for(int i=0;i<nPop;i++)
 					dist += (maf - X[current_index][i])*(maf - X[current_index][i]);
-				dist = sqrt(dist/nPop);			
+				dist = sqrt(dist/nPop);
 			}
 			if (matchDist > 0 && dist > matchDist) {
 				if (dist_skipped==0)
@@ -278,7 +278,7 @@ void Meta::fitpGammaForSingleStudy( int study)
 				}
 				dist_skipped++;
 				continue;
-			}		
+			}
 		}
 
 		Y.Push( current_AC/current_N/2 );
@@ -378,9 +378,9 @@ printf("\n");
 		XY[i] = Y.InnerProduct(transX[i]);
 //	printf("study=%d",study);
 	for(int i=0;i<nPop; i++) {
-		pgamma[study][i] = inv[i].InnerProduct(XY);	
+		pgamma[study][i] = inv[i].InnerProduct(XY);
 //printf(",%g",pgamma[study][i]);
-	}	
+	}
 //printf("\n\n");
 
 /*
@@ -408,10 +408,10 @@ printf("\n");
 	Vector Ce0;
 	Ce0.Dimension(1,1);
 	solve_quadprog(XfX, XY, Ce, Ce0,Ci,Ci0, betas);
-printf("study=%d",study);	
+printf("study=%d",study);
 	for(int i=0;i<nPop;i++) {
 		pgamma[study][i] = 0 - betas[i];
-printf(",%g",pgamma[study][i]);		
+printf(",%g",pgamma[study][i]);
 	}
 printf("\n\n");
 */
@@ -422,7 +422,7 @@ printf("\n\n");
 //At the end, single variant meta-analysis will be completed.
 // information will be stored for gene-based analysis
 void Meta::PoolSummaryStat( GroupFromAnnotation & group )
-{	
+{
 	total_N=0;
 	flipCount =0;
 	skip_count=0;
@@ -460,9 +460,9 @@ void Meta::PoolSummaryStat( GroupFromAnnotation & group )
 //			residual_adj += new_r;
 //		}
 //for(int s=0; s<scorefile.Length(); s++)
-//printf("s=%d,Ydelta=%g,Ysigma2=%g\n",s,Ydelta[s],Ysigma2[s]);		
-//printf("ymean=%g,ra=%g,n=%d\n",ymean,residual_adj,n);				
-//		residual_adj /= (double)(n-1);		
+//printf("s=%d,Ydelta=%g,Ysigma2=%g\n",s,Ydelta[s],Ysigma2[s]);
+//printf("ymean=%g,ra=%g,n=%d\n",ymean,residual_adj,n);
+//		residual_adj /= (double)(n-1);
 	}
 
 	// pool stats by reading
@@ -473,11 +473,11 @@ void Meta::PoolSummaryStat( GroupFromAnnotation & group )
 		StringIntHash hashToRemoveDuplicates; //hash for skip duplicate markers
 		varCount = 0;
 		dupcheck_chr = "";
-		
+
 		Vector chisq_study_i;
-		
+
 		printf("Pooling summary statistics from study %d ...\n",study+1);
-		
+
 		//read in summary statistics.
 		//maf and summary stat are saved. SNPpos in the file are hashed.
 		SummaryFileReader covReader;
@@ -487,13 +487,13 @@ void Meta::PoolSummaryStat( GroupFromAnnotation & group )
 			if (!cov_status)
 				error("Cannot open cov file: %s\n", covFilename.c_str());
 		}
-		
+
 		String filename = scorefile[study];
 		IFILE file;
 		file = ifopen(filename,"r");
 		if(file == NULL)
 			error("Cannot open file: %s!\nInput file has to be bgzipped and tabix indexed using the following command:\n bgzip your.summary.file; tabix -c \"#\" -s 1 -b 2 -e 2 your.summary.file.gz\n",scorefile[study].c_str());
-		
+
 		String buffer;
 		buffer.ReadLine(file);
 		bool adjust;
@@ -502,7 +502,7 @@ void Meta::PoolSummaryStat( GroupFromAnnotation & group )
 //			error("File %s is neither RMW or rvtest score file!\n", filename.c_str());
 		ifclose(file);
 		FormatAdjust.Push(adjust);
-		
+
 		file = ifopen(filename,"r");
 		bool pass_header = 0;
 		while (!ifeof(file)) {
@@ -519,7 +519,7 @@ void Meta::PoolSummaryStat( GroupFromAnnotation & group )
 					}
 				}
 				if(buffer.FindChar('#') ==-1 && buffer.Find("CHROM")==-1)
-					pass_header = 1;				
+					pass_header = 1;
 			}
 			if (!pass_header)
 				continue;
@@ -529,7 +529,7 @@ void Meta::PoolSummaryStat( GroupFromAnnotation & group )
 				chisq_study_i.Push(current_chisq);
 		}
 		ifclose(file);
-		
+
 		total_N += SampleSize[study];
 		//calculate GC
 		chisq_study_i.Sort();
@@ -545,30 +545,30 @@ void Meta::PoolSummaryStat( GroupFromAnnotation & group )
 		}
 		printf("  done\n");
 	}
-	 
-	
+
+
 	if(skip_count>1)
 		printf("Warning: %d variants have been excluded from analysis due to un-matched alleles. Please check log file for details.\n",skip_count);
-			
+
 	//finalize direction array
 	for(int i=0;i<directions.Length();i++)
 		while(directions[i].Length()<scorefile.Length())
 			directions[i]+='?';
-		
+
 	//calculate pooled allele frequencies
 	setPooledAF();
-		
+
 	printf("\nPerforming Single variant meta analysis ...\n");
-	
+
 	//calculate final results here
 	IFILE output;
-	String filename;	
+	String filename;
 	IFILE vcfout;
 	String vcf_filename;
 	printSingleMetaHeader( filename, output );
 	if (outvcf)
 		printOutVcfHeader( vcf_filename, vcfout );
-		
+
 	//for annotation purpose
 	target_chr="";
 	target_pos = 0, target=0;
@@ -576,24 +576,24 @@ void Meta::PoolSummaryStat( GroupFromAnnotation & group )
 	//Sort variants by chr and pos
 	for(int i=0;i<SNPmaf_maf.Length();i++)
 		printSingleMetaVariant( group, i, output, vcfout );
-	
+
 	plotSingleMetaGC( output, 1 );
 	if ( cond != "" )
 		plotSingleMetaGC( output, 0 );
 	printf("\n  done.\n\n");
-			
+
 	ifclose(output);
 	if(outvcf) {
 		ifclose(vcfout);
 		printf("\n  VCF file based on superset of variants from pooled studies has been saved \n    %s\n",vcf_filename.c_str());
 	}
 }
-		
+
 void Meta::Run(GroupFromAnnotation & group)
 {
 	if(outvcf)
 		return;
-	
+
 	if(!SKAT && !Burden && !MB && !MAB && !BBeta && !VTa) {
 		printf("\nWarning: none of the gene-level tests was requested; only single variant meta-analysis was done.\n");
 		return;
@@ -601,7 +601,7 @@ void Meta::Run(GroupFromAnnotation & group)
 
 	maf = new Vector [group.annoGroups.Length()];
 	stats = new Vector [group.annoGroups.Length()];
-	
+
 	if(cond!="")
 	{
 		cond_stats = new Vector [group.annoGroups.Length()];
@@ -610,12 +610,12 @@ void Meta::Run(GroupFromAnnotation & group)
 	cov = new Matrix [group.annoGroups.Length()];
 	singlePvalue = new Vector [group.annoGroups.Length()];
 	singleEffSize = new Vector [group.annoGroups.Length()];
-	
+
 	if ( group.annoGroups.Length()<=0 )
 		error("No valid groups. Unable to do gene-based test. Check if your group file is empty!\n");
-	
+
 	loadSingleStatsInGroup( group );
-	
+
 	printf("\nChecking if all groups are analyzed...\n");
 	fprintf(log,"\nChecking if all groups are analyzed...\n");
 	int geneCounter=0;
@@ -634,10 +634,10 @@ void Meta::Run(GroupFromAnnotation & group)
 	}
 	printf("\n\tdone!\n");
 	fprintf(log,"\n\tdone!\n");
-	
+
 	//loop through cov matrices of all studies and update cov
 	loadSingleCovInGroup( group );
-	
+
 	// update stats in group
 	for(int g=0;g<group.annoGroups.Length();g++)
 	{
@@ -670,15 +670,15 @@ void Meta::Run(GroupFromAnnotation & group)
 		method = "BBeta";
 		BurdenAssoc(method,group,maf,stats,cond_stats,cov,cond_cov,singleEffSize,singlePvalue);
 	}
-	
+
 	if(VTa)
 		VTassoc( group );
-	
+
 	if(SKAT)
 		SKATassoc( group );
-	
+
 	pdf.CloseFile();
-	
+
 	//housekeeping
 	if(maf) delete [] maf;
 	if(stats) delete [] stats;
@@ -731,17 +731,17 @@ double Meta::GrabGenotypeCov(SummaryFileReader & covReader,int study,String chr1
 	double result = 0.0;
 	if(chr1!=chr2)
 	return result;
-	
+
 	int skip = SNPexclude.Integer(String(std::to_string(study).c_str())+":"+chr1+":"+pos1);
 	if(skip!=-1)
 	return result;
 	skip = SNPexclude.Integer(String(std::to_string(study).c_str())+":"+chr2+":"+pos2);
 	if(skip!=-1)
 	return result;
-	
+
 	StringArray flip,tmp;
 	int marker_idx;
-	
+
 	if(pos1.AsInteger()<pos2.AsInteger())
 	{
 		//Check in current hash table first
@@ -797,7 +797,7 @@ double Meta::GrabGenotypeCov(SummaryFileReader & covReader,int study,String chr1
 		tmp.AddTokens(covReader.marker_cov,",");
 		result = tmp[loc].AsDouble()*SampleSize[study];
 	}
-	
+
 	//if this marker is flipped then markers from the entire row
 	//should have cov multiply by -1.0.
 	double factor1=1.0,factor2=1.0;
@@ -806,7 +806,7 @@ double Meta::GrabGenotypeCov(SummaryFileReader & covReader,int study,String chr1
 	if(flipSNP.Integer(String(std::to_string(study).c_str())+":"+chr2+":"+pos2)!=-1)
 	factor2=-1.0;
 	result *= (factor1*factor2);
-	
+
 	return result;
 }
 
@@ -886,7 +886,7 @@ void Meta::openMetaFiles()
 	}
 	else
 		error("FATAL ERROR! --studyName can not be empty! Usage: --summaryFiles your.list.of.summary.files\n");
-	
+
 	// cov file
 	if(covFiles!="") {
 		IFILE inFile = ifopen(covFiles,"r");
@@ -969,17 +969,17 @@ bool Meta::setCondMarkers()
 		SummaryFileReader statReader,covReader;
 		String filename = scorefile[s];
 		String covFilename = covfile[s];
-			
+
 		if(!statReader.ReadTabix(filename))
 			error("Cannot open file: %s!\nInput file has to be bgzipped and tabix indexed using the following command:\n bgzip your.summary.file; tabix -c \"#\" -s 1 -b 2 -e 2 your.summary.file.gz\n",scorefile[s].c_str());
-		
+
 		bool adjust;
 		String buffer;
 		IFILE dup = ifopen(filename,"r");
 		buffer.ReadLine(dup);
 		tellRvOrRmw( buffer, adjust, marker_col, cov_col );
 		ifclose(dup);
-		
+
 		if (SampleSize[s]==-1) {
 			dup=ifopen(filename,"r");
 			while (!ifeof(dup)) {
@@ -994,10 +994,10 @@ bool Meta::setCondMarkers()
 			}
 			ifclose(dup);
 		}
-			
+
 		if(!covReader.ReadTabix(covFilename))
 			error("Cannot open file: %s!\nInput file has to be bgzipped and tabix indexed using the following command:\n bgzip your.covariance.file; tabix -c \"#\" -s 1 -b 2 -e 2 your.covariance.file.gz.\n",covfile[s].c_str());
-			
+
 		for(int i=0;i<commonVar.Length();i++) {
 			//if this variant is genotyped in this study
 			bool cov_status = covReader.ReadRecord(common_chr[i],common_pos[i]);
@@ -1007,7 +1007,7 @@ bool Meta::setCondMarkers()
 				continue;
 			StringArray record;
 			record.AddTokens(statReader.buffer,"\t");
-				
+
 			if((record[2]==common_ref[i] && record[3]==common_alt[i]) || (record[3]==common_ref[i] && record[2]==common_alt[i])) {
 				double v = record[14-adjust].AsDouble();
 				if(v>0) {
@@ -1018,7 +1018,7 @@ bool Meta::setCondMarkers()
 				}
 			}
 		}
-		
+
 		int dim = commonVar_study[s].Length();
 		if(dim!=0)
 			cond_status[s] =true;
@@ -1028,7 +1028,7 @@ bool Meta::setCondMarkers()
 		}
 		commonVar_markers_in_window[s] = new IntArray [dim];
 		commonVar_marker_cov[s] = new Vector [dim];
-			
+
 		bool cov_status = covReader.ReadTabix(covFilename);
 		if ( !cov_status )
 			error("Cannot open cov file: %s\n", covFilename.c_str());
@@ -1062,7 +1062,7 @@ bool Meta::setCondMarkers()
 			break;
 		}
 	}
-	return status;	
+	return status;
 }
 
 // read RMW output header that records y
@@ -1168,7 +1168,7 @@ void Meta::UpdateExcludedMarker( int & study, String & chr_pos,int filter,String
 	skip_SNP = study;
 	skip_SNP += ":";
 	skip_SNP +=chr_pos;
-	
+
 	SNPexclude.SetInteger(skip_SNP,skip_count);
 	if(filter==0)
 	{
@@ -1198,7 +1198,7 @@ void Meta::UpdateStrIntHash(String & chr_pos, int val, StringIntHash & sihash)
 		int old_N = sihash.GetCount(idx);
 		old_N += val;
 		sihash.SetInteger(idx,old_N);
-	}	
+	}
 }
 
 void Meta::UpdateStrDoubleHash(String & chr_pos, double val, StringDoubleHash & sdhash)
@@ -1211,7 +1211,7 @@ void Meta::UpdateStrDoubleHash(String & chr_pos, double val, StringDoubleHash & 
 		double old_N = sdhash.Double(chr_pos);
 		old_N += val;
 		sdhash.SetDouble(chr_pos,old_N);
-	}	
+	}
 }
 
 void Meta::UpdateACInfo(String & chr_pos,double AC)
@@ -1251,7 +1251,7 @@ void Meta::UpdateStats(int study, String & markerName,double stat,double vstat,b
 		prev += stat;
 		SNPstat.SetDouble(markerName,prev);
 	}
-	
+
 	//update SNP_Vstat
 	stat_idx = SNP_Vstat.Find(markerName);
 	if(stat_idx==-1)
@@ -1349,7 +1349,7 @@ int Meta::MatchOneAllele(String ref_current, int & idx)
 		else
 			return 2;
 	}
-	
+
 	if(tmp[1] == ref_current)
 		return 0;
 	if(tmp[0] == ref_current)
@@ -1374,10 +1374,10 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 
 	if(tokens[0].Find("chr")!=-1)
 		tokens[0] = tokens[0].SubStr(3);
-	
+
 	String chr_pos = tokens[0] + ":" + tokens[1];
 	int direction_idx = directionByChrPos.Integer(chr_pos);
-	
+
 	//CHECK duplicate markers
 	bool is_dup = isDupMarker( tokens[0], chr_pos );
 	if (is_dup) {
@@ -1385,7 +1385,7 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 		fprintf(log,"Warning: variant %s from study %s is skipped because of duplicate records in the same study.\n",chr_pos.c_str(),scorefile[study].c_str());
 		return 0;
 	}
-	
+
 	//POOLING STEP1: if fail HWE or CALLRATE then skip this record
 	//if a variant has a missing allele but not mornomorphic then exclude this variant without updating the total sample size
 	//if(((tokens[2]=="." || tokens[3]==".") && (c1+c2!=0 && c2+c3!=0)) || (tokens[2]=="." && tokens[3]==".") || (tokens[2]==tokens[3] && c1+c2!=0 && c2+c3!=0))
@@ -1450,7 +1450,7 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 		is_fail = 1;
 		filter_type = 0;
 	}
-	
+
 	if (is_fail) {
 		char direct = '!';
 		UpdateDirection(direction_idx,study,direct,chr_pos,true);
@@ -1458,7 +1458,7 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 		UpdateExcludedMarker(study,chr_pos,filter_type,tokens[0]+":"+tokens[1]+":"+tokens[2]+":"+tokens[3]);
 		return 0;
 	}
-	
+
 	//STEP2: check if this position has been hashed. If yes, match alleles; if not, hash position and ref alt alleles.
 	int marker_idx = directionByChrPos.Integer(chr_pos);
 	bool flip=false;
@@ -1473,7 +1473,7 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 	if(marker_idx == -1) //if this position is never hashed before
 	{
 		UpdateStrIntHash(chr_pos, current_N, recSize); // add size to --altMAF when site is observed
-		if(c2+c3==0||c1+c2==0) 
+		if(c2+c3==0||c1+c2==0)
 		{ //if monomorphic, then hash in ref=alt allele for this position and update direction with '?' usefulAC as count of ref allele
 			int count=0;
 			setRefAltHashKey( refalt_current, tokens, c1, c2 );
@@ -1518,7 +1518,7 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 				else if(match==1)
 					count = 2*c1+c2;
 			}
-			
+
 			if(match==2)
 			{ //if allels do not match, then exclude this variant and continue
 				UpdateExcludedMarker(study,chr_pos,2,tokens[0]+":"+tokens[1]+":"+tokens[2]+":"+tokens[3]);
@@ -1529,7 +1529,7 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 			}
 			if(match==1)
 				flip=true;
-			
+
 			UpdateStrIntHash(chr_pos, current_N, recSize); // add --altMAF
 			UpdateACInfo(chr_pos,count);
 			if(SampleSize[study]!=current_N)
@@ -1574,17 +1574,17 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 		v = raw_v;
 		u = raw_u;
 	}
-	
+
 	if(flip) {
 		flipCount++;
 		flipSNP.SetInteger(String(std::to_string(study).c_str())+":"+chr_pos,flipCount);
 	}
-	
+
 	if (sumCaseAC && tokens.Length()==19) {
 		if (caseAC.Integer(chr_pos)==-1) {
 			if (flip) {
 				caseAC.SetInteger(chr_pos,current_N*2-tokens[17].AsInteger());
-				controlAC.SetInteger(chr_pos,current_N*2-tokens[18].AsInteger());				
+				controlAC.SetInteger(chr_pos,current_N*2-tokens[18].AsInteger());
 			}
 			else {
 				caseAC.SetInteger(chr_pos,tokens[17].AsInteger());
@@ -1596,7 +1596,7 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 			int c2 = controlAC.Integer(chr_pos);
 			if (flip) {
 				caseAC.SetInteger(chr_pos,c1+current_N*2-tokens[17].AsInteger());
-				controlAC.SetInteger(chr_pos,c2+current_N*2-tokens[18].AsInteger());				
+				controlAC.SetInteger(chr_pos,c2+current_N*2-tokens[18].AsInteger());
 			}
 			else {
 				caseAC.SetInteger(chr_pos,c1+tokens[17].AsInteger());
@@ -1604,15 +1604,15 @@ bool Meta::poolSingleRecord( int study, double & current_chisq, int & duplicateS
 			}
 		}
 	}
-	
+
 	//if a variant is monomorphic then update the count of sample size and generate warning
 	if(c1+c2==0 || c2+c3==0)
 		return 0;
-	
+
 	//push the chisq statistics for GC calculation
 	if(tokens[14-adjust].AsDouble()>0)
 		current_chisq = u*u/(v*v);
-	
+
 	//update SNP_cond_stat and SNP_cond_V
 	//if(cond!="" && cond_status[study] && tokens[14-adjust].AsDouble()>0.0)
 	if(cond!="" && tokens[14-adjust].AsDouble()>0.0) {
@@ -1697,7 +1697,7 @@ void Meta::updateSNPcond( int study, bool flip, int adjust, String & chr_pos, St
 			stat += -1.0*cond_u;
 		SNPstat_cond.SetDouble(chr_pos,stat);
 	}
-	
+
 	Vector tmp;
 	for(int i=0;i<GX.dim;i++)
 	tmp.Push(GX.InnerProduct(XX_inv[study][i]));
@@ -1707,13 +1707,13 @@ void Meta::updateSNPcond( int study, bool flip, int adjust, String & chr_pos, St
 	idx = SNP_Vstat_cond.Find(chr_pos);
 	if(idx!=-1)
 	{
-		
+
 		double cond_Vstat = SNP_Vstat_cond.Double(idx);
 		cond_Vstat += cond_V;
 		SNP_Vstat_cond.SetDouble(idx,cond_Vstat);
 	}
 	else
-		SNP_Vstat_cond.SetDouble(chr_pos,cond_V);	
+		SNP_Vstat_cond.SetDouble(chr_pos,cond_V);
 }
 
 
@@ -1722,7 +1722,7 @@ void Meta::updateSNPcond( int study, bool flip, int adjust, String & chr_pos, St
 void Meta::setPooledAF()
 {
 	StringArray chr_AC,unique_chr,SNPname_AC;
-	IntArray pos_AC;		
+	IntArray pos_AC;
 	//get the unique chromosomes
 	for(int i=0;i<directionByChrPos.Capacity();i++) {
 		if(!directionByChrPos.SlotInUse(i))
@@ -1774,7 +1774,7 @@ void Meta::setPooledAF()
 			StringArray tmp;
 			tmp.AddTokens(SNPname_i[pos_i_idx[j]],":");
 			double AC = usefulAC.Double(tmp[0]+":"+tmp[1]);
-				
+
 			// usefulSize has the # of samples to be excluded
 			// recSize has # of samples truly added from vcf/ped. Use this when altMAF is toggled
 			int N;
@@ -1790,17 +1790,17 @@ void Meta::setPooledAF()
 				else
 					N = total_N;
 			}
-				
+
 			double maf;
 			if(founderAF)
 				maf = AC/(2.0*N);
 			else
 				maf = AC/(2.0*N);
-				
+
 			int idx = directionByChrPos.Integer(tmp[0]+":"+tmp[1]);
 			if(directions[idx].FindChar('+')==-1 && directions[idx].FindChar('-')==-1)
 				maf = 0.0;
-				
+
 			SNPmaf_maf.Push(maf);
 			SNPmaf_name.Push(SNPname_i[pos_i_idx[j]]);
 			SNP_effect_N.Push(N);
@@ -1819,7 +1819,7 @@ void Meta::printSingleMetaHeader( String & filename, IFILE & output )
 	else
 		filename = prefix + ".meta.singlevar.results";
 
-	output=ifopen(filename,"w",InputFile::UNCOMPRESSED);	
+	output=ifopen(filename,"w",InputFile::UNCOMPRESSED);
 	ifprintf(output,"##Method=SinglevarScore\n");
 	ifprintf(output,"##STUDY_NUM=%d\n",scorefile.Length());
 	ifprintf(output,"##TotalSampleSize=%d\n",total_N);
@@ -1840,7 +1840,7 @@ void Meta::printOutVcfHeader( String & vcf_filename, IFILE & vcfout )
 		vcf_filename = prefix + "pooled.variants.vcf";
 	else
 		vcf_filename = prefix + ".pooled.variants.vcf";
-		
+
 	vcfout = ifopen(vcf_filename,"w",InputFile::UNCOMPRESSED);
 	ifprintf(vcfout,"#CHR\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n");
 }
@@ -1880,7 +1880,7 @@ void Meta::printSingleMetaVariant( GroupFromAnnotation & group, int i, IFILE & o
 			exact_maf = f;
 		}
 		else
-			exact_maf = maf;	
+			exact_maf = maf;
 		// here V = sum(vk / sigmak)
 		double nkdeltak = 0;
 		for(int i=0;i<scorefile.Length();i++)
@@ -1904,7 +1904,7 @@ void Meta::printSingleMetaVariant( GroupFromAnnotation & group, int i, IFILE & o
 		SNP_Vstat.SetDouble( SNPname_noallele,V );
 	}
 	int direction_idx = directionByChrPos.Integer(SNPname_noallele);
-		
+
 	String direction = directions[direction_idx];
 	IntArray pvalue1_idx,pvalue5_idx;
 
@@ -1915,12 +1915,12 @@ void Meta::printSingleMetaVariant( GroupFromAnnotation & group, int i, IFILE & o
 		else
 			ifprintf(output,"%s\t%s\t%s\t%s\t%d\t%g\t%s\tNA\tNA\tNA\tNA\n",tmp[0].c_str(),tmp[1].c_str(),tmp[2].c_str(),tmp[3].c_str(),N,maf,direction.c_str());
 	}
-	
+
 	if(maf<=0.0 || maf>=1.0 || V==0.0)
 		return;
 
 	double chisq = U*U/V;
-//printf("U=%g,V=%g,chisq=%g\n",U,V,chisq);	
+//printf("U=%g,V=%g,chisq=%g\n",U,V,chisq);
 	//chisq_before_GC.Push(chisq);
 	double pvalue = pchisq(chisq,1,0,0);
 	double effSize = U/V;
@@ -1933,10 +1933,10 @@ void Meta::printSingleMetaVariant( GroupFromAnnotation & group, int i, IFILE & o
 		chisq *= 0.999;
 		pvalue = pchisq(chisq,1,0,0);
 	}
-		
+
 	singleVarPvalue.SetDouble(SNPname,pvalue);
 	singleVarEff.SetDouble(SNPname,effSize);
-		
+
 	pvalueAll.Push(pvalue);
 	if(maf<0.01) {
 		pvalue1.Push(pvalue);
@@ -1948,7 +1948,7 @@ void Meta::printSingleMetaVariant( GroupFromAnnotation & group, int i, IFILE & o
 	}
 	chr_plot.Push(tmp[0]);
 	pos_plot.Push(tmp[1].AsInteger());
-			
+
 	if(cond!="") { // print conditional analysis results
 		bool cond_disect=false;
 		double cond_U, cond_V, chisq;
@@ -1978,12 +1978,12 @@ void Meta::printSingleMetaVariant( GroupFromAnnotation & group, int i, IFILE & o
 			cond_effSize_se = 0.0;
 		}
 		ifprintf(output,"%s\t%s\t%s\t%s\t%d\t%g\t%s\t%g\t%g\t%g\t%s%g\t%g\t%g\t%g\t%s%g",tmp[0].c_str(),tmp[1].c_str(),tmp[2].c_str(),tmp[3].c_str(),N,maf,direction.c_str(),effSize,effSize_se,h2,disect?"<":"",pvalue,cond_effSize,cond_effSize_se,cond_h2,cond_disect?"<":"",cond_pvalue);
-			
+
 		pvalueAll_cond.Push(cond_pvalue);
 		if(maf<0.01)
 			pvalue1_cond.Push(cond_pvalue);
 		if(maf<0.05)
-			pvalue5_cond.Push(cond_pvalue);		
+			pvalue5_cond.Push(cond_pvalue);
 	}
 	else
 		ifprintf(output,"%s\t%s\t%s\t%s\t%d\t%g\t%s\t%g\t%g\t%g\t%s%g",tmp[0].c_str(),tmp[1].c_str(),tmp[2].c_str(),tmp[3].c_str(),N,maf,direction.c_str(),effSize,effSize_se,h2,disect?"<":"",pvalue);
@@ -2015,7 +2015,7 @@ void Meta::annotateSingleVariantToGene( GroupFromAnnotation & group, double pval
 		target_pos=0;
 		target=0;
 		target_pvalue = _NAN_;
-	}	
+	}
 
 	bool skip = 0;
 	if(pvalue > 0.05/SNPmaf_maf.Length()) {
@@ -2047,7 +2047,7 @@ void Meta::annotateSingleVariantToGene( GroupFromAnnotation & group, double pval
 			if(geneLabel[target]!="" && current_anno!="" && geneLabel[target].Find(current_anno)==-1)
 				current_anno = geneLabel[target] + "/" + current_anno;
 			if(geneLabel[target]!="" && current_anno=="")
-				current_anno = geneLabel[target];				
+				current_anno = geneLabel[target];
 			geneLabel.Push(current_anno);
 			geneLabel[target]="";
 			target = geneLabel.Length()-1;
@@ -2093,7 +2093,7 @@ void Meta::plotSingleMetaGC( IFILE & output, bool calc_gc )
 	demo3="GC=";
 	demo3 += GC3;
 	writepdf.Draw(pdf,geneLabel,pvalueAll,pvalue1,pvalue5,chr_plot,pos_plot,title,demo1,demo2,demo3,false);
-		
+
 	//Calculate genomic control
 	if (calc_gc) {
 		ifprintf(output,"#Genomic Control for pooled sample is: %g\n",GC1);
@@ -2119,17 +2119,17 @@ void Meta::loadSingleStatsInGroup( GroupFromAnnotation & group )
 		int count = group.SNPlist[g].Length();
 		singlePvalue[g].Dimension(0);
 		singleEffSize[g].Dimension(0);
-		
+
 		for(int m=0;m<count;m++)
 		{
 			String newSNP;
 			bool flipStatus = false;
 			double af=0.0;
 			double singleP = singleVarPvalue.Double(group.SNPlist[g][m]);
-			
+
 			if(singleP!=_NAN_)
 				af = SNPmaf_maf[SNPmaf.Integer(group.SNPlist[g][m])];
-			
+
 			double singleEff = singleVarEff.Double(group.SNPlist[g][m]);
 			if(singleP == _NAN_)
 			{
@@ -2138,13 +2138,13 @@ void Meta::loadSingleStatsInGroup( GroupFromAnnotation & group )
 				SNPflip.AddTokens(group.SNPlist[g][m],":");
 				newSNP = SNPflip[0]+":"+SNPflip[1]+":"+SNPflip[3]+":"+SNPflip[2];
 				singleP = singleVarPvalue.Double(newSNP);
-				
+
 				if(singleP!=_NAN_)
 					af = SNPmaf_maf[SNPmaf.Integer(newSNP)];
-				
+
 				singleEff = singleVarEff.Double(newSNP);
 			}
-			
+
 			if(singleP==_NAN_)
 			{
 				del.Push(m);
@@ -2157,21 +2157,21 @@ void Meta::loadSingleStatsInGroup( GroupFromAnnotation & group )
 				fprintf(log,"Warning: variant %s is excluded from group %s for the following reasons: monomorphic.\n",group.SNPlist[g][m].c_str(),group.annoGroups[g].c_str());
 					continue;
 			}
-			
+
 			if(af>0.5 && 1.0-af>MAF_cutoff)
 			{
 				del.Push(m);
 				fprintf(log,"Warning: variant %s is excluded from group %s for the following reason: maf>cutoff.\n",group.SNPlist[g][m].c_str(),group.annoGroups[g].c_str());
 					continue;
 			}
-			
+
 			if(af<=0.5 && af>MAF_cutoff)
 			{
 				del.Push(m);
 				fprintf(log,"Warning: variant %s is excluded from group %s for the following reason: maf>cutoff.\n",group.SNPlist[g][m].c_str(),group.annoGroups[g].c_str());
 					continue;
 			}
-			
+
 			double tmp;
 			StringArray tmp_name;
 			tmp_name.AddTokens(group.SNPlist[g][m],":");
@@ -2206,7 +2206,7 @@ void Meta::loadSingleStatsInGroup( GroupFromAnnotation & group )
 			}
 			stats[g].Push(tmp);
 			maf[g].Push(af);
-			
+
 			singlePvalue[g].Push(singleP);
 			singleEffSize[g].Push(singleEff);
 		}
@@ -2310,8 +2310,8 @@ void Meta::loadSingleCovInGroup( GroupFromAnnotation & group )
 		markerPosHash.Clear();
 		markersExp.Clear(); // for new format
 		markersInWindow.Clear(); // for old format
-		markersCov.Clear();			
-	}	
+		markersCov.Clear();
+	}
 }
 
 void Meta::readCovOldFormatLine( int study,StringArray & tokens, int & m )
@@ -2385,14 +2385,14 @@ void Meta::addNewFormatCov( int mexp,String & cov_str, Vector & covs)
 		int last_index = 0;
 		for(int i=0;i<n;i++) {
 			StringArray tokens;
-			tokens.AddTokens( commas[i],':' );		
+			tokens.AddTokens( commas[i],':' );
 			if (tokens.Length()>2||tokens.Length()<1)
 				error("At line: ...:%s:...,abnormal separation!\n",commas[i].c_str());
 			if (tokens.Length()==1)
 				last_index++;
 			else // tokens ==2
 				last_index = tokens[1].AsInteger();
-	//printf("covlen=%d,last_index=%d\n",cov_len,last_index);		
+	//printf("covlen=%d,last_index=%d\n",cov_len,last_index);
 			covs[last_index] = tokens[0].AsDouble()*pow(10,mexp);
 		}
 	}
@@ -2407,17 +2407,17 @@ void Meta::BurdenAssoc(String method,GroupFromAnnotation & group,Vector *& maf,V
 {
 	printf("Performing %s tests ...\n",method.c_str());
 	//calculate final results here
-	
+
 	Vector pvalue_burden,pvalue_burden_cond;
-	
+
 	IFILE output;
 	String filename;
 	openMetaResultFile( prefix, filename, output, method );
-	
+
 	String method_out = method;
 	method_out +="_";
 	method_out += MAF_cutoff;
-	
+
 	IFILE reportOutput;
 	String reportFile;
 	if(report)
@@ -2454,41 +2454,41 @@ void Meta::BurdenAssoc(String method,GroupFromAnnotation & group,Vector *& maf,V
 	{
 		if(maf[g].Length()==0)
 			continue;
-		
+
 		double average_af = maf[g].Average();
 		double min_af = maf[g].Min();
 		double max_af = maf[g].Max();
-		
+
 		String var;
 		for(int i=0;i<maf[g].Length()-1;i++)
 			var += group.SNPlist[g][i] + ";";
 		var += group.SNPlist[g][maf[g].Length()-1];
-		
+
 		Vector weight;
 		weight.Dimension(maf[g].Length());
 		SetWeight(method,weight,maf[g]);
 		// for burden test, need to 1/w
 		for(int w=0;w<weight.Length();w++)
 			weight[w] = 1/weight[w];
-		
+
 		numerator  = weight.InnerProduct(stats[g]);
 		Vector tmp;
 		tmp.Dimension(group.SNPlist[g].Length());
-		
+
 		for(int i=0;i<tmp.Length();i++)
 			tmp[i] = weight.InnerProduct(cov[g][i]);
 		denominator = tmp.InnerProduct(weight);
-			
+
 		if(cond!="") {
 			cond_num = weight.InnerProduct(cond_stats[g]);
 			for(int i=0;i<tmp.Length();i++)
 				tmp[i] = weight.InnerProduct(cond_cov[g][i]);
 			cond_denom = tmp.InnerProduct(weight);
 		}
-		
+
 		if(denominator==0.0)
 			continue;
-		
+
 		chisq = numerator*numerator/denominator;
 		pvalue = pchisq(chisq,1,0,0);
 		double effSize = numerator/denominator;
@@ -2523,23 +2523,23 @@ void Meta::BurdenAssoc(String method,GroupFromAnnotation & group,Vector *& maf,V
 			}
 			pvalue_burden_cond.Push(cond_pvalue);
 		}
-		
+
 		if(fullResult)
 		{
 			ifprintf(output,"%s\t%d\t%s\t",group.annoGroups[g].c_str(),group.SNPlist[g].Length(),var.c_str());
-			
+
 			for(int i=0;i<maf[g].Length()-1;i++)
 				ifprintf(output,"%g,",maf[g][i]);
 			ifprintf(output,"%g\t",maf[g][maf[g].Length()-1]);
-			
+
 			for(int i=0;i<singleEffSize[g].Length()-1;i++)
 				ifprintf(output,"%g,",singleEffSize[g][i]);
 			ifprintf(output,"%g\t",singleEffSize[g][singleEffSize[g].Length()-1]);
-			
+
 			for(int i=0;i<singlePvalue[g].Length()-1;i++)
 				ifprintf(output,"%g,",singlePvalue[g][i]);
 			ifprintf(output,"%g\t",singlePvalue[g][singlePvalue[g].Length()-1]);
-			
+
 			if(cond!="")
 				ifprintf(output,"%g\t%g\t%g\t%g\t%s%g\t%g\t%s%g\n",average_af,min_af,max_af,effSize,disect?"<":"",pvalue,cond_effSize,cond_disect?"<":"",cond_pvalue);
 			else
@@ -2604,12 +2604,12 @@ void Meta::VTassoc( GroupFromAnnotation & group )
 	//calculate final results here
 	Vector pvalue_VT,pos_plot,cond_pvalue_VT;
 	StringArray chr_plot,geneLabels;
-	
+
 	IFILE output;
 	String filename;
 	String method = "VT_";
 	openMetaResultFile( prefix, filename, output, method );
-	
+
 	method += MAF_cutoff;
 	IFILE reportOutput;
 	if(report)
@@ -2624,7 +2624,7 @@ void Meta::VTassoc( GroupFromAnnotation & group )
 		reportOutput=ifopen(reportFile,"w",InputFile::UNCOMPRESSED);
 		ifprintf(reportOutput,"GENE\tMETHOD\tGENE_PVALUE\tMAF_CUTOFF\tACTUAL_CUTOFF\tVARS\tMAFS\tEFFSIZES\tPVALUES\n");
 	}
-	
+
 	ifprintf(output,"##Method=VT\n");
 	ifprintf(output,"##STUDY_NUM=%d\n",scorefile.Length());
 	ifprintf(output,"##TotalSampleSize=%d\n",total_N);
@@ -2632,20 +2632,20 @@ void Meta::VTassoc( GroupFromAnnotation & group )
 		ifprintf(output,"#GROUPNAME\tNUM_VAR\tVARs\tMAFs\tSINGLEVAR_EFFECTs\tSINGLEVAR_PVALUEs\tAVG_AF\tMIN_AF\tMAX_AF\tEFFECT_SIZE\tMAF_CUTOFF\tPVALUE\t");
 	else
 		ifprintf(output,"#GROUPNAME\tNUM_VAR\tVARs\tAVG_AF\tMIN_AF\tMAX_AF\tEFFECT_SIZE\tMAF_CUTOFF\tPVALUE\t");
-	
+
 	if(cond!="")
 		ifprintf(output,"EFFECT_SIZE\tMAF_CUTOFF\tCOND_PVALUE\n");
 	else
 		ifprintf(output,"\n");
-	
+
 	for(int g=0;g<group.annoGroups.Length();g++)
 	{
 		if(g>1 && g%1000==1)
 		printf("Finished analyzing %d genes.\n",g-1);
-		
+
 		if(maf[g].Length()==0)
 		continue;
-		
+
 		if(maf[g].Length()==1)
 		{
 			if(fullResult)
@@ -2653,7 +2653,7 @@ void Meta::VTassoc( GroupFromAnnotation & group )
 			else
 				ifprintf(output,"%s\t1\t%s\t%g\t%g\t%g\t%g\t%g\t%g\t",group.annoGroups[g].c_str(),group.SNPlist[g][0].c_str(),maf[g][0],maf[g][0],maf[g][0],singleEffSize[g][0],maf[g][0],singlePvalue[g][0]);
 			pvalue_VT.Push(singlePvalue[g][0]);
-			
+
 			if(cond!="")
 			{
 				String SNPname_noallele;
@@ -2691,14 +2691,14 @@ void Meta::VTassoc( GroupFromAnnotation & group )
 			geneLabels.Push(group.annoGroups[g]);
 			continue;
 		}
-		
+
 		//STEP1: sort maf[g] to find # of cutoffs
 		Vector cp_maf;
 		cp_maf.Copy(maf[g]);
 		cp_maf.Sort();
 		Vector maf_cutoff;
 		maf_cutoff.Push(cp_maf[0]);
-		
+
 		for(int i=1;i<cp_maf.Length();i++)
 		{
 			if(cp_maf[i]>maf_cutoff[maf_cutoff.Length()-1])
@@ -2714,14 +2714,14 @@ void Meta::VTassoc( GroupFromAnnotation & group )
 		pvalue_VT.Push(pvalue);
 		if(cond!="")
 			cond_pvalue_VT.Push(cond_pvalue);
-		
+
 		StringArray tmp_SNPname;
 		tmp_SNPname.AddTokens(group.SNPlist[g][0],":");
 		chr_plot.Push(tmp_SNPname[0]);
 		pos_plot.Push(tmp_SNPname[1].AsDouble());
 		geneLabels.Push(group.annoGroups[g]);
 	}
-	
+
 	String name = "VT (maf<";
 	name +=  MAF_cutoff;
 	name +=  ")";
@@ -2739,7 +2739,7 @@ void Meta::VTassoc( GroupFromAnnotation & group )
 		demo += GC;
 		writepdf.Draw(pdf,geneLabels,cond_pvalue_VT,chr_plot,pos_plot,name,extraname,demo,true);
 	}
-	
+
 	ifclose(output);
 	if(report)
 		ifclose(reportOutput);
@@ -2778,7 +2778,7 @@ double Meta::VTassocSingle(GroupFromAnnotation & group, Vector & maf_cutoff, IFI
 				tmp[d] = weight.InnerProduct(cov[g][d]);
 		}
 		denominator = tmp.InnerProduct(weight);
-		
+
 		if(denominator != 0.0)
 		{
 			double t_stat = fabs(numerator/sqrt(denominator));
@@ -2824,7 +2824,7 @@ double Meta::VTassocSingle(GroupFromAnnotation & group, Vector & maf_cutoff, IFI
 			tmp_pvalue.Push(singlePvalue[g][i]);
 		}
 	}
-	
+
 	double average_af = tmp_maf.Average();
 	double min_af = tmp_maf.Min();
 	double max_af = tmp_maf.Max();
@@ -2836,7 +2836,7 @@ double Meta::VTassocSingle(GroupFromAnnotation & group, Vector & maf_cutoff, IFI
 	}
 	if(chosen_weight[maf[g].Length()-1]==1.0)
 		var += group.SNPlist[g][maf[g].Length()-1];
-	
+
 	//STEP3: calculate covariance matrix for (U_1 ... U_#cutoff)
 	Matrix cov_U,cov_U_tmp;
 	if(condition)
@@ -2855,18 +2855,18 @@ double Meta::VTassocSingle(GroupFromAnnotation & group, Vector & maf_cutoff, IFI
 	double * lower = new double [cutoff];
 	double * upper = new double [cutoff];
 	double * mean = new double [cutoff];
-	
+
 	for(int i=0;i<cutoff;i++)
 	{
 		mean[i] = 0.0;
 		lower[i] = -t_max;
 		upper[i] = t_max;
 	}
-	
+
 	//Use pmvnorm to calculate the asymptotic p-value
 	Vector result;
 	pmvnorm(lower,upper,mean,cov_T,false,result);
-	
+
 	if(result[0]==-1.0)
 	{
 		if(!condition)
@@ -2876,19 +2876,19 @@ double Meta::VTassocSingle(GroupFromAnnotation & group, Vector & maf_cutoff, IFI
 				if(fullResult)
 				{
 					ifprintf(output,"%s\t%d\t%s\t",group.annoGroups[g].c_str(),tmp_maf.Length(),var.c_str());
-					
+
 					for(int i=0;i<tmp_maf.Length()-1;i++)
 						ifprintf(output,"%g,",tmp_maf[i]);
 					ifprintf(output,"%g\t",tmp_maf[tmp_maf.Length()-1]);
-					
+
 					for(int i=0;i<tmp_eff.Length()-1;i++)
 						ifprintf(output,"%g,",tmp_eff[i]);
 					ifprintf(output,"%g\t",tmp_eff[tmp_eff.Length()-1]);
-					
+
 					for(int i=0;i<tmp_pvalue.Length()-1;i++)
 						ifprintf(output,"%g,",tmp_pvalue[i]);
 					ifprintf(output,"%g\t",tmp_pvalue[tmp_pvalue.Length()-1]);
-					
+
 					ifprintf(output,"%g\t%g\t%g\t%g\t%g\tERROR:CORR_NOT_POS_SEMI_DEF\t",average_af,min_af,max_af,chosen_effSize,chosen_cutoff);
 				}
 				else
@@ -2914,7 +2914,7 @@ double Meta::VTassocSingle(GroupFromAnnotation & group, Vector & maf_cutoff, IFI
 			{
 				while(maf_cutoff.Length()>20)
 					maf_cutoff.Delete(0);
-				
+
 				double numerator,denominator,t_max=_NAN_;
 				Vector weight,tmp,chosen_weight,score;
 				Matrix cov_weight;
@@ -2935,7 +2935,7 @@ double Meta::VTassocSingle(GroupFromAnnotation & group, Vector & maf_cutoff, IFI
 						numerator = weight.InnerProduct(cond_stats[g]);
 					else
 						numerator = weight.InnerProduct(stats[g]);
-					
+
 					for(int d=0;d<tmp.Length();d++)
 					{
 						if(condition)
@@ -2982,7 +2982,7 @@ double Meta::VTassocSingle(GroupFromAnnotation & group, Vector & maf_cutoff, IFI
 					if(chosen_weight[i]==1.0)
 						tmp_maf.Push(maf[g][i]);
 				}
-				
+
 				for(int i=0;i<maf[g].Length();i++)
 				{
 					if(chosen_weight[i]==1.0)
@@ -2994,7 +2994,7 @@ double Meta::VTassocSingle(GroupFromAnnotation & group, Vector & maf_cutoff, IFI
 				average_af = tmp_maf.Average();
 				min_af = tmp_maf.Min();
 				max_af = tmp_maf.Max();
-				
+
 				String var;
 				for(int i=0;i<maf[g].Length()-1;i++)
 				{
@@ -3016,7 +3016,7 @@ double Meta::VTassocSingle(GroupFromAnnotation & group, Vector & maf_cutoff, IFI
 				Matrix cov_T;
 				cov_T.Dimension(cov_U.rows,cov_U.cols);
 				cov2cor(cov_U,cov_T);
-				
+
 				pvalue = CalculateMVTPvalue(score,cov_T,t_max);
 				printf("completed!\n");
 			}
@@ -3030,7 +3030,7 @@ double Meta::VTassocSingle(GroupFromAnnotation & group, Vector & maf_cutoff, IFI
 		{
 			pvalue = 1.0 - result[0];
 		}
-		
+
 		if((condition && cond!="") || cond=="")
 		{
 			if(pvalue <report_pvalue_cutoff && report)
@@ -3041,25 +3041,25 @@ double Meta::VTassocSingle(GroupFromAnnotation & group, Vector & maf_cutoff, IFI
 					ifprintf(reportOutput,"%s\t%s\t%g\t%g\t%g\t%s\t%g\t%g\t%g\n",group.annoGroups[g].c_str(),method.c_str(),pvalue,MAF_cutoff,chosen_cutoff,variants[v].c_str(),tmp_maf[v],tmp_eff[v],tmp_pvalue[v]);
 			}
 		}
-		
+
 		if(cond=="" || (!condition && cond!=""))
 		{
 			if(fullResult)
 			{
 				ifprintf(output,"%s\t%d\t%s\t",group.annoGroups[g].c_str(),tmp_maf.Length(),var.c_str());
-				
+
 				for(int i=0;i<tmp_maf.Length()-1;i++)
 					ifprintf(output,"%g,",tmp_maf[i]);
 				ifprintf(output,"%g\t",tmp_maf[tmp_maf.Length()-1]);
-				
+
 				for(int i=0;i<tmp_eff.Length()-1;i++)
 					ifprintf(output,"%g,",tmp_eff[i]);
 				ifprintf(output,"%g\t",tmp_eff[tmp_eff.Length()-1]);
-				
+
 				for(int i=0;i<tmp_pvalue.Length()-1;i++)
 					ifprintf(output,"%g,",tmp_pvalue[i]);
 				ifprintf(output,"%g\t",tmp_pvalue[tmp_pvalue.Length()-1]);
-				
+
 				ifprintf(output,"%g\t%g\t%g\t%g\t%g\t%g\t",average_af,min_af,max_af,chosen_effSize,chosen_cutoff,pvalue);
 			}
 			else
@@ -3067,10 +3067,10 @@ double Meta::VTassocSingle(GroupFromAnnotation & group, Vector & maf_cutoff, IFI
 			if(cond=="")
 				ifprintf(output,"\n");
 		}
-		
+
 		if(cond!="" && condition)
 			ifprintf(output,"%g\t%g\t%g\n",chosen_effSize,chosen_cutoff,pvalue);
-		
+
 		if(pvalue>1.0)
 		pvalue = 1.0;
 	}
@@ -3090,7 +3090,7 @@ void Meta::SKATassoc( GroupFromAnnotation & group )
 	String filename;
 	String method = "SKAT_";
 	openMetaResultFile( prefix, filename, output, method );
-	
+
 	method += MAF_cutoff;
 	IFILE reportOutput;
 	if(report)
@@ -3105,7 +3105,7 @@ void Meta::SKATassoc( GroupFromAnnotation & group )
 		reportOutput=ifopen(reportFile,"w",InputFile::UNCOMPRESSED);
 		ifprintf(reportOutput,"GENE\tMETHOD\tGENE_PVALUE_DAVIES\tGENE_PVALUE_LIU\tMAF_CUTOFF\tACTUAL_CUTOFF\tVAR\tMAF\tEFFSIZE\tPVALUE\n");
 	}
-	
+
 	ifprintf(output,"##Method=SKAT\n");
 	ifprintf(output,"##STUDY_NUM=%d\n",scorefile.Length());
 	ifprintf(output,"##TotalSampleSize=%d\n",total_N);
@@ -3113,7 +3113,7 @@ void Meta::SKATassoc( GroupFromAnnotation & group )
 		ifprintf(output,"#GROUPNAME\tNUM_VAR\tVARs\tMAFs\tSINGLEVAR_EFFECTs\tSINGLEVAR_PVALUEs\tAVG_AF\tMIN_AF\tMAX_AF\tSTATISTICS\tPVALUE_DAVIES\tPVALUE_LIU\n");
 	else
 		ifprintf(output,"#GROUPNAME\tNUM_VAR\tVARs\tAVG_AF\tMIN_AF\tMAX_AF\tSTATISTICS\tPVALUE_DAVIES\tPVALUE_LIU\n");
-	
+
 	double Qstat,pvalue,pvalue_liu;
 	for(int g=0;g<group.annoGroups.Length();g++)
 	{
@@ -3125,16 +3125,16 @@ void Meta::SKATassoc( GroupFromAnnotation & group )
 		weight.Dimension(n,0);
 		if(maf[g].Length()==0)
 			continue;
-		
+
 		double average_af = maf[g].Average();
 		double min_af = maf[g].Min();
 		double max_af = maf[g].Max();
-		
+
 		String var;
 		for(int i=0;i<maf[g].Length()-1;i++)
 			var += group.SNPlist[g][i] + ";";
 		var += group.SNPlist[g][maf[g].Length()-1];
-		
+
 		//get weight based on maf
 //		double alpha = 1.0;
 //		double beta=25.0;
@@ -3169,14 +3169,14 @@ void Meta::SKATassoc( GroupFromAnnotation & group )
 		double Qstat_dav = Qstat;
 		double Qstat_liu = Qstat;
 		double cond_pvalue=_NAN_,cond_pvalue_liu=_NAN_;
-		
+
 		pvalue = MixChidist(lambda, n, Qstat,"Davies");
-		
+
 		bool disect_davies=false,disect_liu = false,cond_disect_davies=false,cond_disect_liu=false;
 		int disect_itr=0;
 		if (debug)
 			printf("Qstat=%g, pvalue=%g\n",Qstat,pvalue);
-			
+
 		if (Qstat==_NAN_) {
 			Qstat_dav = _NAN_;
 			Qstat_liu = _NAN_;
@@ -3211,16 +3211,16 @@ void Meta::SKATassoc( GroupFromAnnotation & group )
 				pvalue_liu = MixChidist(lambda, n, Qstat_liu,"Liu");
 			}
 		}
-		
+
 		if(cond!="")
 		{
 			double * lambda = new double [n];
 			CalculateLambda(cond_cov[g],weight,lambda);
 			Qstat_dav = cond_Qstat;
 			Qstat_liu = cond_Qstat;
-			
+
 			cond_pvalue = MixChidist(lambda, n, cond_Qstat,"Davies");
-			
+
 			int disect_itr=0;
 			while( (cond_pvalue<=0.0 ||cond_pvalue==2.0 || std::isnan(cond_pvalue)) && disect_itr<10000)
 			{
@@ -3255,15 +3255,15 @@ void Meta::SKATassoc( GroupFromAnnotation & group )
 			if(fullResult)
 			{
 				ifprintf(output,"%s\t%d\t%s\t",group.annoGroups[g].c_str(),group.SNPlist[g].Length(),var.c_str());
-				
+
 				for(int i=0;i<maf[g].Length()-1;i++)
 					ifprintf(output,"%g,",maf[g][i]);
 				ifprintf(output,"%g\t",maf[g][maf[g].Length()-1]);
-				
+
 				for(int i=0;i<singleEffSize[g].Length()-1;i++)
 					ifprintf(output,"%g,",singleEffSize[g][i]);
 				ifprintf(output,"%g\t",singleEffSize[g][singleEffSize[g].Length()-1]);
-				
+
 				for(int i=0;i<singlePvalue[g].Length()-1;i++)
 					ifprintf(output,"%g,",singlePvalue[g][i]);
 				ifprintf(output,"%g\t",singlePvalue[g][singlePvalue[g].Length()-1]);
@@ -3302,15 +3302,15 @@ void Meta::SKATassoc( GroupFromAnnotation & group )
 		if(fullResult)
 		{
 			ifprintf(output,"%s\t%d\t%s\t",group.annoGroups[g].c_str(),group.SNPlist[g].Length(),var.c_str());
-			
+
 			for(int i=0;i<maf[g].Length()-1;i++)
 				ifprintf(output,"%g,",maf[g][i]);
 			ifprintf(output,"%g\t",maf[g][maf[g].Length()-1]);
-			
+
 			for(int i=0;i<singleEffSize[g].Length()-1;i++)
 				ifprintf(output,"%g,",singleEffSize[g][i]);
 			ifprintf(output,"%g\t",singleEffSize[g][singleEffSize[g].Length()-1]);
-			
+
 			for(int i=0;i<singlePvalue[g].Length()-1;i++)
 				ifprintf(output,"%g,",singlePvalue[g][i]);
 			ifprintf(output,"%g\t",singlePvalue[g][singlePvalue[g].Length()-1]);
@@ -3326,9 +3326,9 @@ void Meta::SKATassoc( GroupFromAnnotation & group )
 			else
 				ifprintf(output,"%s\t%d\t%s\t%g\t%g\t%g\t%g\t%s%g\t%s%g\t%g\t%s%g\t%s%g\n",group.annoGroups[g].c_str(),group.SNPlist[g].Length(),var.c_str(),average_af,min_af,max_af,Qstat,disect_davies?"<":"",pvalue,disect_liu?"<":"",pvalue_liu,cond_Qstat,cond_disect_davies?"<":"",cond_pvalue,cond_disect_liu?"<":"",cond_pvalue_liu);
 		}
-		
+
 		if(lambda) delete [] lambda;
-		
+
 		pvalue_SKAT.Push(pvalue_liu);
 		if(cond!="")
 			cond_pvalue_SKAT.Push(cond_pvalue_liu);
@@ -3338,7 +3338,7 @@ void Meta::SKATassoc( GroupFromAnnotation & group )
 		pos_plot.Push(tmp_SNPname[1].AsDouble());
 		geneLabels.Push(group.annoGroups[g]);
 	}
-	
+
 	String name = "SKAT (maf<";
 	name +=  MAF_cutoff;
 	name +=  ")";
@@ -3377,7 +3377,7 @@ void Meta::CalculateLambda(Matrix & cov,Vector& weight, double * lambda)
 	for(int i=0;i<n;i++)
 	for(int j=0;j<n;j++)
 		cov_eigen(i,j) = cov[i][j];
-	
+
 	Eigen::JacobiSVD<Eigen::MatrixXd> svd_cov(cov_eigen, Eigen::ComputeThinU);
 	Eigen::MatrixXd final_eigen(n,n);
 	Eigen::MatrixXd final_eigen_rhs(n,n);
@@ -3391,7 +3391,7 @@ void Meta::CalculateLambda(Matrix & cov,Vector& weight, double * lambda)
 	final_eigen_rhs = svd_cov.matrixU()*tmp.asDiagonal()*svd_cov.matrixU().transpose();
 	final_eigen_lhs = final_eigen_rhs*weight_eigen.asDiagonal();
 	final_eigen = final_eigen_lhs*final_eigen_rhs;
-	
+
 	Eigen::JacobiSVD<Eigen::MatrixXd> svd(final_eigen, Eigen::ComputeThinU);
 	const Eigen::VectorXd S = svd.singularValues();
 	for(int i=0;i<n;i++)
@@ -3459,7 +3459,7 @@ void Meta::updateRegressedTotalAF( String & markername, double total )
 		regressedTotalAF.SetDouble( markername, prev );
 	}
 	else
-		regressedTotalAF.SetDouble( markername, total );	
+		regressedTotalAF.SetDouble( markername, total );
 }*/
 
 
@@ -3476,7 +3476,7 @@ double Meta::getAFtilda( String & markername, double raw_af, int study )
 	if (raw_af<minMatchMAF||raw_af>maxMatchMAF)
 		fk = 0;
 	else {
-	
+
 	bool flip = false;
 	bool match = true;;
 	if ( ptr == af1KG.end() ) { // check if flip
@@ -3530,7 +3530,7 @@ double Meta::getAFtilda( String & markername, double raw_af, int study )
 				fk -= flip? pgamma[study][i] * (ptr->second[i]) : pgamma[study][i]*(1-(ptr->second[i]));
 		}
 	}
-	
+
 	}
 	return fk;
 }
@@ -3544,9 +3544,16 @@ void Meta::addToMapStrVec( std::map<String, std::vector<double> >& variant, int 
 		variant[markername][study] = fk;
 	}
 	else
-		variant[markername][study] = fk; 
+		variant[markername][study] = fk;
 }
 
+/**
+ * Set weights for each variant. This calculates raw weights and does not specify how they are used in the calculation
+ * 	(eg it will calculate w, not 1/w)
+ * @param method
+ * @param weight
+ * @param maf
+ */
 void Meta::SetWeight( String & method, Vector & weight, Vector& maf )
 {
 	if(method=="burden") {
@@ -3555,15 +3562,15 @@ void Meta::SetWeight( String & method, Vector & weight, Vector& maf )
             weight[w] = 1.0;
         }
     } else if(method=="MB") {
-        // Madsen-Browning: weight[w] = 1. / sqrt( maf[w] * (1. - maf[w]) );
+        // Madsen-Browning: weight[w] = sqrt( maf[w] * (1. - maf[w]) );
         //      https://doi.org/10.1371/journal.pgen.1000384
         for(int w=0;w<weight.Length();w++) {
-            weight[w] = 1/ sqrt(maf[w]*(1.0-maf[w]));
+            weight[w] = sqrt(maf[w]*(1.0-maf[w]));
         }
     } else if (method=="MAB") {
-        // Determine weights based on MAF : w = 1/MAF
+        // Determine weights based on MAF : w = MAF
 		for(int w=0;w<weight.Length();w++) {
-			weight[w] = 1.0 / maf[w];
+			weight[w] = maf[w];
         }
 	} else if (method=="BBeta") {
         /*
@@ -3670,7 +3677,7 @@ void Meta::updateSingleVariantGroupStats( GroupFromAnnotation& group,int study,i
 		return;
 	int skip = SNPexclude.Integer(String(std::to_string(study).c_str())+":"+group.SNPNoAllele[g][m]);
 	if(skip!=-1)
-		return;			
+		return;
 	int flip = flipSNP.Integer(String(std::to_string(study).c_str())+":"+group.SNPNoAllele[g][m]);
 	double multiplyFactor=1.0;
 	if(flip!=-1)
@@ -3799,7 +3806,7 @@ void Meta::updateSingleVariantGroupStatsNewFormat(GroupFromAnnotation& group,int
 				GX[m][s]= new_markerscov[p]*SampleSize[study];
 			}
 		}
-	}	
+	}
 }
 
 
