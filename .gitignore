@@ -1,6 +1,6 @@
 # Build process artifacts
 cget/
-build/
+build*
 
 # Compiled Object files
 *.slo
