@@ -470,7 +470,10 @@ void GroupFromAnnotation::GetGroupFromVCF()
 */
 
 
-// partition 8th column only
+
+/**
+ * Read annotations (ANNO) from 8th column of a user-specified annotation VCF file, and generate a groupfile
+ */
 void GroupFromAnnotation::GetGroupFromVCF()
 {  
    printf("Parsing annotations from annotated VCF file ...\n");
@@ -721,6 +724,12 @@ void GroupFromAnnotation::vcfInitialize()
 	
 }
 
+/**
+ * Generate a group file if one has not been provided, then read groups that will be used for gene-based or
+ * 	group-based burden tests in meta-analysis.
+ * @param path
+ * @param log
+ */
 void GroupFromAnnotation::Run(String path,FILE * log)
 { 
    if(vcfInput !="")

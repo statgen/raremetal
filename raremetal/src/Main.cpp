@@ -24,7 +24,7 @@
 #include "WriteLog.h"
 #include "unistd.h"
 
-int main(int argc, char ** argv)
+int main(int argc, char * argv[])
 {
 	printf("\nRAREMETAL %s -- A Tool for Rare Variants Meta-Analyses for Quantitative Traits\n"
 		"          (c) 2012-2017 Shuang Feng, Dajiang Liu, Sai Chen, Goncalo Abecasis\n\n",VERSION);

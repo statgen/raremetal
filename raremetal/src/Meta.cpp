@@ -1,3 +1,7 @@
+/*
+ * Perform all calculation steps required for meta-analysis according to one or more selected methods.
+ */
+
 #include "StringArray.h"
 #include "Error.h"
 #include <stdio.h>
@@ -115,8 +119,10 @@ void Meta::Prepare()
 		prepareConditionalAnalysis();
 }
 
-// fit pgamma based on af in each study
-// need to read through all score files
+/**
+ * fit pgamma based on af in each study
+ * need to read through all score files
+ */
 void Meta::FitPgamma()
 {
 	load1kgPopMAF();
@@ -138,6 +144,14 @@ void Meta::FitPgamma()
 	}
 }
 
+/**
+ * Read data from the file associated with a specified study, and process for use
+ *  1. Open and read the appropriate data file
+ *  2. Discard lines that do not meet certain filter criteria (cutoff parameters)
+ *  3. Apply dosage information (if specified)
+ *  4. Calculate distances and population stratification corrections based on 1000 G (if appropriate)
+ * @param study The number of the study row from the input scores file
+ */
 void Meta::fitpGammaForSingleStudy( int study)
 {
 	printf("Doing population correction for study %d...\n",study);
@@ -418,9 +432,12 @@ printf("\n\n");
 }
 
 
-//this function will read through summary statistics of each study and pool the information.
-//At the end, single variant meta-analysis will be completed.
-// information will be stored for gene-based analysis
+/**
+ * Read through summary statistics of each study and pool the information.
+ * At the end, single variant meta-analysis will be completed.
+ * Information will be stored for gene-based analysis
+ * @param group
+ */
 void Meta::PoolSummaryStat( GroupFromAnnotation & group )
 {
 	total_N=0;
@@ -445,7 +462,7 @@ void Meta::PoolSummaryStat( GroupFromAnnotation & group )
 			if (!y_status)
 				error("cannot update y stat at study #%d\n", s+1);
 		}
-		// caculate overall mean & adjust
+		// calculate overall mean & adjust
 		int n = 0;
 		for(int s=0; s<scorefile.Length(); s++)
 			n += SampleSize[s];
@@ -863,9 +880,11 @@ void Meta::setMetaStatics()
 }
 
 
-// open pdf
-// load list of summary files
-// load list of cov files if needed
+/**
+ * open pdf
+ * load list of summary files
+ * load list of cov files if needed
+ */
 void Meta::openMetaFiles()
 {
 	pdf.OpenFile(pdf_filename);
@@ -910,7 +929,9 @@ void Meta::openMetaFiles()
 }
 
 
-// prepare for cond analysis
+/**
+ * prepare for conditional analysis and ensure that the specified variants are actually present in this set of studies
+ */
 void Meta::prepareConditionalAnalysis()
 {
 	// read list of cond variants
@@ -1928,6 +1949,8 @@ void Meta::printSingleMetaVariant( GroupFromAnnotation & group, int i, IFILE & o
 	bool disect=false;
 	double h2 = V*effSize*effSize/N;
 	double effSize_se = 1.0/sqrt(V);
+
+    // FIXME: Revisit handling of very small pvalues
 	while(pvalue==0.0) {
 		disect=true;
 		chisq *= 0.999;
