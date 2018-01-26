@@ -143,3 +143,9 @@ add_executable(raremetalworker
 target_include_directories(raremetalworker PRIVATE otherLib/eigen-3.2.0)
 target_link_libraries(raremetalworker libraremetal ${LIB_SAVVY} ${LIB_ZSTD})
 target_compile_definitions(raremetalworker PRIVATE VERSION="${PROJECT_VERSION}")
+
+
+if(BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
