@@ -3,11 +3,12 @@
 #include "Error.h"
 #include "PreMeta.h"
 
-CheckRef::CheckRef() {}
+CheckRef::CheckRef()
+{}
 
-String CheckRef::refFile = "human.g1k.v37-bs.umfa"; 
+String CheckRef::refFile = "human.g1k.v37-bs.umfa";
 
-void ChckRef::CheckReferenceGenome(String & chr, Int & position, String & allele1, String & allele2)
+void ChckRef::CheckReferenceGenome(String &chr, Int &position, String &allele1, String &allele2)
 {
 
 
@@ -15,8 +16,8 @@ void ChckRef::CheckReferenceGenome(String & chr, Int & position, String & allele
 
 void CheckRef::Setup()
 {
-   GenomeSequence reference(refFile);
-   String prevChr;
-   String refStr;
-   genomeIndex_t chrStart = 0;
+    GenomeSequence reference(refFile);
+    String prevChr;
+    String refStr;
+    genomeIndex_t chrStart = 0;
 }

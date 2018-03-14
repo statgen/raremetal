@@ -24,33 +24,49 @@
 
 class KinshipEmp : public Kinship
 {
-   public:
+public:
 
-      KinshipEmp() {};
-      ~KinshipEmp() {};
+    KinshipEmp()
+    {};
 
-      static double q;
-      static double miss;
-      static int cpus;
+    ~KinshipEmp()
+    {};
 
-      StringIntHash IDFromEmp,IDFromEmpX;
+    static double q;
+    static double miss;
+    static int cpus;
 
-      Matrix allPairs;
-      Matrix allPairsX;
-      int warnings;
+    StringIntHash IDFromEmp, IDFromEmpX;
 
-      void ReadEmpKin(FILE * log);
-      void ReadEmpKinX(FILE * log);
-      void CleanUpAuto();
-      void CleanUpX();
+    Matrix allPairs;
+    Matrix allPairsX;
+    int warnings;
 
-      void SetupPEDAuto(Pedigree & ped, IntArray & genotypedSamplePED, FILE * log);
-      void SetupPEDX(Pedigree & ped, IntArray & genotypedSamplePED, FILE * log);
-      void SetupVCFAuto(Pedigree & ped, IntArray & genotypedSampleVCF, StringArray & chromosomeVCF,FILE * log);
-      void SetupVCFX(Pedigree & ped, IntArray & genotypedSampleVCF, StringIntHash & samplePEDIDHash, StringIntHash & skippedSNPs,FILE * log);
-      void SetupEmpKin(Pedigree & ped, IntArray & genotypedSamplePED, IntArray & genotypedSampleVCF, StringIntHash & samplePEDIDHash, StringIntHash & skippedSNPs,StringArray & chromosomeVCF,FILE * log);
-      void SetupEmpKinX(Pedigree & ped, IntArray & genotypedSamplePED, IntArray & genotypedSampleVCF, StringIntHash & samplePEDIDHash, StringIntHash & skippedSNPs,FILE * log);
-void WriteKinship(Pedigree & ped,Matrix & allPairs,IntArray & genotypedSample,bool AUTO,bool VCF,FILE * log);
+    void ReadEmpKin(FILE *log);
+
+    void ReadEmpKinX(FILE *log);
+
+    void CleanUpAuto();
+
+    void CleanUpX();
+
+    void SetupPEDAuto(Pedigree &ped, IntArray &genotypedSamplePED, FILE *log);
+
+    void SetupPEDX(Pedigree &ped, IntArray &genotypedSamplePED, FILE *log);
+
+    void SetupVCFAuto(Pedigree &ped, IntArray &genotypedSampleVCF, StringArray &chromosomeVCF, FILE *log);
+
+    void
+    SetupVCFX(Pedigree &ped, IntArray &genotypedSampleVCF, StringIntHash &samplePEDIDHash, StringIntHash &skippedSNPs,
+              FILE *log);
+
+    void SetupEmpKin(Pedigree &ped, IntArray &genotypedSamplePED, IntArray &genotypedSampleVCF,
+                     StringIntHash &samplePEDIDHash, StringIntHash &skippedSNPs, StringArray &chromosomeVCF, FILE *log);
+
+    void SetupEmpKinX(Pedigree &ped, IntArray &genotypedSamplePED, IntArray &genotypedSampleVCF,
+                      StringIntHash &samplePEDIDHash, StringIntHash &skippedSNPs, FILE *log);
+
+    void WriteKinship(Pedigree &ped, Matrix &allPairs, IntArray &genotypedSample, bool AUTO, bool VCF, FILE *log);
 };
 
 #endif

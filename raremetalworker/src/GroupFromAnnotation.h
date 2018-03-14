@@ -10,34 +10,39 @@
 
 class GroupFromAnnotation
 {
-    public:
-        GroupFromAnnotation();
-        ~GroupFromAnnotation();
-	
-	//Input/Output options	
-	static String vcfInput;
-	static String groupFile;
-	static String function;
-	static String mapFile;
-  static bool labelHits;
+public:
+    GroupFromAnnotation();
 
-	StringArray * SNPlist;
-	StringArray * SNPNoAllele;
-	StringArray annoGroups;
-	StringArray chrom;
-	//these are for annotating single variant accoding to refFlat_hg19.txt
-	IntArray start_pos,end_pos;
-	StringArray genename,chr;
-	StringIntHash ChrStartHash,ChrEndHash;
-	QuickIndex chr_idx;
+    ~GroupFromAnnotation();
 
-	//this is the position of each marker in a gene for output
+    //Input/Output options
+    static String vcfInput;
+    static String groupFile;
+    static String function;
+    static String mapFile;
+    static bool labelHits;
 
-	void GetGeneMap(String path);
-	void GetGroupFromFile();
-	void GetGroupFromVCF();
-	void Run(String path);
-	String AnnotateSingleVar(String chr, int pos);
+    StringArray *SNPlist;
+    StringArray *SNPNoAllele;
+    StringArray annoGroups;
+    StringArray chrom;
+    //these are for annotating single variant accoding to refFlat_hg19.txt
+    IntArray start_pos, end_pos;
+    StringArray genename, chr;
+    StringIntHash ChrStartHash, ChrEndHash;
+    QuickIndex chr_idx;
+
+    //this is the position of each marker in a gene for output
+
+    void GetGeneMap(String path);
+
+    void GetGroupFromFile();
+
+    void GetGroupFromVCF();
+
+    void Run(String path);
+
+    String AnnotateSingleVar(String chr, int pos);
 };
 
 #endif

@@ -7,13 +7,19 @@
 
 class OutputKin
 {
-	public:
-	OutputKin() {};
-	~OutputKin() {};
-	static bool outputKinX,outputKin,kinOnly;
-	static void Write(Family & f, int before, int N);
-	static void WriteX(Family & f, int before, int N);
-	void Output(Pedigree & ped);
+public:
+    OutputKin()
+    {};
+
+    ~OutputKin()
+    {};
+    static bool outputKinX, outputKin, kinOnly;
+
+    static void Write(Family &f, int before, int N);
+
+    static void WriteX(Family &f, int before, int N);
+
+    void Output(Pedigree &ped);
 };
 
 #endif
