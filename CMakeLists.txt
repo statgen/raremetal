@@ -84,30 +84,18 @@ elseif(CYGWIN)
 endif()
 target_link_libraries(libraremetal ${LIB_STATGEN} ${LIB_HTS} ${CMAKE_THREAD_LIBS_INIT} ${LIB_Z})
 
-#../obj/Meta.o ../obj/MetaUtility.o ../obj/QuadProg.o ../obj/GroupFromAnnotation.o ../obj/WritePDF.o ../obj/SummaryFileReader.o ../obj/Main.o
 add_executable(raremetal
-#               raremetal/src/buggy.Meta.cpp
 #               raremetal/src/Calculate_mvt_pvalue.h
-#               raremetal/src/Good.Meta.cpp
 #               raremetal/src/group.cpp
                raremetal/src/GroupFromAnnotation.cpp
                raremetal/src/GroupFromAnnotation.h
-#               raremetal/src/imhof.h
                raremetal/src/Main.cpp
                raremetal/src/Meta.cpp
-#               raremetal/src/Meta.dev.cpp
-#               raremetal/src/Meta.dev.h
-#               raremetal/src/Meta.dev2.cpp
                raremetal/src/Meta.h
-#               raremetal/src/Meta.new.cpp
-#               raremetal/src/Meta.tabix.new.cpp
                raremetal/src/MetaUtility.cpp
                raremetal/src/MetaUtility.h
 #               raremetal/src/MixChidist.h
 #               raremetal/src/My_mvt.h
-#               raremetal/src/old_meta.cpp
-#               raremetal/src/old_meta.h
-#               raremetal/src/original-Meta.cpp
 #               raremetal/src/qfc.h
                raremetal/src/QuadProg.cpp
                raremetal/src/QuadProg.h
@@ -122,7 +110,6 @@ target_include_directories(raremetal PRIVATE otherLib/eigen-3.2.0)
 target_link_libraries(raremetal libraremetal)
 target_compile_definitions(raremetal PRIVATE VERSION="${PROJECT_VERSION}")
 
-#./obj/FastFit.o ../obj/TransformResiduals.o ../obj/KinshipEmp.o ../obj/OutputKin.o ../obj/PreMeta.o ../obj/AutoFit.o ../obj/AutoFit2.o ../obj/DataQC.o ../obj/WritePDF.o ../obj/GroupFromAnnotation.o ../obj/logistic.o ../obj/Main.o
 add_executable(raremetalworker
                raremetalworker/src/AutoFit.cpp
                raremetalworker/src/AutoFit.h
@@ -138,7 +125,6 @@ add_executable(raremetalworker
                raremetalworker/src/GroupFromAnnotation.h
                raremetalworker/src/KinshipEmp.cpp
                raremetalworker/src/KinshipEmp.h
-               #raremetalworker/src/KinshipEmp.old.cpp
                raremetalworker/src/logistic.cpp
                raremetalworker/src/logistic.h
                raremetalworker/src/Main.cpp
@@ -157,3 +143,9 @@ add_executable(raremetalworker
 target_include_directories(raremetalworker PRIVATE otherLib/eigen-3.2.0)
 target_link_libraries(raremetalworker libraremetal ${LIB_SAVVY} ${LIB_ZSTD})
 target_compile_definitions(raremetalworker PRIVATE VERSION="${PROJECT_VERSION}")
+
+
+if(BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
