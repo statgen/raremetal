@@ -1,13 +1,8 @@
 Raremetal: A tool for rare variants meta-analysis
 
-(c) 2012-2017 Shuang Feng, Dajiang Liu, Sai Chen, Gonçalo Abecasis
+(c) 2012-2018 Shuang Feng, Dajiang Liu, Sai Chen, Gonçalo Abecasis
 
 For more information, please see the [RAREMETAL wiki](http://genome.sph.umich.edu/wiki/RAREMETAL).
-
-
-**There is a known issue with the newest versions (>=4.14.0) of RAREMETAL, which may give incorrect p-values for some
- burden test calculation methods. We are working on a fix, but for now we recommend using an older version (<= 4.13.9).**
-
 
 ## Installation
 1. Clone this repository
