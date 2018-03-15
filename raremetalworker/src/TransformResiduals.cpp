@@ -119,7 +119,7 @@ void FastTransform::SelectSamplesVCF(Pedigree &ped, bool useCovariates)
 
         if (record_data.empty() && PreMeta::dosage)
         {
-            error("cannot find dosage at \"%s\" in VCF!", PreMeta::dosageFlag.c_str());
+            error("cannot find dosage in VCF!");
             break;
         }
 

@@ -39,7 +39,6 @@ int main(int argc, char **argv)
 {
     time_t initialTime = time(0);
     PhoneHome::allThinning = 100;
-    bool noeof = false;
 
     printf("\nRAREMETALWORKER %s -- A Forerunner of RareMetal\n"
                    "          (c) 2012-2016 Shuang Feng, Dajiang Liu, Sai Chen, Goncalo Abecasis\n\n", VERSION);
@@ -51,65 +50,64 @@ int main(int argc, char **argv)
     String pedfile, datfile;
     double tol = 0.0001;
 
+    // Parse arguments.
+    // See wiki for details on each: https://genome.sph.umich.edu/wiki/RAREMETALWORKER_command_reference
     BEGIN_LONG_PARAMETERS(additional)
-                    LONG_PARAMETER_GROUP("Input Files")
-                    LONG_STRINGPARAMETER("ped", &pedfile)
-                    LONG_STRINGPARAMETER("dat", &datfile)
-                    LONG_STRINGPARAMETER("vcf", &PreMeta::vcfInput)
-                    LONG_PARAMETER("dosage", &PreMeta::dosage)
-                    LONG_PARAMETER("binary", &FastFit::binary)
-                    LONG_STRINGPARAMETER("flagDosage", &PreMeta::dosageFlag)
-                    LONG_PARAMETER("noeof", &noeof)
-                    LONG_PARAMETER_GROUP("Output Files")
-                    LONG_STRINGPARAMETER("prefix", &PreMeta::outputFile)
-                    LONG_INTPARAMETER("LDwindow", &PreMeta::window)
-                    LONG_PARAMETER("zip", &PreMeta::zipOutput)
-                    LONG_PARAMETER("thin", &WritePDF::thinPoints)
-                    LONG_PARAMETER("labelHits", &GroupFromAnnotation::labelHits)
-                    LONG_PARAMETER_GROUP("VC Options")
-                    //LONG_PARAMETER("vcShared", &AutoFit::fitSharedEnvironment)
-                    LONG_PARAMETER("vcX", &AutoFit::fitX)
-                    LONG_PARAMETER("separateX", &FastFit::separateX)
-                    //LONG_PARAMETER("useCovariates", &FastFit::useCovariates)
-                    LONG_PARAMETER_GROUP("Trait Options")
-                    LONG_PARAMETER("makeResiduals", &FastFit::makeResiduals)
-                    LONG_PARAMETER("inverseNormal", &FastFit::inverseNormal)
-                    LONG_STRINGPARAMETER("traitName", &FastFit::traitName)
-                    LONG_PARAMETER_GROUP("Model Options")
-                    LONG_PARAMETER("recessive", &PreMeta::recessive)
-                    LONG_PARAMETER("dominant", &PreMeta::dominant)
-                    //LONG_PARAMETER("additive", &PreMeta::additive)
-                    LONG_PARAMETER_GROUP("Kinship Source")
-                    LONG_PARAMETER("kinPedigree", &FastTransform::pedKin)
-                    LONG_PARAMETER("kinGeno", &FastTransform::empKin)
-                    LONG_STRINGPARAMETER("kinFile", &FastTransform::readInEmp)
-                    LONG_STRINGPARAMETER("kinxFile", &FastTransform::readInEmpX)
-                    LONG_PARAMETER("kinSave", &OutputKin::outputKin)
-                    LONG_PARAMETER_GROUP("Kinship Options")
-                    LONG_DOUBLEPARAMETER("kinMaf", &KinshipEmp::q)
-                    LONG_DOUBLEPARAMETER("kinMiss", &KinshipEmp::miss)
-                    LONG_PARAMETER_GROUP("Chromosome X")
-                    LONG_STRINGPARAMETER("xLabel", &PreMeta::xLabel)
-                    LONG_INTPARAMETER("xStart", &PreMeta::Xstart)
-                    LONG_INTPARAMETER("xEnd", &PreMeta::Xend)
-                    LONG_INTPARAMETER("maleLabel", &PreMeta::maleLabel)
-                    LONG_INTPARAMETER("femaleLabel", &PreMeta::femaleLabel)
-                    LONG_PARAMETER_GROUP("others")
-                    LONG_INTPARAMETER("cpu", &KinshipEmp::cpus)
-                    LONG_PARAMETER("kinOnly", &OutputKin::kinOnly)
-                    LONG_STRINGPARAMETER("geneMap", &GroupFromAnnotation::mapFile)
-                    LONG_PARAMETER("mergedVCFID", &FastTransform::mergedVCFID)
-                    LONG_PHONEHOME(VERSION)
-                    BEGIN_LEGACY_PARAMETERS()
-                    LONG_PARAMETER("useCovariates", &FastFit::useCovariates)
-                    LONG_STRINGPARAMETER("range", &PreMeta::Region)
-                    LONG_STRINGPARAMETER("variantList",
-                                         &PreMeta::varListName) // list of variants to calculate score and cov
-                    LONG_PARAMETER("splitUV", &PreMeta::splitUV)
-                    LONG_PARAMETER("newFormat", &PreMeta::newFormat)
-                    LONG_PARAMETER("printCaseAC", &PreMeta::printCaseAC)
-                    LONG_PARAMETER("debug", &PreMeta::debug)
-
+        LONG_PARAMETER_GROUP("Input Files")
+            LONG_STRINGPARAMETER("ped", &pedfile)
+            LONG_STRINGPARAMETER("dat", &datfile)
+            LONG_STRINGPARAMETER("vcf", &PreMeta::vcfInput)
+            LONG_PARAMETER("dosage", &PreMeta::dosage)
+            LONG_PARAMETER("binary", &FastFit::binary)
+        LONG_PARAMETER_GROUP("Output Files")
+            LONG_STRINGPARAMETER("prefix", &PreMeta::outputFile)
+            LONG_INTPARAMETER("LDwindow", &PreMeta::window)
+            LONG_PARAMETER("zip", &PreMeta::zipOutput)
+            LONG_PARAMETER("thin", &WritePDF::thinPoints)
+            LONG_PARAMETER("labelHits", &GroupFromAnnotation::labelHits)
+        LONG_PARAMETER_GROUP("VC Options")
+            //LONG_PARAMETER("vcShared", &AutoFit::fitSharedEnvironment)
+            LONG_PARAMETER("vcX", &AutoFit::fitX)
+            LONG_PARAMETER("separateX", &FastFit::separateX)
+            //LONG_PARAMETER("useCovariates", &FastFit::useCovariates)
+            LONG_PARAMETER_GROUP("Trait Options")
+            LONG_PARAMETER("makeResiduals", &FastFit::makeResiduals)
+            LONG_PARAMETER("inverseNormal", &FastFit::inverseNormal)
+            LONG_STRINGPARAMETER("traitName", &FastFit::traitName)
+        LONG_PARAMETER_GROUP("Model Options")
+            LONG_PARAMETER("recessive", &PreMeta::recessive)
+            LONG_PARAMETER("dominant", &PreMeta::dominant)
+            //LONG_PARAMETER("additive", &PreMeta::additive)
+        LONG_PARAMETER_GROUP("Kinship Source")
+            LONG_PARAMETER("kinPedigree", &FastTransform::pedKin)
+            LONG_PARAMETER("kinGeno", &FastTransform::empKin)
+            LONG_STRINGPARAMETER("kinFile", &FastTransform::readInEmp)
+            LONG_STRINGPARAMETER("kinxFile", &FastTransform::readInEmpX)
+            LONG_PARAMETER("kinSave", &OutputKin::outputKin)
+        LONG_PARAMETER_GROUP("Kinship Options")
+            LONG_DOUBLEPARAMETER("kinMaf", &KinshipEmp::q)
+            LONG_DOUBLEPARAMETER("kinMiss", &KinshipEmp::miss)
+        LONG_PARAMETER_GROUP("Chromosome X")
+            LONG_STRINGPARAMETER("xLabel", &PreMeta::xLabel)
+            LONG_INTPARAMETER("xStart", &PreMeta::Xstart)
+            LONG_INTPARAMETER("xEnd", &PreMeta::Xend)
+            LONG_INTPARAMETER("maleLabel", &PreMeta::maleLabel)
+            LONG_INTPARAMETER("femaleLabel", &PreMeta::femaleLabel)
+        LONG_PARAMETER_GROUP("others")
+            LONG_INTPARAMETER("cpu", &KinshipEmp::cpus)
+            LONG_PARAMETER("kinOnly", &OutputKin::kinOnly)
+            LONG_STRINGPARAMETER("geneMap", &GroupFromAnnotation::mapFile)
+            LONG_PARAMETER("mergedVCFID", &FastTransform::mergedVCFID)
+        LONG_PHONEHOME(VERSION)
+        BEGIN_LEGACY_PARAMETERS()  // Items in this section may not be documented on wiki and should not be relied on
+            LONG_PARAMETER("useCovariates", &FastFit::useCovariates)
+            LONG_STRINGPARAMETER("range", &PreMeta::Region)
+            LONG_STRINGPARAMETER("variantList",
+                                 &PreMeta::varListName) // list of variants to calculate score and cov
+            LONG_PARAMETER("splitUV", &PreMeta::splitUV)
+            LONG_PARAMETER("newFormat", &PreMeta::newFormat)
+            LONG_PARAMETER("printCaseAC", &PreMeta::printCaseAC)
+            LONG_PARAMETER("debug", &PreMeta::debug)
     END_LONG_PARAMETERS();
 
     ParameterList pl;
@@ -118,39 +116,33 @@ int main(int argc, char **argv)
 
     PhoneHome::checkVersion("raremetalworker", VERSION);
 
-    if (noeof) // Set that the eof block is not required.
-    {
-        //BgzfFileType::setRequireEofBlock(false); //TODO: Not available in savvy
-    }
-
-
     if (FastFit::makeResiduals && FastFit::binary)
     {
         error("Cannot regress out covariates for logistic model! Please consider the following options:\n   1. treat your binary trait as quantitative by removing --binary option.\n    2. specify --useCovariates instead of --makeResiduals. If you're doing this, --useExact is NOT recommended when running Raremetal after this.\n");
     }
 
 
-    String logFile;
+    String logFileName;
     if (PreMeta::outputFile != "")
     {
         if (PreMeta::outputFile.Last() == '.' || PreMeta::outputFile.Last() == '/')
         {
-            logFile = PreMeta::outputFile + "singlevar.log";
+            logFileName = PreMeta::outputFile + "singlevar.log";
         } else
         {
-            logFile = PreMeta::outputFile + ".singlevar.log";
+            logFileName = PreMeta::outputFile + ".singlevar.log";
         }
     } else
     {
-        logFile = "singlevar.log";
+        logFileName = "singlevar.log";
     }
 
     FILE *log;
     pl.Status();
 
-    log = freopen(logFile, "wt", stderr);
+    log = freopen(logFileName, "wt", stderr);
 
-    WriteLog(pedfile, datfile, noeof, log);
+    WriteLog(pedfile, datfile, log);
     time_t now;
     time(&now);
     printf("Analysis started at: %s\n", ctime(&now));
@@ -183,11 +175,9 @@ int main(int argc, char **argv)
         //check if the sample IDs from PED and VCF files are consistent
         trans.ScreenSampleID(ped, FastFit::useCovariates);
 
-
         if (OutputKin::kinOnly)
         {
             OutputKin::outputKin = true;
-            start = clock();
             kin_emp.SetupEmpKin(ped, trans.genotypedSamplePED, trans.genotypedSampleVCF, trans.samplePEDIDHash,
                                 checkData.skippedSNPs, checkData.chromosomeVCF, log);
             if (AutoFit::fitX || FastFit::separateX)
@@ -201,7 +191,7 @@ int main(int argc, char **argv)
         //setup empirical kinship if applicable
         if (FastTransform::empKin)
         {
-            start = clock();
+            //start = clock();
             kin_emp.SetupEmpKin(ped, trans.genotypedSamplePED, trans.genotypedSampleVCF, trans.samplePEDIDHash,
                                 checkData.skippedSNPs, checkData.chromosomeVCF, log);
             //printf("Handling empirical kinship matrix used %.1f minutes.\n\n",( std::clock() - start ) / (double)CLOCKS_PER_SEC/60.0);
@@ -499,10 +489,10 @@ int main(int argc, char **argv)
             printf("\n");
             fprintf(log, "\n");
         }
-        printf("\nLog file listing current options stored in %s\n", logFile.c_str());
-        fprintf(log, "\nLog file listing current options stored in %s\n", logFile.c_str());
+        printf("\nLog file listing current options stored in %s\n", logFileName.c_str());
+        fprintf(log, "\nLog file listing current options stored in %s\n", logFileName.c_str());
 
-        //fprintf(log,"\nlog file has been saved in %s\n\n",logFile.c_str());
+        //fprintf(log,"\nlog file has been saved in %s\n\n",logFileName.c_str());
         time(&now);
         printf("\nAnalysis ends at: %s\n", ctime(&now));
         fprintf(log, "\nAnalysis ends at: %s\n", ctime(&now));

@@ -27,10 +27,9 @@
  *  additional information to the log separately.
  * @param pedfile
  * @param datfile
- * @param noeof
  * @param log
  */
-void WriteLog(String &pedfile, String &datfile, bool noeof, FILE *log)
+void WriteLog(String &pedfile, String &datfile, FILE *log)
 {
     fprintf(log, "\nRare-Metal-Worker handled all individuals as %s.\n\n",
             FastFit::unrelated ? "unrelated" : "related");
@@ -41,7 +40,6 @@ void WriteLog(String &pedfile, String &datfile, bool noeof, FILE *log)
     fprintf(log, "--dat [%s]\n", datfile.c_str());
     fprintf(log, "--vcf [%s]\n", PreMeta::vcfInput.c_str());
     fprintf(log, "--dosage [%s]\n", PreMeta::dosage ? "true" : "false");
-    fprintf(log, "--noeof [%s]\n", noeof ? "true" : "false");
     fprintf(log, "\nOutput Files:\n");
     fprintf(log, "============================\n");
     fprintf(log, "--prefix [%s]\n", PreMeta::outputFile.c_str());

@@ -34,7 +34,6 @@ bool PreMeta::dominant = false;
 bool PreMeta::additive = true;
 bool PreMeta::checkRef = false;
 String PreMeta::vcfInput = ""; //input annotated vcf file name here
-String PreMeta::dosageFlag = "DS";
 int PreMeta::Xstart = 2699520;
 int PreMeta::Xend = 154931044;
 bool PreMeta::dosage = false;
