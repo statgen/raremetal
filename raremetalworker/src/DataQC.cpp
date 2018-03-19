@@ -1,3 +1,7 @@
+/**
+ * Perform basic data quality checks. These include checking for consistency between the DAT and PED files,
+ */
+
 #include "DataQC.h"
 #include "StringBasics.h"
 #include "Error.h"
@@ -12,7 +16,7 @@ void SanityCheck::Check(Pedigree &ped, FILE *log)
     if (!FastFit::traitName.IsEmpty())
     {
         FILE *trFile = fopen(FastFit::traitName, "r");
-        if (trFile != NULL)
+        if (trFile != nullptr)
         {
             String buffer;
             while (!feof(trFile))
@@ -65,8 +69,6 @@ void SanityCheck::Check(Pedigree &ped, FILE *log)
     int vcf_marker_num = 0;
     if (PreMeta::vcfInput != "")
     {
-
-
         savvy::indexed_reader reader(PreMeta::vcfInput.c_str(), {""}, savvy::fmt::allele);
 
         if (!reader.good())
@@ -145,6 +147,7 @@ void SanityCheck::Check(Pedigree &ped, FILE *log)
 
     if (!FastTransform::empKin && !FastTransform::pedKin && FastTransform::readInEmp == "")
     {
+        // If the user has not specified any of the arguments related to kinship calculation, remove attempts to account for it
         FastFit::unrelated = true;
     }
     printf("To account for relatedness in the sample,\n");

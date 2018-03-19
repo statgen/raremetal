@@ -203,7 +203,7 @@ int main(int argc, char **argv)
         if (!FastFit::traitName.IsEmpty())
         {
             FILE *trFile = fopen(FastFit::traitName, "r");
-            if (trFile != NULL)
+            if (trFile != nullptr)
             {
                 String buffer;
                 while (!feof(trFile))

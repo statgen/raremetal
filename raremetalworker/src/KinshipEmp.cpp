@@ -1131,11 +1131,11 @@ void KinshipEmp::SetupVCFX(Pedigree &ped, IntArray &genotypedSampleVCF, StringIn
                         {
                             skipSNP = true;
                             warnings++;
-                            fprintf(log, "Warning: vairant %s is skipped because male has allele that is not 0 or 1.\n",
+                            fprintf(log, "Warning: variant %s is skipped because male has allele that is not 0 or 1.\n",
                                     SNPname.c_str());
                             if (warnings < 20)
                             {
-                                printf("Warning: vairant %s is skipped because male has allele that is not 0 or 1.\n",
+                                printf("Warning: variant %s is skipped because male has allele that is not 0 or 1.\n",
                                        SNPname.c_str());
                             }
                             break;

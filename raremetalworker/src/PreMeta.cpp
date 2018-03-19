@@ -121,7 +121,7 @@ void PreMeta::CalculateProjectionMatrix(FastTransform &trans, FastFit &engine, V
     }
 }
 
-// original covariance calculation
+// original covariance calculation: calculate covariance between the first and m_th marker in the sliding window
 double PreMeta::CalculateCovWithSigma(FastFit &engine, FastTransform &trans, Pedigree &ped, Matrix &genotypeAll,
                                       Vector &sigma2, int m)
 {
@@ -142,7 +142,7 @@ double PreMeta::CalculateCovWithSigma(FastFit &engine, FastTransform &trans, Ped
     return cov;
 }
 
-// fore related samples, still normalize with sigma
+// for related samples, still normalize with sigma
 // read N and sigma2hat from score file header
 // not divided by n
 double PreMeta::CalculatePlainCov(Matrix &gt, Vector &sigma2, int m, FastTransform &trans)
@@ -163,8 +163,7 @@ double PreMeta::CalculatePlainCov(Matrix &gt, Vector &sigma2, int m, FastTransfo
 }
 
 void
-PreMeta::CalculateAssocStats(double &effSize, double &pvalue, double &numerator, double &denominator, double &chisq,
-                             Eigen::VectorXf &transGeno, FastFit &engine, FastTransform &trans, Vector &sigma2)
+PreMeta::CalculateAssocStats(double &effSize, double &pvalue, double &numerator, double &denominator, double &chisq, Eigen::VectorXf &transGeno, FastFit &engine, FastTransform &trans, Vector &sigma2)
 {
     numerator = 0.0;
     denominator = 0.0;
@@ -1674,6 +1673,10 @@ void PreMeta::GeneratePlots(String &filename_, Vector &pvalueAll_, StringArray &
     pdf.CloseFile();
 }
 
+/**
+ * This represents a vector of centered genotypes, rather than raw data. Individuals with missing data are imputed to
+ *  the mean.
+ */
 bool PreMeta::GetGenotypeVectorVCFDosage(FastTransform &trans, Pedigree &ped)
 {
     bool status = false;
@@ -1809,7 +1812,7 @@ bool PreMeta::GetGenotypeVectorVCFDosage(FastTransform &trans, Pedigree &ped)
         {
             if (genotype_rec[g] == -1)
             {
-                genotype_rec[g] = 0.0;
+                genotype_rec[g] = 0.0;  // = mean - mean
             } else
             {
                 genotype_rec[g] -= avg;
@@ -1829,7 +1832,7 @@ bool PreMeta::GetGenotypeVectorVCFDosage(FastTransform &trans, Pedigree &ped)
                 avg += 1;
             } else if (genotype[g] == -1)
             {
-                genotype_dom[g] = -1;
+                genotype_dom[g] = -1;  // = mean - mean
             } else
             {
                 genotype_dom[g] = 0;
@@ -1841,7 +1844,7 @@ bool PreMeta::GetGenotypeVectorVCFDosage(FastTransform &trans, Pedigree &ped)
         {
             if (genotype_dom[g] == -1)
             {
-                genotype_dom[g] = 0.0;
+                genotype_dom[g] = 0.0;  // = mean - mean
             } else
             {
                 genotype_dom[g] -= avg;
@@ -1854,7 +1857,7 @@ bool PreMeta::GetGenotypeVectorVCFDosage(FastTransform &trans, Pedigree &ped)
     {
         if (genotype[i] == -1.0)
         {
-            genotype[i] = 0.0;
+            genotype[i] = 0.0;  // = mean - mean
         } else
         {
             genotype[i] -= mean;
@@ -1869,6 +1872,12 @@ bool PreMeta::GetGenotypeVectorVCFDosage(FastTransform &trans, Pedigree &ped)
     return status;
 }
 
+/**
+ * Read a VCF file and extract a vector of all genotypes (one per relevant individual) for the current SNP record
+ *
+ * This represents a vector of centered genotypes, rather than raw data. Individuals with missing data are imputed to
+ *  the mean.
+ */
 bool PreMeta::GetGenotypeVectorVCF(FastTransform &trans, Pedigree &ped, SanityCheck &checkData, FILE *log)
 {
     bool status = false;
@@ -2196,7 +2205,7 @@ bool PreMeta::GetGenotypeVectorVCF(FastTransform &trans, Pedigree &ped, SanityCh
         {
             if (genotype_rec[g] == -1)
             {
-                genotype_rec[g] = 0.0;
+                genotype_rec[g] = 0.0;  //  = mean - mean
             } else
             {
                 genotype_rec[g] -= avg;
@@ -2252,7 +2261,7 @@ bool PreMeta::GetGenotypeVectorVCF(FastTransform &trans, Pedigree &ped, SanityCh
         {
             if (genotype_dom[g] == -1)
             {
-                genotype_dom[g] = 0.0;
+                genotype_dom[g] = 0.0;  // = mean - mean
             } else
             {
                 genotype_dom[g] -= avg;
@@ -2275,13 +2284,17 @@ bool PreMeta::GetGenotypeVectorVCF(FastTransform &trans, Pedigree &ped, SanityCh
         mean /= n;
     }
 
+    // Center the genotype vector by subtracting the mean
     for (int g = 0; g < trans.persons; g++)
     {
         if (genotype[g] == -1.0)
         {
-            genotype[g] = 0.0;
+            // Here is where people with missing data are handled: we fill in missing values with the average
+            //  for all other individuals. Since we return a centered vector, (mean - mean) = 0
+            genotype[g] = 0.0;  // = mean - mean
         } else
         {
+            // If there is actual data for this individual, subtract the mean for all participants
             genotype[g] -= mean;
         }
     }
@@ -2289,6 +2302,10 @@ bool PreMeta::GetGenotypeVectorVCF(FastTransform &trans, Pedigree &ped, SanityCh
     return status;
 }
 
+/**
+ * This represents a vector of centered genotypes, rather than raw data. Individuals with missing data are imputed to
+ *  the mean.
+ */
 int PreMeta::GetGenotypeVectorPED(FastTransform &trans, Pedigree &ped, int markerid, FILE *log)
 {
     //status=0: polymorphic
@@ -2550,7 +2567,7 @@ int PreMeta::GetGenotypeVectorPED(FastTransform &trans, Pedigree &ped, int marke
         {
             if (genotype_rec[g] == -1)
             {
-                genotype_rec[g] = 0.0;
+                genotype_rec[g] = 0.0;  // = mean - mean
             } else
             {
                 genotype_rec[g] -= avg;
@@ -2605,7 +2622,7 @@ int PreMeta::GetGenotypeVectorPED(FastTransform &trans, Pedigree &ped, int marke
         {
             if (genotype_dom[g] == -1)
             {
-                genotype_dom[g] = 0.0;
+                genotype_dom[g] = 0.0;  // = mean - mean
             } else
             {
                 genotype_dom[g] -= avg;
@@ -2631,7 +2648,7 @@ int PreMeta::GetGenotypeVectorPED(FastTransform &trans, Pedigree &ped, int marke
     {
         if (genotype[g] == -1.0)
         {
-            genotype[g] = 0.0;
+            genotype[g] = 0.0;  // = mean - mean
         } else
         {
             genotype[g] -= mean;

@@ -19,7 +19,15 @@ public:
     static String vcfInput;
     static String groupFile;
     static String function;
+    /**
+     * Path to the mapping file for manhattan plot annotation.
+     *  The default is human genome build 19, saved in raremetal/data/refFlat_hg19.txt.
+     */
     static String mapFile;
+    /**
+     * If --thin is issued, then RAREMETALWORKER automatically label the loci that are above a threshold.
+     * The threshold is calculated using Bonferroni correction (0.05/N, where N is the total # of polymorphic markers).
+     */
     static bool labelHits;
 
     StringArray *SNPlist;

@@ -35,6 +35,9 @@ public:
     void FitPolygenicModels(Pedigree &ped, int traitNum, bool quiet = false);
 
     static bool fitSharedEnvironment;
+    /**
+     * Whether to estimate a separate genomic relationship for chromosome X
+     */
     static bool fitX;
     static bool useCovariates;
     static bool useProbands;

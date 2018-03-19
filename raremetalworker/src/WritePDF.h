@@ -29,6 +29,9 @@ public:
     WritePDF();
 
     static int resolution;
+    /**
+     * Whether to generate QQ plots and Manhattan plots with less resolution (points), to reduce PDF file size.
+     */
     static bool thinPoints;
 
     //Draw QQ plots of three series

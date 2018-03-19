@@ -1741,7 +1741,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
     }
 
     //POOLING STEP1: if fail HWE or CALLRATE then skip this record
-    //if a variant has a missing allele but not mornomorphic then exclude this variant without updating the total sample size
+    //if a variant has a missing allele but not monomorphic then exclude this variant without updating the total sample size
     //if(((tokens[2]=="." || tokens[3]==".") && (c1+c2!=0 && c2+c3!=0)) || (tokens[2]=="." && tokens[3]==".") || (tokens[2]==tokens[3] && c1+c2!=0 && c2+c3!=0))
 
     if (tokens[2] == "0")

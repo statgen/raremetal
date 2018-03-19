@@ -33,6 +33,7 @@
 
 //This class uses optimization method proposed in FaST paper by Lippert 
 //from Nature Vol.8 No.10 833-835 2011
+// Factored spectrally transformed linear mixed models (FaST-LMM)
 class FastFit : public ScalarMinimizer
 {
 public:
@@ -45,13 +46,35 @@ public:
     virtual double Brent(double tol, FastTransform &trans);
 
     static bool useCovariates;
+    /**
+     * If --inverseNormal is used, but not with --makeResiduals, then trait values are inverse normalized before
+     *  fitting linear models.
+     * If --inverseNormal and --makeResiduals are used together, then covariates are adjusted and inverse normalized
+     *  residuals are used to fit linear models.
+     */
     static bool inverseNormal;
+    /**
+     * Whether to adjust covariates before fitting linear models using residuals.
+     */
     static bool makeResiduals;
+    /**
+     * A flag that indicates whether this program should ever attempt to account for relatedness in the sample. Determined indirectly based on other command line arguments and defaults to false.
+     */
     static bool unrelated;
+    /**
+     *  Whether to fit a linear mixed model using only chromosome X kinship for analyses of chromosome X markers.
+     *  To use this flag, the vcX option must also be specified
+     */
     static bool separateX;
     static bool CleanKin;
+    /**
+     * Undocumented CLI parameter: whether to treat this trait as binary. Cannot be used with --makeResiduals flag
+     */
     static bool binary;
     int traitNum;
+    /**
+     * The name of the trait to be analyzed. If not specified, then all traits included in PED/DAT files are analyzed.
+     */
     static String traitName;
 
     int GetTraitID(Pedigree &ped, const char *name, FILE *log);

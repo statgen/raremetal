@@ -38,24 +38,64 @@ public:
     FILE *log;
 
     static bool vcfAnnotated;
+    /**
+     * Whether to automatically compress the output files within this range
+     */
     static bool zipOutput;
     static bool checkRef;
 
     //Input/Output options
     static String vcfInput;
+    /**
+     * A filename prefix to be prepended to all output file names. See:
+     * See https://genome.sph.umich.edu/wiki/RAREMETALWORKER#OUTPUT_FILE_FORMATS
+     */
     static String outputFile;
+    /**
+     * --xStart takes an integer that described the start position of nonPAR region on chromosome X.
+     * The default is 2699520 based on Human Genome build 19.
+     *
+     * --xStart takes an integer that described the end position of nonPAR region on chromosome X.
+     * The default is 154931044 based on Human Genome build 19.
+     */
     static int Xstart, Xend;
+    /**
+     * The string used to label chromosome X in input files. Defaults to "X"
+     */
     static String xLabel;
-    static String dosageFlag;
+    /**
+     * Whether to read dosage information from the VCF file (in the DS field)
+     */
     static bool dosage;
     static bool genoFromPed;
     static bool genoFromVCF;
     static bool FounderFreq;
     static bool correctGC;
+    /**
+     * RAREMETALWORKER generates LD matrices between a current marker that it is working on and all markers within this
+     *  range. Default is 1e6 bases.
+     */
     static int window;
+    /**
+     * The label used for males in PED files. Defaults to "1"
+     */
     static int maleLabel;
+    /**
+     * The label used for females in PED files. Defaults to "2"
+     */
     static int femaleLabel;
+    /**
+     * If --recessive is used, then RAREMETALWORKER generates recessive results in addition to the additive results.
+     * A separate pdf file with QQ and Manhattan plots based on recessive results is generated with name
+     *   yourprefix.traitname.recessive.plots.pdf.
+     */
     static bool recessive;
+    /**
+     * TODO: should this say Dominant? (pasted from wiki)
+     * If --dominant is used, then RAREMETALWORKER generates recessive results in addition to the additive results.
+     *   A separate pdf file with QQ and Manhattan plots based on recessive results is generated with
+     *   name yourprefix.traitname.dominant.plots.pdf.
+     */
     static bool dominant;
     static bool additive;
     static bool calculateOR;
