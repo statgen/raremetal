@@ -2,6 +2,8 @@
 # Use CMake variables to pass in context from outside the script
 
 
+set(BASE_INPUT_DIR ${BASE_TEST_FOLDER}/inputs)
+
 # Delete old outputs before every single run
 set(BASE_OUTPUT_DIR ${BASE_TEST_FOLDER}/output)
 
@@ -12,43 +14,34 @@ endif()
 
 file(MAKE_DIRECTORY ${BASE_OUTPUT_DIR})
 
+
+# The input files are relative to the root test directory
 execute_process(
-        COMMAND ${RMW_BIN}
-            --ped ${CMAKE_BINARY_DIR}/raremetal_tutorial/example1.ped
-            --dat ${CMAKE_BINARY_DIR}/raremetal_tutorial/example1.dat
-            --vcf ${CMAKE_BINARY_DIR}/raremetal_tutorial/example1.vcf.gz
-            --traitName QT1  --inverseNormal --makeResiduals --kinSave --kinGeno --prefix STUDY1
-        WORKING_DIRECTORY ${BASE_OUTPUT_DIR}
-        RESULT_VARIABLE rmw_exit_code
+        COMMAND ${EXEC_PATH}
+            --summaryFiles ${BASE_INPUT_DIR}/summaryfiles
+            --covFiles ${BASE_INPUT_DIR}/covfiles
+            --groupFile ${BASE_INPUT_DIR}/group.file
+            --SKAT --burden --MB --VT --longOutput --tabulateHits --hitsCutoff 1e-05
+            --prefix ${BASE_OUTPUT_DIR}/COMBINED.QT1 --hwe 1.0e-05 --callRate 0.95 -
+        WORKING_DIRECTORY ${BASE_TEST_FOLDER}
+        RESULT_VARIABLE rm_exit_code
         OUTPUT_VARIABLE out_text
         ERROR_VARIABLE out_text)
 
-if(rmw_exit_code)
-    message("Result exit code: ${rmw_exit_code} - ${RMW_BIN}")
+if(rm_exit_code)
+    message("Result exit code: ${rm_exit_code} - ${EXEC_PATH}")
     message(FATAL_ERROR "An error was encountered:\n ${out_text}")
 endif()
 
-execute_process(
-        COMMAND ${RMW_BIN}
-        --ped ${CMAKE_CURRENT_BINARY_DIR}/raremetal_tutorial/example2.ped
-        --dat ${CMAKE_CURRENT_BINARY_DIR}/raremetal_tutorial/example2.dat
-        --vcf ${CMAKE_CURRENT_BINARY_DIR}/raremetal_tutorial/example2.vcf.gz
-        --traitName QT1  --inverseNormal --makeResiduals --kinSave --kinGeno --prefix STUDY2
-        WORKING_DIRECTORY ${BASE_OUTPUT_DIR}
-        RESULT_VARIABLE rmw_exit_code
-        OUTPUT_VARIABLE out_text
-        ERROR_VARIABLE out_text)
 
-if(rmw_exit_code)
-    message("Result exit code: ${rmw_exit_code} - ${RMW_BIN}")
-    message(FATAL_ERROR "an error was encountered: ${out_text}")
-endif()
+
+
 
 # Find all output files
 file(GLOB files_list
         LIST_DIRECTORIES false
         RELATIVE ${BASE_TEST_FOLDER}/expected
-        ${BASE_TEST_FOLDER}/expected/*.txt)
+        ${BASE_TEST_FOLDER}/expected/*.results ${BASE_TEST_FOLDER}/expected/*.tbl)
 
 ## Compare the two sets of meta-analysis results to the expected outputs
 foreach(file ${files_list})
