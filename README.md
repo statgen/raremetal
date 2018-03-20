@@ -15,4 +15,4 @@ Newest version: v.4.14.1 released at 07/10/2017
 - View change log at: http://genome.sph.umich.edu/wiki/RAREMETAL_Change_Log
 
 We've made a brand new version, RAREMETAL2. Still in beta, but a full release is planned in the future. See:
-https://github.com/traxexx/Raremetal2
+https://github.com/statgen/Raremetal2
