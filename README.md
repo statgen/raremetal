@@ -30,4 +30,4 @@ View change log at: http://genome.sph.umich.edu/wiki/RAREMETAL_Change_Log
 We are also working on a beta version that provides new features and options- RAREMETAL2. 
 
 This code is still in the experimental stages, but a full release is planned in the future. See:
-https://github.com/traxexx/Raremetal2
+https://github.com/statgen/Raremetal2
