@@ -55,7 +55,9 @@ endfunction()
 #  Tests based on the RAREMETAL tutorial dataset as of this repo version  #
 ###########################################################################
 
-## RAREMETALWORKER
+########## RAREMETALWORKER
+
+# When kinship options are specified, RMW uses that information as part of the covariance calcs
 set(BASE_TEST_FOLDER ${CMAKE_CURRENT_BINARY_DIR}/test_tut_rmw_kin)
 copy_test_scaffold(
         ${BASE_TEST_FOLDER}
@@ -67,7 +69,19 @@ run_boilerplate(
         raremetalworker/test_tut_rmw_kin/script.cmake
         ${RMW_BIN})
 
-## RAREMETAL
+# When no kinship options are specified, covariance is calculated according to a single fixed sigma term
+set(BASE_TEST_FOLDER ${CMAKE_CURRENT_BINARY_DIR}/test_tut_rmw_nokin)
+copy_test_scaffold(
+        ${BASE_TEST_FOLDER}
+        datasets/raremetal_tutorial/
+        raremetalworker/test_tut_rmw_nokin/expected/)
+run_boilerplate(
+        ${BASE_TEST_FOLDER}
+        test_tut_rmw_nokin
+        raremetalworker/test_tut_rmw_nokin/script.cmake
+        ${RMW_BIN})
+
+########## RAREMETAL
 set(BASE_TEST_FOLDER ${CMAKE_CURRENT_BINARY_DIR}/test_tut_rm)
 copy_test_scaffold(
         ${BASE_TEST_FOLDER}

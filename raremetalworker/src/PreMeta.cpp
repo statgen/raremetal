@@ -812,12 +812,12 @@ void PreMeta::Run(String &pedname, Pedigree &ped, FastTransform &trans, FastFit 
 
     if (FastFit::separateX)
     {
-        ifprintf(SCOREoutput, "#Xheritabilit is %.2f.\n", engine.Xheritability);
+        ifprintf(SCOREoutput, "#Xheritability is %.2f.\n", engine.Xheritability);
     }
     if (AutoFit::fitX && !FastFit::separateX)
     {
-        ifprintf(SCOREoutput, "#Autosomal heritabilit is %.2f.\n", engine.heritabilityAuto);
-        ifprintf(SCOREoutput, "#Xheritabilit is %.2f.\n", engine.Xheritability);
+        ifprintf(SCOREoutput, "#Autosomal heritability is %.2f.\n", engine.heritabilityAuto);
+        ifprintf(SCOREoutput, "#Xheritability is %.2f.\n", engine.Xheritability);
     }
 
     printf("\ncompleted.\n\n");

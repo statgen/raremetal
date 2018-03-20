@@ -1,3 +1,5 @@
+# RAREMETALWORKER calculates covariance matrices differently depending on whether kinship matrices are specified
+
 # This script is run as a CMake script; therefore the binary directory may not be the same as for the original build
 # Use CMake variables to pass in context from outside the script
 
@@ -18,7 +20,7 @@ execute_process(
             --ped ${BASE_INPUT_DIR}/example1.ped
             --dat ${BASE_INPUT_DIR}/example1.dat
             --vcf ${BASE_INPUT_DIR}/example1.vcf.gz
-            --traitName QT1  --inverseNormal --makeResiduals --kinSave --kinGeno --prefix STUDY1
+            --traitName QT1  --inverseNormal --makeResiduals --prefix STUDY1
         WORKING_DIRECTORY ${BASE_OUTPUT_DIR}
         RESULT_VARIABLE rmw_exit_code
         OUTPUT_VARIABLE out_text
@@ -34,7 +36,7 @@ execute_process(
             --ped ${BASE_INPUT_DIR}/example2.ped
             --dat ${BASE_INPUT_DIR}/example2.dat
             --vcf ${BASE_INPUT_DIR}/example2.vcf.gz
-            --traitName QT1  --inverseNormal --makeResiduals --kinSave --kinGeno --prefix STUDY2
+            --traitName QT1  --inverseNormal --makeResiduals --prefix STUDY2
         WORKING_DIRECTORY ${BASE_OUTPUT_DIR}
         RESULT_VARIABLE rmw_exit_code
         OUTPUT_VARIABLE out_text
