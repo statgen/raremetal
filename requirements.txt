@@ -1,2 +1,3 @@
 statgen/savvy@develop
 statgen/libStatGen@cram-support --cmake dep/libstatgen.cmake
+atks/Rmath@1a438f2f363e1f8fcf6b2804bd2cd0136d300230 --cmake dep/rmath.cmake
