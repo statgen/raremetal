@@ -1,5 +1,5 @@
 ##ProgramName=RareMetalWorker
-##Version=4.14.0
+##Version=4.15.0
 ##Samples=8848
 ##AnalyzedSamples=591
 ##Families=598

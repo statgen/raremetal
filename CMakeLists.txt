@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.2)
-project(raremetal VERSION 4.14.0 LANGUAGES C CXX Fortran)
+project(raremetal VERSION 4.15.0 LANGUAGES C CXX Fortran)
 
 set(CMAKE_CXX_STANDARD 11)
 
@@ -9,6 +9,7 @@ find_library(LIB_SAVVY savvy)
 find_library(LIB_ZSTD zstd)
 find_library(LIB_HTS hts)
 find_library(LIB_Z z)
+find_library(LIB_RMATH Rmath)
 
 add_library(libraremetal
             libRareMetal/mvtnorm/randomF77.c
@@ -73,16 +74,7 @@ add_library(libraremetal
 
 set_target_properties(libraremetal PROPERTIES OUTPUT_NAME raremetal)
 target_include_directories(libraremetal PUBLIC libRareMetal/pdf libRareMetal/src)
-if(APPLE)
-    target_link_libraries(libraremetal ${CMAKE_SOURCE_DIR}/libRareMetal/libRmath_MAC.a)
-elseif(UNIX)
-    target_link_libraries(libraremetal ${CMAKE_SOURCE_DIR}/libRareMetal/libRmath.a)
-elseif(MINGW)
-    target_link_libraries(libraremetal ${CMAKE_SOURCE_DIR}/libRareMetal/libRmath_mingw.a)
-elseif(CYGWIN)
-    target_link_libraries(libraremetal ${CMAKE_SOURCE_DIR}/libRareMetal/libRmath_cygwin64.a)
-endif()
-target_link_libraries(libraremetal ${LIB_STATGEN} ${LIB_HTS} ${CMAKE_THREAD_LIBS_INIT} ${LIB_Z})
+target_link_libraries(libraremetal ${LIB_STATGEN} ${LIB_HTS} ${CMAKE_THREAD_LIBS_INIT} ${LIB_Z} ${LIB_RMATH})
 
 add_executable(raremetal
 #               raremetal/src/Calculate_mvt_pvalue.h
