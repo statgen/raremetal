@@ -14,7 +14,7 @@
 // 
 // Wednesday November 28, 2012
 // 
- 
+
 #ifndef __AUTOFIT_H__
 #define __AUTOFIT_H__
 
@@ -26,21 +26,25 @@
 class NormalEquations;
 
 class AutoFit
-   {
-   public:
-      AutoFit();
-      NormalSet mvn;
+{
+public:
+    AutoFit();
 
-      void FitPolygenicModels(Pedigree & ped, int traitNum, bool quiet = false);
+    NormalSet mvn;
 
-      static bool   fitSharedEnvironment;
-      static bool   fitX;
-      static bool   useCovariates;
-      static bool   useProbands;
+    void FitPolygenicModels(Pedigree &ped, int traitNum, bool quiet = false);
 
-      double mean, sigma_gX, sigma_e2, variance, heritability,heritabilityX,sharedEnv;
-      Vector betaHat;
-   };
+    static bool fitSharedEnvironment;
+    /**
+     * Whether to estimate a separate genomic relationship for chromosome X
+     */
+    static bool fitX;
+    static bool useCovariates;
+    static bool useProbands;
+
+    double mean, sigma_gX, sigma_e2, variance, heritability, heritabilityX, sharedEnv;
+    Vector betaHat;
+};
 
 #endif
 

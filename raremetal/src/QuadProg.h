@@ -65,6 +65,6 @@ s.t.
 #include "MathMatrix.h"
 #include "MathVector.h"
 
-double solve_quadprog(Matrix & G, Vector & g0, Matrix & CE, Vector & ce0, Matrix & CI, Vector & ci0, Vector & x);
+double solve_quadprog(Matrix &G, Vector &g0, Matrix &CE, Vector &ce0, Matrix &CI, Vector &ci0, Vector &x);
 
 #endif

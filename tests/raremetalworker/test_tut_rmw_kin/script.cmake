@@ -3,6 +3,7 @@
 
 
 # Delete old outputs before every single run
+set(BASE_INPUT_DIR ${BASE_TEST_FOLDER}/inputs)
 set(BASE_OUTPUT_DIR ${BASE_TEST_FOLDER}/output)
 
 if(EXISTS ${BASE_OUTPUT_DIR})
@@ -13,10 +14,10 @@ endif()
 file(MAKE_DIRECTORY ${BASE_OUTPUT_DIR})
 
 execute_process(
-        COMMAND ${RMW_BIN}
-            --ped ${CMAKE_BINARY_DIR}/raremetal_tutorial/example1.ped
-            --dat ${CMAKE_BINARY_DIR}/raremetal_tutorial/example1.dat
-            --vcf ${CMAKE_BINARY_DIR}/raremetal_tutorial/example1.vcf.gz
+        COMMAND ${EXEC_PATH}
+            --ped ${BASE_INPUT_DIR}/example1.ped
+            --dat ${BASE_INPUT_DIR}/example1.dat
+            --vcf ${BASE_INPUT_DIR}/example1.vcf.gz
             --traitName QT1  --inverseNormal --makeResiduals --kinSave --kinGeno --prefix STUDY1
         WORKING_DIRECTORY ${BASE_OUTPUT_DIR}
         RESULT_VARIABLE rmw_exit_code
@@ -24,23 +25,23 @@ execute_process(
         ERROR_VARIABLE out_text)
 
 if(rmw_exit_code)
-    message("Result exit code: ${rmw_exit_code} - ${RMW_BIN}")
+    message("Result exit code: ${rmw_exit_code} - ${EXEC_PATH}")
     message(FATAL_ERROR "An error was encountered:\n ${out_text}")
 endif()
 
 execute_process(
-        COMMAND ${RMW_BIN}
-        --ped ${CMAKE_CURRENT_BINARY_DIR}/raremetal_tutorial/example2.ped
-        --dat ${CMAKE_CURRENT_BINARY_DIR}/raremetal_tutorial/example2.dat
-        --vcf ${CMAKE_CURRENT_BINARY_DIR}/raremetal_tutorial/example2.vcf.gz
-        --traitName QT1  --inverseNormal --makeResiduals --kinSave --kinGeno --prefix STUDY2
+        COMMAND ${EXEC_PATH}
+            --ped ${BASE_INPUT_DIR}/example2.ped
+            --dat ${BASE_INPUT_DIR}/example2.dat
+            --vcf ${BASE_INPUT_DIR}/example2.vcf.gz
+            --traitName QT1  --inverseNormal --makeResiduals --kinSave --kinGeno --prefix STUDY2
         WORKING_DIRECTORY ${BASE_OUTPUT_DIR}
         RESULT_VARIABLE rmw_exit_code
         OUTPUT_VARIABLE out_text
         ERROR_VARIABLE out_text)
 
 if(rmw_exit_code)
-    message("Result exit code: ${rmw_exit_code} - ${RMW_BIN}")
+    message("Result exit code: ${rmw_exit_code} - ${EXEC_PATH}")
     message(FATAL_ERROR "an error was encountered: ${out_text}")
 endif()
 

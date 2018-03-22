@@ -20,6 +20,8 @@
 
 #include <stdarg.h>
 
+// Utilities to write PDF file output. See specification:
+// https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/pdf_reference_archives/PDFReference.pdf
 PDF::PDF() : page(*this), font(*this)
    {
    file = NULL;
@@ -38,8 +40,10 @@ void PDF::OpenFile(const char * name)
    if (file == NULL)
       error("Error opening file [%s]\n", name);
 
-   //char signature[] = {'%', '%', 'G' + 128, 'R' + 128, 'A' + 128, '\n', '\n', 0};
-
+   // PDF specification section 3.4.1:
+   // If a PDF file contains binary data... it  is  recommended  that  the  header  line  be  immediately
+   // followed  by... at  least  four  binary  characters... whose codes are 128 or greater. This will ensure proper
+   // behavior of file transfer applications... to determine whether to treat the file's contents as text or as binary
    fprintf(file, "%%PDF-1.4\n");
    fprintf(file, "%%\xC7\xD2\xC1\n\n");
    }

@@ -14,18 +14,19 @@
 // 
 // Wednesday November 28, 2012
 // 
- 
+
 #ifndef __CHECKREF_H__
 #define __CHECKREF_H__
 
 
 class CheckRef
 {
-   public:
-      CheckRef();
+public:
+    CheckRef();
 
-static String refFile;
-      void CheckReferenceGenome(String & chr, Int & position, String & allele1, String & allele2);
+    static String refFile;
+
+    void CheckReferenceGenome(String &chr, Int &position, String &allele1, String &allele2);
 };
 
 #endif

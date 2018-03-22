@@ -26,26 +26,28 @@
 
 class SummaryFileReader
 {
-	public:
-		static int counter;
-		SummaryFileReader()
-		{
-old_chr="";
-			old_pos=0;
-			counter=0;
-		};
+public:
+    static int counter;
 
-		String marker_cov,marker_nearby,old_chr;
-		StringArray markerNearby, markerNearbyCov;
-		StringIntHash markerPosHash;
-		String buffer;
-		int old_pos;
+    SummaryFileReader()
+    {
+        old_chr = "";
+        old_pos = 0;
+        counter = 0;
+    };
 
-		Tabix myTabix;
-		IFILE myFilePtr;
+    String marker_cov, marker_nearby, old_chr;
+    StringArray markerNearby, markerNearbyCov;
+    StringIntHash markerPosHash;
+    String buffer;
+    int old_pos;
 
-		bool ReadTabix(String filename);
-		bool ReadRecord(String chr, int pos);
+    Tabix myTabix;
+    IFILE myFilePtr;
+
+    bool ReadTabix(String filename);
+
+    bool ReadRecord(String chr, int pos);
 };
 
 #endif

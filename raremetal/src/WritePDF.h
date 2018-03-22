@@ -14,7 +14,7 @@
 // 
 // Wednesday November 28, 2012
 // 
- 
+
 #ifndef __WRITEPDF_H__
 #define __WRITEPDF_H__
 
@@ -25,17 +25,27 @@
 
 class WritePDF
 {
-   public:
-      WritePDF();
-      static int resolution;
-      static bool thinPoints;
-      //Draw QQ plots of three series
-      void Draw(PDF & pdf,StringArray & geneLabels,Vector & pvalueAll, Vector & pvalue1,Vector & pvalue5, StringArray & chr, Vector & pos,String title, String demo1,String demo2,String demo3,bool useDataLabels);
-      void Draw(PDF & pdf,StringArray & geneLabels, Vector & pvalueAll, StringArray & chr, Vector & pos,String title,String extraTitle,String demo,bool useDataLabels);
-      void DrawOverlayQQplot(PDF & pdf,Vector & pvalueAll,Vector & pvalue1,Vector & pvalue5,String title);
-      //Draw QQ plots of single series
-      void DrawQQplot(PDF & pdf, Vector & pvalueAll,String title, String plot_title,String demo);
-      void DrawManhattanPlot(PDF & pdf, StringArray & geneLabels,Vector & pvalueAll, StringArray & chr, Vector & pos,String title,bool useDataLabels);
+public:
+    WritePDF();
+
+    static int resolution;
+    static bool thinPoints;
+
+    //Draw QQ plots of three series
+    void Draw(PDF &pdf, StringArray &geneLabels, Vector &pvalueAll, Vector &pvalue1, Vector &pvalue5, StringArray &chr,
+              Vector &pos, String title, String demo1, String demo2, String demo3, bool useDataLabels);
+
+    void Draw(PDF &pdf, StringArray &geneLabels, Vector &pvalueAll, StringArray &chr, Vector &pos, String title,
+              String extraTitle, String demo, bool useDataLabels);
+
+    void DrawOverlayQQplot(PDF &pdf, Vector &pvalueAll, Vector &pvalue1, Vector &pvalue5, String title);
+
+    //Draw QQ plots of single series
+    void DrawQQplot(PDF &pdf, Vector &pvalueAll, String title, String plot_title, String demo);
+
+    void
+    DrawManhattanPlot(PDF &pdf, StringArray &geneLabels, Vector &pvalueAll, StringArray &chr, Vector &pos, String title,
+                      bool useDataLabels);
 };
 
 #endif

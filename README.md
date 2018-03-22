@@ -19,8 +19,19 @@ make
 To run unit tests, ensure that you have run cmake with `-DBUILD_TESTS=1` and built at least once, 
 then run `make` or `ctest --verbose`. 
 
-If you encounter problems while building, see the [wiki FAQ](https://genome.sph.umich.edu/wiki/RAREMETAL_FAQ) for 
-more information.
+If you encounter problems while building, see the [wiki instructions](https://genome.sph.umich.edu/wiki/RAREMETAL_DOWNLOAD_%26_BUILD) 
+and [FAQ](https://genome.sph.umich.edu/wiki/RAREMETAL_FAQ) for more information.
+
+### Requirements
+Raremetal requires the following libraries to build. These should already be installed on most scientific 
+computing clusters.
+
+- libRMath (The R math library. If not installed, use `apt-get install r-mathlib` on ubuntu or `brew install r` 
+    on Mac OS)
+- zlib (`apt-get install zlib1g-dev` on Ubuntu)
+
+On Mac OS, installing R as a standalone package is not sufficient to use libRMath in other executables. 
+Consider `brew install r` or [r-devel](https://r.research.att.com/) in that case.   
 
 ## Changes
 Newest version: v.4.14.1 released at 07/10/2017
