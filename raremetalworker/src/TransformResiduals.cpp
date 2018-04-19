@@ -90,7 +90,7 @@ void FastTransform::SelectSamplesVCF(Pedigree &ped, bool useCovariates)
     // printf("Selecting useful samples ...\n");
 
 
-    savvy::reader reader(PreMeta::vcfInput.c_str(), PreMeta::dosage ? savvy::fmt::dosage : savvy::fmt::genotype);
+    savvy::reader reader(PreMeta::vcfInput.c_str(), PreMeta::dosage ? savvy::fmt::ds : savvy::fmt::gt);
     int numSamples = reader.samples().size();
     totalN = numSamples;
 

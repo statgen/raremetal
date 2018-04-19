@@ -465,7 +465,7 @@ void KinshipEmp::SetupVCFAuto(Pedigree &ped, IntArray &genotypedSampleVCF, Strin
         if (PreMeta::dosage)
         {
             savvy::indexed_reader reader(PreMeta::vcfInput.c_str(), {chromosomeVCF[chr_idx].c_str()},
-                                         savvy::fmt::dosage);
+                                         savvy::fmt::ds);
             savvy::variant<std::vector<float>> record;
             double mean = 0.0, var_inv = 0.0, maf = 0.0;
             int n_ = 0, nmiss = 0;
@@ -547,7 +547,7 @@ void KinshipEmp::SetupVCFAuto(Pedigree &ped, IntArray &genotypedSampleVCF, Strin
         } else
         {
             savvy::indexed_reader reader(PreMeta::vcfInput.c_str(), {chromosomeVCF[chr_idx].c_str()},
-                                         savvy::fmt::allele);
+                                         savvy::fmt::gt);
             savvy::variant<std::vector<float>> record;
             double var_inv = _NAN_, mean = 0.0, maf = 0.0;
             int n_ = 0, nmiss = 0;
@@ -732,7 +732,7 @@ KinshipEmp::WriteKinship(Pedigree &ped, Matrix &allPairs, IntArray &genotypedSam
     if (VCF)
     {
         file = ifopen(filename, "wt", InputFile::GZIP);
-        savvy::reader reader(PreMeta::vcfInput.c_str(), savvy::fmt::allele);
+        savvy::reader reader(PreMeta::vcfInput.c_str(), savvy::fmt::gt);
         for (int i = 0; i < n; i++)
         {
             const char *sample = reader.samples()[genotypedSample[i]].c_str();
@@ -1011,7 +1011,7 @@ void KinshipEmp::SetupVCFX(Pedigree &ped, IntArray &genotypedSampleVCF, StringIn
     int n_ = 0, nmiss = 0;
     if (PreMeta::dosage)
     {
-        savvy::indexed_reader reader(PreMeta::vcfInput.c_str(), {PreMeta::xLabel.c_str()}, savvy::fmt::dosage);
+        savvy::indexed_reader reader(PreMeta::vcfInput.c_str(), {PreMeta::xLabel.c_str()}, savvy::fmt::ds);
         savvy::variant<std::vector<float>> record;
         while (reader >> record)
         {
@@ -1083,7 +1083,7 @@ void KinshipEmp::SetupVCFX(Pedigree &ped, IntArray &genotypedSampleVCF, StringIn
         }
     } else
     {
-        savvy::indexed_reader reader(PreMeta::vcfInput.c_str(), {PreMeta::xLabel.c_str()}, savvy::fmt::allele);
+        savvy::indexed_reader reader(PreMeta::vcfInput.c_str(), {PreMeta::xLabel.c_str()}, savvy::fmt::gt);
         savvy::variant<std::vector<float>> record;
         while (reader >> record)
         {

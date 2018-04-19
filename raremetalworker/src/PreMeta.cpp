@@ -1131,7 +1131,7 @@ void PreMeta::runGenoFromVcf(Pedigree &ped, FastTransform &trans, FastFit &engin
     malehwewarning = 0;
     bool fitXStatus = false;
 
-    reader = savvy::indexed_reader(vcfInput.c_str(), {""}, dosage ? savvy::fmt::dosage : savvy::fmt::allele);
+    reader = savvy::indexed_reader(vcfInput.c_str(), {""}, dosage ? savvy::fmt::ds : savvy::fmt::gt);
 
     std::vector<std::string> chromosomes;
     String range_chr;

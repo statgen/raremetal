@@ -69,7 +69,7 @@ void SanityCheck::Check(Pedigree &ped, FILE *log)
     int vcf_marker_num = 0;
     if (PreMeta::vcfInput != "")
     {
-        savvy::indexed_reader reader(PreMeta::vcfInput.c_str(), {""}, savvy::fmt::allele);
+        savvy::indexed_reader reader(PreMeta::vcfInput.c_str(), {""}, savvy::fmt::gt);
 
         if (!reader.good())
         {
@@ -197,7 +197,7 @@ void SanityCheck::Check(Pedigree &ped, FILE *log)
             }
         }
 
-        savvy::reader reader(PreMeta::vcfInput.c_str(), savvy::fmt::allele);
+        savvy::reader reader(PreMeta::vcfInput.c_str(), savvy::fmt::gt);
         int numSamples = reader.samples().size();
         for (int s = 0; s < numSamples; s++)
         {
