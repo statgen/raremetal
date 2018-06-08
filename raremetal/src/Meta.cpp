@@ -1754,7 +1754,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
     }
 
     //check allele counts to see if the site is monomorphic
-    int c1, c2, c3;
+    double c1, c2, c3;
     bool use_dosage = false;
     if (dosageOptionFile != "")
     {
