@@ -1826,6 +1826,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
         UpdateStrIntHash(chr_pos, SampleSize[study], usefulSize);
         UpdateExcludedMarker(study, chr_pos, filter_type,
                              tokens[0] + ":" + tokens[1] + ":" + tokens[2] + ":" + tokens[3]);
+        fprintf(log,"Warning: variant %s from study %s is skipped because of call rate, HWE, or missing alleles.\n",chr_pos.c_str(),scorefile[study].c_str());
         return 0;
     }
 
@@ -1906,6 +1907,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
                 UpdateStrIntHash(chr_pos, SampleSize[study], usefulSize);
                 char direct = '!';
                 UpdateDirection(direction_idx, study, direct, chr_pos, true);
+                fprintf(log,"Warning: variant %s from study %s is skipped because alleles did not match previous study.\n",chr_pos.c_str(),scorefile[study].c_str());
                 return 0;
             }
             if (match == 1)
@@ -1931,6 +1933,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
                 UpdateStrIntHash(chr_pos, SampleSize[study], usefulSize);
                 char direct = '!';
                 UpdateDirection(direction_idx, study, direct, chr_pos, true);
+                fprintf(log,"Warning: variant %s from study %s is skipped because alleles did not match previous study.\n",chr_pos.c_str(),scorefile[study].c_str());
                 return 0;
             }
             UpdateStrIntHash(chr_pos, current_N, recSize);
@@ -2003,6 +2006,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
     //if a variant is monomorphic then update the count of sample size and generate warning
     if (c1 + c2 == 0 || c2 + c3 == 0)
     {
+        fprintf(log,"Warning: variant %s from study %s is skipped because variant is monomorphic.\n",chr_pos.c_str(),scorefile[study].c_str());
         return 0;
     }
 
