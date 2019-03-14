@@ -19,45 +19,65 @@
 #define __EMPKINSHIP_H__
 
 #include "Kinship.h"
-#include "VcfRecord.h"
-#include "VcfFileReader.h"
-#include "VcfHeader.h"
 #include "StringHash.h"
 
 
 class KinshipEmp : public Kinship
 {
-   public:
+public:
 
-      KinshipEmp() {};
-      ~KinshipEmp() {};
+    KinshipEmp()
+    {};
 
-      static double q;
-      static double miss;
-      static int cpus;
+    ~KinshipEmp()
+    {};
 
-      VcfFileReader reader;
-      VcfHeader header;
-      VcfRecord record;
+    /**
+     * The MAF cutoff for variants to be used to estimate GRMs.
+     *  The default is 0.05, which means variants with MAF<0.05 are not used for estimating GRMs.
+     */
+    static double q;
+    /**
+     * The missing genotype cutoff for variants to be used to estimate GRMs.
+     * The default is 0.05, which means variants with genotype call rate <0.95 are not used for estimating GRMs.
+     */
+    static double miss;
+    /**
+     * The number of cpus to use for estimating kinship matrix from genotypes.
+     */
+    static int cpus;
 
-      StringIntHash IDFromEmp,IDFromEmpX;
+    StringIntHash IDFromEmp, IDFromEmpX;
 
-      Matrix allPairs;
-      Matrix allPairsX;
-      int warnings;
+    Matrix allPairs;
+    Matrix allPairsX;
+    int warnings;
 
-      void ReadEmpKin(FILE * log);
-      void ReadEmpKinX(FILE * log);
-      void CleanUpAuto();
-      void CleanUpX();
+    void ReadEmpKin(FILE *log);
 
-      void SetupPEDAuto(Pedigree & ped, IntArray & genotypedSamplePED, FILE * log);
-      void SetupPEDX(Pedigree & ped, IntArray & genotypedSamplePED, FILE * log);
-      void SetupVCFAuto(Pedigree & ped, IntArray & genotypedSampleVCF, StringArray & chromosomeVCF,FILE * log);
-      void SetupVCFX(Pedigree & ped, IntArray & genotypedSampleVCF, StringIntHash & samplePEDIDHash, StringIntHash & skippedSNPs,FILE * log);
-      void SetupEmpKin(Pedigree & ped, IntArray & genotypedSamplePED, IntArray & genotypedSampleVCF, StringIntHash & samplePEDIDHash, StringIntHash & skippedSNPs,StringArray & chromosomeVCF,FILE * log);
-      void SetupEmpKinX(Pedigree & ped, IntArray & genotypedSamplePED, IntArray & genotypedSampleVCF, StringIntHash & samplePEDIDHash, StringIntHash & skippedSNPs,FILE * log);
-void WriteKinship(Pedigree & ped,Matrix & allPairs,IntArray & genotypedSample,bool AUTO,bool VCF,FILE * log);
+    void ReadEmpKinX(FILE *log);
+
+    void CleanUpAuto();
+
+    void CleanUpX();
+
+    void SetupPEDAuto(Pedigree &ped, IntArray &genotypedSamplePED, FILE *log);
+
+    void SetupPEDX(Pedigree &ped, IntArray &genotypedSamplePED, FILE *log);
+
+    void SetupVCFAuto(Pedigree &ped, IntArray &genotypedSampleVCF, StringArray &chromosomeVCF, FILE *log);
+
+    void
+    SetupVCFX(Pedigree &ped, IntArray &genotypedSampleVCF, StringIntHash &samplePEDIDHash, StringIntHash &skippedSNPs,
+              FILE *log);
+
+    void SetupEmpKin(Pedigree &ped, IntArray &genotypedSamplePED, IntArray &genotypedSampleVCF,
+                     StringIntHash &samplePEDIDHash, StringIntHash &skippedSNPs, StringArray &chromosomeVCF, FILE *log);
+
+    void SetupEmpKinX(Pedigree &ped, IntArray &genotypedSamplePED, IntArray &genotypedSampleVCF,
+                      StringIntHash &samplePEDIDHash, StringIntHash &skippedSNPs, FILE *log);
+
+    void WriteKinship(Pedigree &ped, Matrix &allPairs, IntArray &genotypedSample, bool AUTO, bool VCF, FILE *log);
 };
 
 #endif

@@ -14,7 +14,7 @@
 // 
 // Wednesday November 28, 2012
 // 
- 
+
 #ifndef __DATAQC_H__
 #define __DATAQC_H__
 
@@ -23,12 +23,13 @@
 
 class SanityCheck
 {
-   public:
-      SanityCheck();
+public:
+    SanityCheck();
 
-      void Check(Pedigree & ped, FILE * log);
-      StringIntHash skippedSNPs;
-StringArray chromosomeVCF;
+    void Check(Pedigree &ped, FILE *log);
+
+    StringIntHash skippedSNPs;
+    StringArray chromosomeVCF;
 };
 
 #endif

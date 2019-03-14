@@ -21,46 +21,46 @@
 #include <stdio.h>
 #include "StringBasics.h"
 
-void WriteLog(FILE * log)
+void WriteLog(FILE *log)
 {
-   fprintf(log,"The following parameters are in effect:\n\n");
-   fprintf(log,"List of Studies:\n");
-   fprintf(log,"============================\n");
-   fprintf(log,"--summaryFiles [%s]\n",Meta::summaryFiles.c_str());
-   fprintf(log,"--covFiles [%s]\n",Meta::covFiles.c_str());
+    fprintf(log, "The following parameters are in effect:\n\n");
+    fprintf(log, "List of Studies:\n");
+    fprintf(log, "============================\n");
+    fprintf(log, "--summaryFiles [%s]\n", Meta::summaryFiles.c_str());
+    fprintf(log, "--covFiles [%s]\n", Meta::covFiles.c_str());
 //   fprintf(log, "Implemented Meta-analysis Methods:\n");
 //   fprintf(log,"============================\n");
 //   fprintf(log, "--useExact [%s]\n", Meta::useExactMetaMethod? "true":"false");
-   fprintf(log,"\nGrouping Methods:\n");
-   fprintf(log,"============================\n");
-   fprintf(log,"--groupFile [%s]\n",GroupFromAnnotation::groupFile.c_str());
-   fprintf(log,"--annotatedVcf [%s]\n",GroupFromAnnotation::vcfInput.c_str());
-   fprintf(log,"--annotation [%s]\n",GroupFromAnnotation::function.c_str());
-   fprintf(log,"--writeVcf [%s]\n",Meta::outvcf?"ON":"OFF");
-   fprintf(log,"\nQC Options:\n");
-   fprintf(log,"============================\n");
-   fprintf(log,"--hwe [%g]\n",Meta::HWE);
-   fprintf(log,"--callRate [%g]\n",Meta::CALLRATE);
-   fprintf(log,"\nAssociation Methods:\n");
-   fprintf(log,"============================\n");
-   fprintf(log,"--burden [%s]\n",Meta::Burden?"true":"false");
-   fprintf(log,"--MB [%s]\n",Meta::MB?"true":"false");
-   fprintf(log,"--SKAT [%s]\n",Meta::SKAT?"true":"false");
-   fprintf(log,"--VT [%s]\n",Meta::VTa?"true":"false");
-fprintf(log,"--condition [%s]\n",Meta::cond.c_str());
-   //fprintf(log,"--permute [%s]\n",Meta::VTp?"true":"false");
-   fprintf(log,"\nOther Options:\n");
-   fprintf(log,"============================\n");
-fprintf(log,"--tabix [%s]\n",Meta::tabix?"true":"false");
-fprintf(log,"--correctGC [%s]\n",Meta::correctGC?"true":"false");
-   fprintf(log,"--prefix [%s]\n",Meta::prefix.c_str());
-   fprintf(log,"--maf [%g]\n",Meta::MAF_cutoff);
-   fprintf(log,"--longOutput [%s]\n",Meta::fullResult?"true":"false");
-   fprintf(log,"--tabulateHits [%s]\n",Meta::report?"true":"false");
-   //fprintf(log,"--founderAF [%s]\n",Meta::founderAF?"true":"false");
-   fprintf(log,"--dosage [%s]\n", Meta::dosage ? "ON" : "OFF");
-   fprintf(log,"--hitsCutoff [%g]\n",Meta::report_pvalue_cutoff);
-   fprintf(log,"--altMAF [%s]\n", Meta::altMAF ? "ON" : "OFF");
+    fprintf(log, "\nGrouping Methods:\n");
+    fprintf(log, "============================\n");
+    fprintf(log, "--groupFile [%s]\n", GroupFromAnnotation::groupFile.c_str());
+    fprintf(log, "--annotatedVcf [%s]\n", GroupFromAnnotation::vcfInput.c_str());
+    fprintf(log, "--annotation [%s]\n", GroupFromAnnotation::function.c_str());
+    fprintf(log, "--writeVcf [%s]\n", Meta::outvcf ? "ON" : "OFF");
+    fprintf(log, "\nQC Options:\n");
+    fprintf(log, "============================\n");
+    fprintf(log, "--hwe [%g]\n", Meta::HWE);
+    fprintf(log, "--callRate [%g]\n", Meta::CALLRATE);
+    fprintf(log, "\nAssociation Methods:\n");
+    fprintf(log, "============================\n");
+    fprintf(log, "--burden [%s]\n", Meta::Burden ? "true" : "false");
+    fprintf(log, "--MB [%s]\n", Meta::MB ? "true" : "false");
+    fprintf(log, "--SKAT [%s]\n", Meta::SKAT ? "true" : "false");
+    fprintf(log, "--VT [%s]\n", Meta::VTa ? "true" : "false");
+    fprintf(log, "--condition [%s]\n", Meta::cond.c_str());
+    //fprintf(log,"--permute [%s]\n",Meta::VTp?"true":"false");
+    fprintf(log, "\nOther Options:\n");
+    fprintf(log, "============================\n");
+    fprintf(log, "--tabix [%s]\n", Meta::tabix ? "true" : "false");
+    fprintf(log, "--correctGC [%s]\n", Meta::correctGC ? "true" : "false");
+    fprintf(log, "--prefix [%s]\n", Meta::prefix.c_str());
+    fprintf(log, "--maf [%g]\n", Meta::MAF_cutoff);
+    fprintf(log, "--longOutput [%s]\n", Meta::fullResult ? "true" : "false");
+    fprintf(log, "--tabulateHits [%s]\n", Meta::report ? "true" : "false");
+    //fprintf(log,"--founderAF [%s]\n",Meta::founderAF?"true":"false");
+    fprintf(log, "--dosage [%s]\n", Meta::dosage ? "ON" : "OFF");
+    fprintf(log, "--hitsCutoff [%g]\n", Meta::report_pvalue_cutoff);
+    fprintf(log, "--altMAF [%s]\n", Meta::altMAF ? "ON" : "OFF");
 }
 
 #endif
