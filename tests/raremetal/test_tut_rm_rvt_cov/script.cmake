@@ -1,6 +1,11 @@
 # This script is run as a CMake script; therefore the binary directory may not be the same as for the original build
 # Use CMake variables to pass in context from outside the script
 
+# This script checks for whether raremetal can successfully read and parse
+# summary statistics and cov matrices from both raremetalworker and rvtests for
+# gene-based tests. Inputs include summary statistics and cov matrices output
+# by raremetalworker and rvtests. This test then performs a simple burden test
+# in raremetal with both kinds of input and checks if results are identical
 
 set(BASE_INPUT_DIR ${BASE_TEST_FOLDER}/inputs)
 
@@ -16,6 +21,7 @@ file(MAKE_DIRECTORY ${BASE_OUTPUT_DIR})
 
 
 # The input files are relative to the root test directory
+# Burden test with input from rvtests
 execute_process(
         COMMAND ${EXEC_PATH}
             --summaryFiles ${BASE_INPUT_DIR}/rvtests.summaryfiles
@@ -33,6 +39,7 @@ if(rm_exit_code)
     message(FATAL_ERROR "An error was encountered:\n ${out_text}")
 endif()
 
+# Burden test with input from raremetalworker
 execute_process(
         COMMAND ${EXEC_PATH}
             --summaryFiles ${BASE_INPUT_DIR}/rmw.summaryfiles
@@ -50,16 +57,7 @@ if(rm_exit_code)
     message(FATAL_ERROR "An error was encountered:\n ${out_text}")
 endif()
 
-# diff -q COMBINED.rvtests.QT1.meta.burden.results COMBINED.rmw.QT1.meta.burden.results
-
-# Find all output files
-# file(GLOB files_list
-        # LIST_DIRECTORIES false
-        # RELATIVE ${BASE_TEST_FOLDER}/expected
-        # ${BASE_TEST_FOLDER}/expected/*.results ${BASE_TEST_FOLDER}/expected/*.tbl)
-
-## Compare the two sets of meta-analysis results to the expected outputs
-# foreach(file ${files_list})
+# Compare the two sets of meta-analysis results
 set(rvt_b_res COMBINED.rvtests.QT1.meta.burden.results)
 set(rmw_b_res COMBINED.rmw.QT1.meta.burden.results)
 
@@ -78,4 +76,3 @@ else()
         message(FATAL_ERROR "The expected output file ${rmw_b_res} was not generated")
     endif()
 endif()
-# endforeach()
