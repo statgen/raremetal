@@ -48,7 +48,7 @@ bool SetIfilePosition(IFILE &sfile, Tabix &myTabix, String Chr, int pos)
 
 // RMW: adjust = 0;
 // RVtest: adjust = 1;
-void tellRvOrRmw(String &buffer, bool &adjust, int marker_col, int cov_col)
+void tellRvOrRmw(String &buffer, bool &adjust, int &marker_col, int &cov_col)
 {
     if (buffer.Find("RareMetalWorker") == -1)
     { // rvt
@@ -60,7 +60,7 @@ void tellRvOrRmw(String &buffer, bool &adjust, int marker_col, int cov_col)
     setFromRvOrRmwAdjust(adjust, marker_col, cov_col);
 }
 
-void setFromRvOrRmwAdjust(bool adjust, int marker_col, int cov_col)
+void setFromRvOrRmwAdjust(bool adjust, int &marker_col, int &cov_col)
 {
     if (adjust)
     { // rv test
