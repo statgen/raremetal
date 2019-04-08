@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.2)
-project(raremetal VERSION 4.15.0 LANGUAGES C CXX Fortran)
+project(raremetal VERSION 4.15.1 LANGUAGES C CXX Fortran)
 
 set(CMAKE_CXX_STANDARD 11)
 
