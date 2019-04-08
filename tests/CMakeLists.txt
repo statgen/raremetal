@@ -92,3 +92,15 @@ run_boilerplate(
         test_tut_rm
         raremetal/test_tut_rm/script.cmake
         ${RM_BIN})
+
+# Test reading of cov files output by rvtests
+set(BASE_TEST_FOLDER ${CMAKE_CURRENT_BINARY_DIR}/test_tut_rm_rvt_cov)
+copy_test_scaffold(
+        ${BASE_TEST_FOLDER}
+        raremetal/test_tut_rm_rvt_cov/inputs/
+        "")
+run_boilerplate(
+        ${BASE_TEST_FOLDER}
+        test_tut_rm_rvt_cov
+        raremetal/test_tut_rm_rvt_cov/script.cmake
+        ${RM_BIN})
