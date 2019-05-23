@@ -1471,6 +1471,11 @@ void PreMeta::runGenoFromVcf(Pedigree &ped, FastTransform &trans, FastFit &engin
                 }
             }
         }
+
+        if (!reader.eof()) {
+          throw std::runtime_error("Error: a failure occurred while reading VCF and the end of file was not reached. Check for multiple ploidy or multi-allelic variants.");
+        }
+
         //output the LD matrix for the rest of the markers in genotypeAll
         int markers = genotypeAll.rows;
         for (int i = 0; i < markers; i++)
