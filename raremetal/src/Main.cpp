@@ -95,6 +95,12 @@ int main(int argc, char *argv[])
 
     PhoneHome::checkVersion("raremetalworker", VERSION);
 
+    if (Meta::relateBinary) {
+      // RPW 2020-03-23: code related to relateBinary has been commented out elsewhere in the program,
+      // thus this option should not be allowed
+      error("--relateBinary is no longer supported\n");
+    }
+
     if (Meta::normPop && !Meta::useExactMetaMethod)
     {
         error("population correction only works for exact method. Please specify --useExact!\n");
