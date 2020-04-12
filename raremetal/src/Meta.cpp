@@ -70,6 +70,7 @@ double Meta::maxMatchMAF = 1;
 //bool Meta::noAdjustUnmatch = false; // do not adjust f~tilda for variants that do not match 1000G
 String Meta::dosageOptionFile = "";
 bool Meta::sumCaseAC = false;
+bool Meta::bHeterogeneity = false;
 
 Meta::Meta(FILE *plog)
 {
@@ -531,7 +532,6 @@ printf("\n\n");
 */
 }
 
-
 /**
  * Read through summary statistics of each study and pool the information.
  * At the end, single variant meta-analysis will be completed.
@@ -719,6 +719,52 @@ void Meta::PoolSummaryStat(GroupFromAnnotation &group)
 
     //calculate pooled allele frequencies
     setPooledAF();
+
+    if (bHeterogeneity) {
+      printf("\nRe-processing studies for heterogeneity analysis ...\n");
+      for (int study = 0; study < scorefile.Length(); study++) {
+        SummaryFileReader covReader;
+
+        // We only need the covariance matrix here if conditional analysis was requested.
+        if (cond != "" && cond_status[study]) {
+          String covFilename = covfile[study];
+          bool cov_status = covReader.ReadTabix(covFilename);
+          if (!cov_status) {
+            error("Cannot open cov file: %s\n", covFilename.c_str());
+          }
+        }
+
+        // Open file of score statistics again.
+        String filename = scorefile[study];
+        IFILE file;
+        file = ifopen(filename, "r");
+
+        // Get rid of first header line. We already know what type of file this is from earlier.
+        String buffer;
+        buffer.ReadLine(file);
+        bool adjust = FormatAdjust[study];
+
+        // Loop over lines of score file, updating heterogeneity statistic for each variant.
+        bool pass_header = false;
+        while (!ifeof(file)) {
+          buffer.ReadLine(file);
+          if (buffer.Length() < 2) {
+            continue;
+          }
+          if (!pass_header) {
+            if (buffer.FindChar('#') == -1 && buffer.Find("CHROM") == -1) {
+              pass_header = true;
+            }
+          }
+          if (!pass_header) {
+            continue;
+          }
+
+          poolHeterogeneity(study, adjust, buffer, covReader);
+        }
+        ifclose(file);
+      }
+    }
 
     printf("\nPerforming Single variant meta analysis ...\n");
 
@@ -1594,6 +1640,140 @@ void Meta::UpdateStats(int study, String &markerName, double stat, double vstat,
     }
 }
 
+void Meta::UpdateHetStats(int study, String &markerName, double stat, double vstat, bool flip)
+{
+  double flip_factor = 1.0;
+  if (flip) {
+    flip_factor = -1.0;
+  }
+  stat *= flip_factor;
+
+  // Get the meta-analysis U and V
+  double u_meta = SNPstat.Double(markerName);
+  double v_meta = SNP_Vstat.Double(markerName);
+
+  // Calculate het statistic
+  double z = stat / sqrt(vstat);
+  double ez = u_meta / sqrt(v_meta);
+  double het = (z - ez) * (z - ez) / vstat;
+
+  // Add het stat onto running total
+  int stat_idx = SNP_heterog_stat.Find(markerName);
+  if (stat_idx < 0) {
+    SNP_heterog_stat.SetDouble(markerName, het);
+  } else {
+    double prev = SNP_heterog_stat.Double(stat_idx);
+    prev += het;
+    SNP_heterog_stat.SetDouble(markerName, prev);
+  }
+
+  // Increase degrees of freedom of het stat by 1 (each study adds 1 to the total df)
+  int df_idx = SNP_heterog_df.Find(markerName);
+  if (df_idx < 0) {
+    SNP_heterog_df.SetInteger(markerName, 1);
+  } else {
+    int prev = SNP_heterog_df.Integer(df_idx);
+    prev += 1;
+    SNP_heterog_df.SetInteger(markerName, prev);
+  }
+}
+
+void Meta::UpdateHetCondStats(int study, bool flip, int adjust, String &markerName, StringArray &tokens, SummaryFileReader &covReader) {
+  Vector GX;
+  CalculateGenotypeCov(covReader, tokens[0], tokens[1].AsInteger(), study, GX);
+
+  // Get the meta-analysis conditional U and V
+  double u_meta = SNPstat_cond.Double(markerName);
+  double v_meta = SNP_Vstat_cond.Double(markerName);
+
+  // Calculate this study's conditional U and V
+  double cond_u = tokens[13 - adjust].AsDouble() - GX.InnerProduct(commonVar_betaHat[study]);
+  Vector tmp;
+  for (int i = 0; i < GX.dim; i++) {
+    tmp.Push(GX.InnerProduct(XX_inv[study][i]));
+  }
+  double v = tokens[14 - adjust].AsDouble();
+  double cond_v_part = tmp.InnerProduct(GX);
+  double cond_v = v * v - cond_v_part;
+
+  // Calculate het statistic
+  double z = cond_u / sqrt(cond_v);
+  double ez = u_meta / sqrt(v_meta);
+  double het = (z - ez) * (z - ez) / cond_v;
+
+  // Add het stat onto running total
+  int stat_idx = SNP_heterog_cond_stat.Find(markerName);
+  if (stat_idx < 0) {
+    SNP_heterog_cond_stat.SetDouble(markerName, het);
+  } else {
+    double prev = SNP_heterog_cond_stat.Double(stat_idx);
+    prev += het;
+    SNP_heterog_cond_stat.SetDouble(markerName, prev);
+  }
+
+  // Increase degrees of freedom of het stat by 1 (each study adds 1 to the total df)
+  int df_idx = SNP_heterog_cond_df.Find(markerName);
+  if (df_idx < 0) {
+    SNP_heterog_cond_df.SetInteger(markerName, 1);
+  } else {
+    int prev = SNP_heterog_cond_df.Integer(df_idx);
+    prev += 1;
+    SNP_heterog_cond_df.SetInteger(markerName, prev);
+  }
+}
+
+/**
+ * Update the heterogeneity statistic (Cochran's Q) for a variant given the score statistic in this study.
+ *
+ * This function adds its individual contribution to the running total for the heterogeneity statistic for this variant
+ * over all studies.
+ *
+ * @param study integer representing the study (index into the summaryFiles array of summary statistic files)
+ * @param adjust bool representing whether to shift columns left by 1 depending on RAREMETAL or rvtest format
+ * @param buffer string current line to be parsed
+ * @param covReader extracts covariances for a variant if conditional analysis is required
+ */
+void Meta::poolHeterogeneity(int study, bool adjust, String &buffer, SummaryFileReader &covReader) {
+  StringArray tokens;
+  tokens.AddTokens(buffer, SEPARATORS);
+
+  if (tokens[0].Find("#") != -1) {
+    return;
+  }
+
+  if (tokens[0].Find("chr") != -1) {
+    tokens[0] = tokens[0].SubStr(3);
+  }
+
+  String chr_pos = tokens[0] + ":" + tokens[1];
+  int direction_idx = directionByChrPos.Integer(chr_pos);
+  char direction = directions[direction_idx][study];
+
+  if (direction == '?' || direction == '!') {
+    // This variant was previously skipped due to QC or monomorphic
+    return;
+  }
+
+  // poolSingleRecord() by this point has already figured out whether this variant's score statistic & effect size
+  // need to be flipped to match the alleles used in the meta-analysis
+  bool flip = flipSNP.Integer(String(std::to_string(study).c_str()) + ":" + chr_pos) != -1;
+
+  // Get the score statistic and its variance
+  double u_study = tokens[13 - adjust].AsDouble();
+  double v_study = tokens[14 - adjust].AsDouble();
+
+  // Update the heterogeneity statistic for this variant
+  UpdateHetStats(study, chr_pos, u_study, v_study, flip);
+
+  // If we're doing conditional analysis, then we also need to calculate the heterogeneity of the conditional meta-analysis score statistic
+  if (cond != "" && v_study > 0.0) {
+    //if this variant is not the one to be conditioned upon
+    if (conditionVar.Integer(chr_pos) == -1) {
+      UpdateHetCondStats(study, flip, adjust, chr_pos, tokens, covReader);
+    }
+  }
+}
+
 char Meta::GetDirection(String &chr_pos, double effsize, bool flip)
 {
     char direction = '+';
@@ -1744,6 +1924,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
     //if a variant has a missing allele but not monomorphic then exclude this variant without updating the total sample size
     //if(((tokens[2]=="." || tokens[3]==".") && (c1+c2!=0 && c2+c3!=0)) || (tokens[2]=="." && tokens[3]==".") || (tokens[2]==tokens[3] && c1+c2!=0 && c2+c3!=0))
 
+    // An allele should never be zero, but this code checks for it anyway
     if (tokens[2] == "0")
     {
         tokens[2] = ".";
@@ -2286,19 +2467,26 @@ void Meta::printSingleMetaHeader(String &filename, IFILE &output)
     ifprintf(output, "##Method=SinglevarScore\n");
     ifprintf(output, "##STUDY_NUM=%d\n", scorefile.Length());
     ifprintf(output, "##TotalSampleSize=%d\n", total_N);
-    if (cond == "")
-    {
-        ifprintf(output,
-                 "#CHROM\tPOS\tREF\tALT\tN\tPOOLED_ALT_AF\tDIRECTION_BY_STUDY\tEFFECT_SIZE\tEFFECT_SIZE_SD\tH2\tPVALUE");
-    } else
-    {
-        ifprintf(output,
-                 "#CHROM\tPOS\tREF\tALT\tN\tPOOLED_ALT_AF\tDIRECTION_BY_STUDY\tEFFECT_SIZE\tEFFECT_SIZE_SD\tH2\tPVALUE\tCOND_EFFSIZE\tCOND_EFFSIZE_SD\tCOND_H2\tCOND_PVALUE");
+
+    String header = "#CHROM\tPOS\tREF\tALT\tN\tPOOLED_ALT_AF\tDIRECTION_BY_STUDY\tEFFECT_SIZE\tEFFECT_SIZE_SD\tH2\tPVALUE";
+
+    if (cond != "") {
+      header += "\tCOND_EFFSIZE\tCOND_EFFSIZE_SD\tCOND_H2\tCOND_PVALUE";
     }
-    if (sumCaseAC)
-    {
-        ifprintf(output, "\tsumCaseAC\tsumControlAC");
+
+    if (sumCaseAC) {
+      header += "\tsumCaseAC\tsumControlAC";
     }
+
+    if (bHeterogeneity) {
+      header += "\tHET_I2\tHET_CHISQ\tHET_PVALUE";
+    }
+
+    if (bHeterogeneity && cond != "") {
+      header += "\tHET_COND_I2\tHET_COND_CHISQ\tHET_COND_PVALUE";
+    }
+
+    ifprintf(output, header.c_str());
     ifprintf(output, "\n");
 }
 
@@ -2514,6 +2702,22 @@ void Meta::printSingleMetaVariant(GroupFromAnnotation &group, int i, IFILE &outp
             printf("Warning: variant doesn't have caseAC or controlAC count!\n");
         }
         ifprintf(output, "\t%d\t%d", c1, c2);
+    }
+
+    if (bHeterogeneity) {
+      double het_stat = SNP_heterog_stat.Double(SNPname_noallele);
+      int het_df = SNP_heterog_df.Integer(SNPname_noallele);
+      double I2 = (het_stat <= het_df - 1) || (het_df <= 1) ? 0.0 : (het_stat - het_df + 1) / het_stat * 100.0;
+      double het_pval = (het_stat < 1e-7) || (het_df <= 1) ? 1.0 : pchisq(het_stat, het_df - 1, 0, 0);
+      ifprintf(output, "\t%g\t%g\t%g", I2, het_stat, het_pval);
+    }
+
+    if (bHeterogeneity && cond != "") {
+      double cond_het_stat = SNP_heterog_cond_stat.Double(SNPname_noallele);
+      int cond_het_df = SNP_heterog_cond_df.Integer(SNPname_noallele);
+      double I2 = (cond_het_stat <= cond_het_df - 1) || (cond_het_df <= 1) ? 0.0 : (cond_het_stat - cond_het_df + 1) / cond_het_stat * 100.0;
+      double het_pval = (cond_het_stat < 1e-7) || (cond_het_df <= 1) ? 1.0 : pchisq(cond_het_stat, cond_het_df - 1, 0, 0);
+      ifprintf(output, "\t%g\t%g\t%g", I2, cond_het_stat, het_pval);
     }
 
     ifprintf(output, "\n");
@@ -2891,7 +3095,7 @@ void Meta::loadSingleCovInGroup(GroupFromAnnotation &group)
         ifclose(covfile_);
         printf("done\n");
 
-        //   printf("Updating group stats ...\n");
+        printf("Updating group stats ...\n");
         //update group statistics
         for (int g = 0; g < group.annoGroups.Length(); g++)
         {

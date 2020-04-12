@@ -83,6 +83,7 @@ int main(int argc, char *argv[])
             //	LONG_PARAMETER("noAdjustUnmatch",&Meta::noAdjustUnmatch)
             LONG_STRINGPARAMETER("dosageOptionFile", &Meta::dosageOptionFile)
             LONG_PARAMETER("sumCaseAC", &Meta::sumCaseAC)
+            LONG_PARAMETER("heterogeneity", &Meta::bHeterogeneity)
         LONG_PHONEHOME(VERSION)
     END_LONG_PARAMETERS();
 

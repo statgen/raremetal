@@ -68,6 +68,7 @@ public:
     static String dosageOptionFile;
     static bool sumCaseAC;
 //	static bool noAdjustUnmatch;
+    static bool bHeterogeneity;
 
     //saved single variant information from pooled studies
     StringArray scorefile;
@@ -87,6 +88,10 @@ public:
     StringDoubleHash SNP_Vstat;
     StringDoubleHash SNPstat_cond;
     StringDoubleHash SNP_Vstat_cond;
+    StringDoubleHash SNP_heterog_stat;
+    StringIntHash SNP_heterog_df;
+    StringDoubleHash SNP_heterog_cond_stat;
+    StringIntHash SNP_heterog_cond_df;
     StringIntHash groupAnchor;
     Vector SNPmaf_maf;
     StringArray SNPmaf_name;
@@ -204,6 +209,7 @@ public:
     void UpdateACInfo(String &chr_pos, double AC);
 
     void UpdateStats(int study, String &markerName, double stat, double vstat, bool flip);
+    void UpdateHetStats(int study, String &markerName, double stat, double vstat, bool flip);
 
     char GetDirection(String &chr_pos, double effsize, bool flip);
 
@@ -214,14 +220,16 @@ public:
     bool poolSingleRecord(int study, double &current_chisq, int &duplicateSNP, bool adjust, String &buffer,
                           SummaryFileReader &covReader);
 
+    void poolHeterogeneity(int study, bool adjust, String &buffer, SummaryFileReader &covReader);
+
     bool isDupMarker(String &chr_str, String &chr_pos);
 
     void setRefAltHashKey(String &refalt_current, StringArray &tokens, int c1, int c2);
 
     void setPolyMatch(int &match, String &chr_pos, String &refalt_current, StringArray &tokens, int marker_idx);
 
-    void
-    updateSNPcond(int study, bool flip, int adjust, String &chr_pos, StringArray &tokens, SummaryFileReader &covReader);
+    void updateSNPcond(int study, bool flip, int adjust, String &chr_pos, StringArray &tokens, SummaryFileReader &covReader);
+    void UpdateHetCondStats(int study, bool flip, int adjust, String &chr_pos, StringArray &tokens, SummaryFileReader &covReader);
 
     void setPooledAF();
 
