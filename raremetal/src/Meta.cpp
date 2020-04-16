@@ -1201,11 +1201,11 @@ void Meta::openMetaFiles()
         {
             error("There are %d summary files and %d covariance files. Please check to make sure the same number of files are included in the list.\n");
         }
-    } else if (!Burden || !MB || !VTa || !SKAT)
-    {
-        error("Covariance files are essential to do gene-level tests. Pleaes ues --covFiles your.list.of.cov.files option.\n");
     }
-
+    else if (Burden || MB || VTa || SKAT)
+    {
+        error("Covariance files are essential to do gene-level tests. Please use --covFiles your.list.of.cov.files option.\n");
+    }
 }
 
 
