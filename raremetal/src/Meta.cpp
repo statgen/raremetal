@@ -1640,7 +1640,7 @@ void Meta::UpdateStats(int study, String &markerName, double stat, double vstat,
     }
 }
 
-void Meta::UpdateHetStats(int study, String &markerName, double stat, double vstat, bool flip)
+void Meta::UpdateHetStats(int study, String &markerName, double stat, double sqrt_v, bool flip)
 {
   double flip_factor = 1.0;
   if (flip) {
@@ -1653,9 +1653,10 @@ void Meta::UpdateHetStats(int study, String &markerName, double stat, double vst
   double v_meta = SNP_Vstat.Double(markerName);
 
   // Calculate het statistic
-  double z = stat / sqrt(vstat);
-  double ez = u_meta / sqrt(v_meta);
-  double het = (z - ez) * (z - ez) / vstat;
+  double v = sqrt_v * sqrt_v;
+  double z = stat / v;
+  double e = u_meta / v_meta;
+  double het = (z - e) * (z - e) * v;
 
   // Add het stat onto running total
   int stat_idx = SNP_heterog_stat.Find(markerName);
@@ -1697,9 +1698,9 @@ void Meta::UpdateHetCondStats(int study, bool flip, int adjust, String &markerNa
   double cond_v = v * v - cond_v_part;
 
   // Calculate het statistic
-  double z = cond_u / sqrt(cond_v);
-  double ez = u_meta / sqrt(v_meta);
-  double het = (z - ez) * (z - ez) / cond_v;
+  double z = cond_u / cond_v;
+  double e = u_meta / v_meta;
+  double het = (z - e) * (z - e) * cond_v;
 
   // Add het stat onto running total
   int stat_idx = SNP_heterog_cond_stat.Find(markerName);
