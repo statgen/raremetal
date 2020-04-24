@@ -26,60 +26,59 @@
 #include <iterator>
 #include <math.h> // pow, abs
 
-String Meta::summaryFiles = "";
-String Meta::covFiles = "";
-String Meta::popfile_name = "";
-String Meta::prefix = "";
-bool Meta::correctGC = false;
-bool Meta::Burden = false;
-bool Meta::MB = false;
-bool Meta::MAB = false;
-bool Meta::BBeta = false;
-bool Meta::SKAT = false;
-//bool Meta::SKATO = false;
-bool Meta::VTa = false;
-bool Meta::outvcf = false;
-bool Meta::fullResult = false;
-bool Meta::report = false;
-double  Meta::report_pvalue_cutoff = 1e-06;
-bool Meta::founderAF = false;
-double Meta::HWE = 1e-05;
-double Meta::CALLRATE = 0.95;
-double Meta::MAF_cutoff = 0.05;
-int Meta::marker_col = 2;
-int Meta::cov_col = 3;
-bool Meta::altMAF = false;
-bool Meta::tabix = false;
-bool Meta::dosage = false;
-bool Meta::RegionStatus = false;
-String Meta::Region = "";
-String Meta::cond = "";
-String Meta::Chr = "";
-int Meta::Start = -1;
-int Meta::End = -1;
-bool Meta::useExactMetaMethod = false; // use Jingjing's exact method
-bool Meta::normPop = false; // correct for population stratification
-bool Meta::simplifyCovLoad = false; // only load cov matrix between selected marker for group test
-bool Meta::relateBinary = false;
-bool Meta::debug = false; // show debug info & debug output
-bool Meta::matchOnly = false; // only use matched SNP in 1000G
-bool Meta::matchByAbs = false; // use min abs to calculate dist
-double Meta::matchDist = 0; // in --normPop, exclude variants with dist > matchDist
-double Meta::minMatchMAF = 0; // MAF threshold for adjustment
-double Meta::maxMatchMAF = 1;
-//bool Meta::noAdjustUnmatch = false; // do not adjust f~tilda for variants that do not match 1000G
-String Meta::dosageOptionFile = "";
-bool Meta::sumCaseAC = false;
-bool Meta::bHeterogeneity = false;
-
-Meta::Meta(FILE *plog)
-{
-    log = plog;
-    Nsamples = -1;
+Meta::Meta() {
+  summaryFiles = "";
+  covFiles = "";
+  popfile_name = "";
+  prefix = "";
+  correctGC = false;
+  Burden = false;
+  MB = false;
+  MAB = false;
+  BBeta = false;
+  SKAT = false;
+  VTa = false;
+  outvcf = false;
+  fullResult = false;
+  report = false;
+   report_pvalue_cutoff = 1e-06;
+  founderAF = false;
+  HWE = 1e-05;
+  CALLRATE = 0.95;
+  MAF_cutoff = 0.05;
+  marker_col = 2;
+  cov_col = 3;
+  altMAF = false;
+  tabix = false;
+  dosage = false;
+  RegionStatus = false;
+  Region = "";
+  cond = "";
+  Chr = "";
+  Start = -1;
+  End = -1;
+  useExactMetaMethod = false; // use Jingjing's exact method
+  normPop = false; // correct for population stratification
+  simplifyCovLoad = false; // only load cov matrix between selected marker for group test
+  relateBinary = false;
+  debug = false; // show debug info & debug output
+  matchOnly = false; // only use matched SNP in 1000G
+  matchByAbs = false; // use min abs to calculate dist
+  matchDist = 0; // in --normPop, exclude variants with dist > matchDist
+  minMatchMAF = 0; // MAF threshold for adjustment
+  maxMatchMAF = 1;
+  dosageOptionFile = "";
+  sumCaseAC = false;
+  bHeterogeneity = false;
+  log = nullptr;
+  Nsamples = -1;
 }
 
-Meta::~Meta()
-{}
+Meta::~Meta() {}
+
+void Meta::setLogFile(FILE *plog) {
+  log = plog;
+}
 
 //This function read all study names from a file
 //and save the names in the StringArray files
@@ -612,6 +611,8 @@ void Meta::PoolSummaryStat(GroupFromAnnotation &group)
         //read in summary statistics.
         //maf and summary stat are saved. SNPpos in the file are hashed.
         SummaryFileReader covReader;
+        covReader.marker_col = this->marker_col;
+        covReader.cov_col = this->cov_col;
         if (cond != "" && cond_status[study])
         {
             String covFilename = covfile[study];
@@ -724,6 +725,8 @@ void Meta::PoolSummaryStat(GroupFromAnnotation &group)
       printf("\nRe-processing studies for heterogeneity analysis ...\n");
       for (int study = 0; study < scorefile.Length(); study++) {
         SummaryFileReader covReader;
+        covReader.marker_col = this->marker_col;
+        covReader.cov_col = this->cov_col;
 
         // We only need the covariance matrix here if conditional analysis was requested.
         if (cond != "" && cond_status[study]) {
@@ -1174,7 +1177,7 @@ void Meta::openMetaFiles()
         ifclose(inFile);
     } else
     {
-        error("FATAL ERROR! --studyName can not be empty! Usage: --summaryFiles your.list.of.summary.files\n");
+        error("FATAL ERROR! --summaryFiles can not be empty! Usage: --summaryFiles your.list.of.summary.files\n");
     }
 
     // cov file
@@ -1278,6 +1281,11 @@ bool Meta::setCondMarkers()
     for (int s = 0; s < scorefile.Length(); s++)
     {
         SummaryFileReader statReader, covReader;
+        statReader.marker_col = this->marker_col;
+        statReader.cov_col = this->cov_col;
+        covReader.marker_col = this->marker_col;
+        covReader.cov_col = this->cov_col;
+
         String filename = scorefile[s];
         String covFilename = covfile[s];
 
@@ -3011,6 +3019,9 @@ void Meta::loadSingleCovInGroup(GroupFromAnnotation &group)
     for (int study = 0; study < covfile.Length(); study++)
     {
         SummaryFileReader covReader;
+        covReader.marker_col = this->marker_col;
+        covReader.cov_col = this->cov_col;
+
         String covFilename = covfile[study];
         setFromRvOrRmwAdjust(FormatAdjust[study], marker_col, cov_col);
         printf("Reading cov matrix from study %d ...\n", study + 1);

@@ -17,58 +17,55 @@
 class Meta
 {
 public:
-    explicit Meta(FILE *plog);
-
+    Meta();
     ~Meta();
 
     //Input/Output options  
-    static String summaryFiles;
-    static String covFiles;
-    static String prefix;
-    static String cond;
-    static bool correctGC;
-    static bool outvcf;
-    static bool tabix;
-    static bool Burden;
-    static bool MB;
-    static bool MAB;
-    static bool BBeta;
-    static bool SKAT;
-//	static bool SKATO;
-    static bool VTa;
-    static bool report;
-    static bool fullResult;
-    static bool founderAF;
-    static bool dosage;
-    static double CALLRATE;
-    static double report_pvalue_cutoff;
-    static double MAF_cutoff;
-    static double HWE;
-    static int marker_col;
-    static int cov_col;
-    static bool altMAF; // if TRUE, exclude size of studies that do not contain that variant
-    static bool RegionStatus; // if TRUE, restrict gene-based test to the specified region
-    static String Region; // raw region option
-    static String Chr;
-    static int Start;
-    static int End; // 3 variables to define region
+    String summaryFiles;
+    String covFiles;
+    String prefix;
+    String cond;
+    bool correctGC;
+    bool outvcf;
+    bool tabix;
+    bool Burden;
+    bool MB;
+    bool MAB;
+    bool BBeta;
+    bool SKAT;
+    bool VTa;
+    bool report;
+    bool fullResult;
+    bool founderAF;
+    bool dosage;
+    double CALLRATE;
+    double report_pvalue_cutoff;
+    double MAF_cutoff;
+    double HWE;
+    int marker_col;
+    int cov_col;
+    bool altMAF; // if TRUE, exclude size of studies that do not contain that variant
+    bool RegionStatus; // if TRUE, restrict gene-based test to the specified region
+    String Region; // raw region option
+    String Chr;
+    int Start;
+    int End; // 3 variables to define region
     FILE *log;
 
-    static bool useExactMetaMethod;
-    static bool normPop;
-    static String popfile_name;
-    static bool simplifyCovLoad;
-    static bool relateBinary;
-    static bool debug;
-    static bool matchOnly;
-    static bool matchByAbs;
-    static double matchDist;
-    static double minMatchMAF; // MAF threshold for adjustment
-    static double maxMatchMAF;
-    static String dosageOptionFile;
-    static bool sumCaseAC;
-//	static bool noAdjustUnmatch;
-    static bool bHeterogeneity;
+    bool useExactMetaMethod;
+    bool normPop;
+    String popfile_name;
+    bool simplifyCovLoad;
+    bool relateBinary;
+    bool debug;
+    bool matchOnly;
+    bool matchByAbs;
+    double matchDist;
+    double minMatchMAF; // MAF threshold for adjustment
+    double maxMatchMAF;
+    String dosageOptionFile;
+    bool sumCaseAC;
+    bool bHeterogeneity;
 
     //saved single variant information from pooled studies
     StringArray scorefile;
@@ -191,6 +188,8 @@ public:
     void setMetaStatics();
 
     void openMetaFiles();
+
+    void setLogFile(FILE *plog);
 
     void prepareConditionalAnalysis();
 
