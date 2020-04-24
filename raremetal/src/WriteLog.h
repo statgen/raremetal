@@ -21,8 +21,9 @@
 #include <stdio.h>
 #include "StringBasics.h"
 #include "Meta.h"
+#include "GroupFromAnnotation.h"
 
-void WriteLog(Meta &meta, FILE *log)
+void WriteLog(Meta &meta, GroupFromAnnotation &group, FILE *log)
 {
     fprintf(log, "The following parameters are in effect:\n\n");
     fprintf(log, "List of Studies:\n");
@@ -34,9 +35,9 @@ void WriteLog(Meta &meta, FILE *log)
 //   fprintf(log, "--useExact [%s]\n", meta.useExactMetaMethod? "true":"false");
     fprintf(log, "\nGrouping Methods:\n");
     fprintf(log, "============================\n");
-    fprintf(log, "--groupFile [%s]\n", GroupFromAnnotation::groupFile.c_str());
-    fprintf(log, "--annotatedVcf [%s]\n", GroupFromAnnotation::vcfInput.c_str());
-    fprintf(log, "--annotation [%s]\n", GroupFromAnnotation::function.c_str());
+    fprintf(log, "--groupFile [%s]\n", group.groupFile.c_str());
+    fprintf(log, "--annotatedVcf [%s]\n", group.vcfInput.c_str());
+    fprintf(log, "--annotation [%s]\n", group.function.c_str());
     fprintf(log, "--writeVcf [%s]\n", meta.outvcf ? "ON" : "OFF");
     fprintf(log, "\nQC Options:\n");
     fprintf(log, "============================\n");

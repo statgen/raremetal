@@ -33,15 +33,16 @@ int main(int argc, char *argv[])
     time_t initialTime = time(0);
 
     Meta meta;
+    GroupFromAnnotation group;
 
     BEGIN_LONG_PARAMETERS(additional)
         LONG_PARAMETER_GROUP("List of Studies")
             LONG_STRINGPARAMETER("summaryFiles", &meta.summaryFiles)
             LONG_STRINGPARAMETER("covFiles", &meta.covFiles)
         LONG_PARAMETER_GROUP("Grouping Methods")
-            LONG_STRINGPARAMETER("groupFile", &GroupFromAnnotation::groupFile)
-            LONG_STRINGPARAMETER("annotatedVcf", &GroupFromAnnotation::vcfInput)
-            LONG_STRINGPARAMETER("annotation", &GroupFromAnnotation::function)
+            LONG_STRINGPARAMETER("groupFile", &group.groupFile)
+            LONG_STRINGPARAMETER("annotatedVcf", &group.vcfInput)
+            LONG_STRINGPARAMETER("annotation", &group.function)
             LONG_PARAMETER("writeVcf", &meta.outvcf)
         LONG_PARAMETER_GROUP("QC Options")
             LONG_DOUBLEPARAMETER("hwe", &meta.HWE)
@@ -58,11 +59,11 @@ int main(int argc, char *argv[])
             //LONG_PARAMETER("permute", &meta.VTp)
         LONG_PARAMETER_GROUP("Other Options")
             //LONG_PARAMETER("tabix", &meta.tabix)
-            LONG_PARAMETER("labelHits", &GroupFromAnnotation::labelHits)
-            LONG_STRINGPARAMETER("geneMap", &GroupFromAnnotation::mapFile)
+            LONG_PARAMETER("labelHits", &group.labelHits)
+            LONG_STRINGPARAMETER("geneMap", &group.mapFile)
             LONG_PARAMETER("correctGC", &meta.correctGC)
             LONG_STRINGPARAMETER("prefix", &meta.prefix)
-            //LONG_STRINGPARAMETER("mapFile", &GroupFromAnnotation::mapFile)
+            //LONG_STRINGPARAMETER("mapFile", &group.mapFile)
             LONG_DOUBLEPARAMETER("maf", &meta.MAF_cutoff)
             LONG_PARAMETER("longOutput", &meta.fullResult)
             //LONG_PARAMETER("founderAF", &meta.founderAF)
@@ -128,7 +129,7 @@ int main(int argc, char *argv[])
 
     logFile = freopen(filename, "wt", stderr);
     meta.setLogFile(logFile);
-    WriteLog(meta, logFile);
+    WriteLog(meta, group, logFile);
 
     time_t now;
     time(&now);
@@ -139,11 +140,9 @@ int main(int argc, char *argv[])
       error("--summaryFiles can not be empty.\n");
     }
 
-    GroupFromAnnotation group;
-
-    if (GroupFromAnnotation::groupFile != "" && GroupFromAnnotation::vcfInput != "") {
+    if (group.groupFile != "" && group.vcfInput != "") {
       printf("Warning: you have entered both groupfile and annotated VCF file. Groups will be read from the group file only.\n");
-      GroupFromAnnotation::vcfInput = "";
+      group.vcfInput = "";
     }
 
     try {
