@@ -51,6 +51,7 @@ public:
     int Start;
     int End; // 3 variables to define region
     FILE *log;
+    bool skipOutput;
 
     bool useExactMetaMethod;
     bool normPop;

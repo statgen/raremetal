@@ -71,6 +71,7 @@ Meta::Meta() {
   sumCaseAC = false;
   bHeterogeneity = false;
   log = nullptr;
+  skipOutput = false;
   Nsamples = -1;
 }
 
@@ -771,40 +772,38 @@ void Meta::PoolSummaryStat(GroupFromAnnotation &group)
 
     printf("\nPerforming Single variant meta analysis ...\n");
 
-    //calculate final results here
-    IFILE output;
-    String filename;
-    IFILE vcfout;
-    String vcf_filename;
-    printSingleMetaHeader(filename, output);
-    if (outvcf)
-    {
+    if (!skipOutput) {
+      //calculate final results here
+      IFILE output;
+      String filename;
+      IFILE vcfout;
+      String vcf_filename;
+      printSingleMetaHeader(filename, output);
+      if (outvcf) {
         printOutVcfHeader(vcf_filename, vcfout);
-    }
+      }
 
-    //for annotation purpose
-    target_chr = "";
-    target_pos = 0, target = 0;
-    target_pvalue = _NAN_;
-    //Sort variants by chr and pos
-    for (int i = 0; i < SNPmaf_maf.Length(); i++)
-    {
+      //for annotation purpose
+      target_chr = "";
+      target_pos = 0, target = 0;
+      target_pvalue = _NAN_;
+      //Sort variants by chr and pos
+      for (int i = 0; i < SNPmaf_maf.Length(); i++) {
         printSingleMetaVariant(group, i, output, vcfout);
-    }
+      }
 
-    plotSingleMetaGC(output, 1);
-    if (cond != "")
-    {
+      plotSingleMetaGC(output, 1);
+      if (cond != "") {
         plotSingleMetaGC(output, 0);
-    }
-    printf("\n  done.\n\n");
+      }
+      printf("\n  done.\n\n");
 
-    ifclose(output);
-    if (outvcf)
-    {
+      ifclose(output);
+      if (outvcf) {
         ifclose(vcfout);
         printf("\n  VCF file based on superset of variants from pooled studies has been saved \n    %s\n",
                vcf_filename.c_str());
+      }
     }
 }
 
