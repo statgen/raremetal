@@ -14,6 +14,8 @@
 
 #include <map>
 
+const double LN_10 = log(10);
+
 class Meta
 {
 public:
@@ -308,6 +310,45 @@ public:
     void updateSingleVariantGroupStatsNewFormat(GroupFromAnnotation &group, int study, int g, Matrix &cov_i, Matrix &GX,
                                                 StringArray &chr, StringArray &pos, int loc, int m, int gvar_count,
                                                 double multiplyFactor);
+};
+
+struct SingleVariantResult {
+  double u, v, n;
+  double chisq;
+  double pvalue;
+  double log_pvalue; // -log10(pvalue)
+  double effSize;
+  bool disect;
+  double h2;
+  double effSize_se;
+
+  SingleVariantResult() {}
+
+  SingleVariantResult(double u, double v, double n) {
+    setStats(u, v, n);
+    calculate();
+  }
+
+  void setStats(double u, double v, double n) {
+    this->u = u;
+    this->v = v;
+    this->n = n;
+  }
+
+  void calculate() {
+    chisq = u * u / v;
+    pvalue = pchisq(chisq, 1, 0, 0);
+    log_pvalue = -pchisq(chisq, 1, 0, 1) / LN_10;
+    effSize = u / v;
+    h2 = v * effSize * effSize / n;
+    effSize_se = 1.0 / sqrt(v);
+
+    while (pvalue == 0.0) {
+      disect = true;
+      chisq *= 0.999;
+      pvalue = pchisq(chisq, 1, 0, 0);
+    }
+  }
 };
 
 #endif

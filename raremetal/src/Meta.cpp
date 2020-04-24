@@ -2624,87 +2624,61 @@ void Meta::printSingleMetaVariant(GroupFromAnnotation &group, int i, IFILE &outp
         return;
     }
 
-    double chisq = U * U / V;
-//printf("U=%g,V=%g,chisq=%g\n",U,V,chisq);
-    //chisq_before_GC.Push(chisq);
-    double pvalue = pchisq(chisq, 1, 0, 0);
-    double effSize = U / V;
-    double cond_pvalue = _NAN_, cond_effSize = _NAN_;
-    bool disect = false;
-    double h2 = V * effSize * effSize / N;
-    double effSize_se = 1.0 / sqrt(V);
+    SingleVariantResult result(U, V, N);
 
-    // FIXME: Revisit handling of very small pvalues
-    while (pvalue == 0.0)
-    {
-        disect = true;
-        chisq *= 0.999;
-        pvalue = pchisq(chisq, 1, 0, 0);
-    }
+    singleVarPvalue.SetDouble(SNPname, result.pvalue);
+    singleVarEff.SetDouble(SNPname, result.effSize);
 
-    singleVarPvalue.SetDouble(SNPname, pvalue);
-    singleVarEff.SetDouble(SNPname, effSize);
-
-    pvalueAll.Push(pvalue);
+    pvalueAll.Push(result.pvalue);
     if (maf < 0.01)
     {
-        pvalue1.Push(pvalue);
+        pvalue1.Push(result.pvalue);
         pvalue1_idx.Push(pvalueAll.Length() - 1);
     }
     if (maf < 0.05)
     {
-        pvalue5.Push(pvalue);
+        pvalue5.Push(result.pvalue);
         pvalue5_idx.Push(pvalueAll.Length() - 1);
     }
     chr_plot.Push(tmp[0]);
     pos_plot.Push(tmp[1].AsInteger());
 
+    SingleVariantResult cond_result;
     if (cond != "")
     { // print conditional analysis results
-        bool cond_disect = false;
-        double cond_U, cond_V, chisq;
-        double cond_h2 = _NAN_;
-        double cond_effSize_se = _NAN_;
+        double cond_U, cond_V;
+
         if (conditionVar.Integer(SNPname_noallele) == -1)
         {
             cond_U = SNPstat_cond.Double(SNPname_noallele);
             cond_V = SNP_Vstat_cond.Double(SNPname_noallele);
-            chisq = cond_U * cond_U / cond_V;
-            cond_pvalue = pchisq(chisq, 1, 0, 0);
-            cond_effSize = cond_U / cond_V;
-            while (cond_pvalue == 0.0)
-            {
-                disect = true;
-                chisq *= 0.999;
-                cond_pvalue = pchisq(chisq, 1, 0, 0);
-            }
-            cond_h2 = cond_V * cond_effSize * cond_effSize / N;
-            cond_effSize_se = 1.0 / sqrt(cond_V);
+            cond_result.setStats(cond_U, cond_V, N);
+            cond_result.calculate();
         } else
         {
-            cond_effSize = 0.0;
-            cond_pvalue = 1.0;
-            cond_h2 = 0.0;
-            cond_effSize_se = 0.0;
+            cond_result.effSize = 0.0;
+            cond_result.pvalue = 1.0;
+            cond_result.h2 = 0.0;
+            cond_result.effSize_se = 0.0;
         }
         ifprintf(output, "%s\t%s\t%s\t%s\t%d\t%g\t%s\t%g\t%g\t%g\t%s%g\t%g\t%g\t%g\t%s%g", tmp[0].c_str(),
-                 tmp[1].c_str(), tmp[2].c_str(), tmp[3].c_str(), N, maf, direction.c_str(), effSize, effSize_se, h2,
-                 disect ? "<" : "", pvalue, cond_effSize, cond_effSize_se, cond_h2, cond_disect ? "<" : "",
-                 cond_pvalue);
+                 tmp[1].c_str(), tmp[2].c_str(), tmp[3].c_str(), N, maf, direction.c_str(), result.effSize, result.effSize_se, result.h2,
+                 result.disect ? "<" : "", result.pvalue, cond_result.effSize, cond_result.effSize_se, cond_result.h2, cond_result.disect ? "<" : "",
+                 cond_result.pvalue);
 
-        pvalueAll_cond.Push(cond_pvalue);
+        pvalueAll_cond.Push(cond_result.pvalue);
         if (maf < 0.01)
         {
-            pvalue1_cond.Push(cond_pvalue);
+            pvalue1_cond.Push(cond_result.pvalue);
         }
         if (maf < 0.05)
         {
-            pvalue5_cond.Push(cond_pvalue);
+            pvalue5_cond.Push(cond_result.pvalue);
         }
     } else
     {
         ifprintf(output, "%s\t%s\t%s\t%s\t%d\t%g\t%s\t%g\t%g\t%g\t%s%g", tmp[0].c_str(), tmp[1].c_str(), tmp[2].c_str(),
-                 tmp[3].c_str(), N, maf, direction.c_str(), effSize, effSize_se, h2, disect ? "<" : "", pvalue);
+                 tmp[3].c_str(), N, maf, direction.c_str(), result.effSize, result.effSize_se, result.h2, result.disect ? "<" : "", result.pvalue);
     }
 
     if (sumCaseAC)
@@ -2745,7 +2719,7 @@ void Meta::printSingleMetaVariant(GroupFromAnnotation &group, int i, IFILE &outp
     // annotation if needed
     if (group.labelHits)
     {
-        annotateSingleVariantToGene(group, pvalue, cond_pvalue, tmp);
+        annotateSingleVariantToGene(group, result.pvalue, cond_result.pvalue, tmp);
     }
 }
 
