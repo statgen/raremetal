@@ -1146,6 +1146,64 @@ void Meta::setMetaStatics()
 }
 
 
+void Meta::parseScoreFiles() {
+  // summary file
+  if (summaryFiles != "")
+  {
+    IFILE inFile = ifopen(summaryFiles, "r");
+    if (inFile == NULL)
+    {
+      error("FATAL ERROR! Please check file name for --summaryFiles  %s\n", summaryFiles.c_str());
+    }
+    String buffer;
+    while (!ifeof(inFile))
+    {
+      buffer.ReadLine(inFile);
+      if (buffer.FindChar('#') != -1)
+      {
+        continue;
+      }
+      scorefile.AddTokens(buffer, "\n");
+    }
+    ifclose(inFile);
+  } else
+  {
+    error("FATAL ERROR! --summaryFiles can not be empty! Usage: --summaryFiles your.list.of.summary.files\n");
+  }
+}
+
+void Meta::parseCovFiles() {
+  // cov file
+  if (covFiles != "")
+  {
+    IFILE inFile = ifopen(covFiles, "r");
+    if (inFile == NULL)
+    {
+      error("Cannot open file %s\n", covFiles.c_str());
+    }
+    String buffer;
+    while (!ifeof(inFile))
+    {
+      buffer.ReadLine(inFile);
+      if (buffer.FindChar('#') != -1)
+      {
+        continue;
+      }
+      covfile.AddTokens(buffer, "\n");
+    }
+    ifclose(inFile);
+    //check if summary files and cov files have the same length
+    if (scorefile.Length() != covfile.Length())
+    {
+      error("There are %d summary files and %d covariance files. Please check to make sure the same number of files are included in the list.\n");
+    }
+  }
+  else if (Burden || MB || VTa || SKAT)
+  {
+    error("Covariance files are essential to do gene-level tests. Please use --covFiles your.list.of.cov.files option.\n");
+  }
+}
+
 /**
  * open pdf
  * load list of summary files
@@ -1154,60 +1212,8 @@ void Meta::setMetaStatics()
 void Meta::openMetaFiles()
 {
     pdf.OpenFile(pdf_filename);
-
-    // summary file
-    if (summaryFiles != "")
-    {
-        IFILE inFile = ifopen(summaryFiles, "r");
-        if (inFile == NULL)
-        {
-            error("FATAL ERROR! Please check file name for --summaryFiles  %s\n", summaryFiles.c_str());
-        }
-        String buffer;
-        while (!ifeof(inFile))
-        {
-            buffer.ReadLine(inFile);
-            if (buffer.FindChar('#') != -1)
-            {
-                continue;
-            }
-            scorefile.AddTokens(buffer, "\n");
-        }
-        ifclose(inFile);
-    } else
-    {
-        error("FATAL ERROR! --summaryFiles can not be empty! Usage: --summaryFiles your.list.of.summary.files\n");
-    }
-
-    // cov file
-    if (covFiles != "")
-    {
-        IFILE inFile = ifopen(covFiles, "r");
-        if (inFile == NULL)
-        {
-            error("Cannot open file %s\n", covFiles.c_str());
-        }
-        String buffer;
-        while (!ifeof(inFile))
-        {
-            buffer.ReadLine(inFile);
-            if (buffer.FindChar('#') != -1)
-            {
-                continue;
-            }
-            covfile.AddTokens(buffer, "\n");
-        }
-        ifclose(inFile);
-        //check if summary files and cov files have the same length
-        if (scorefile.Length() != covfile.Length())
-        {
-            error("There are %d summary files and %d covariance files. Please check to make sure the same number of files are included in the list.\n");
-        }
-    }
-    else if (Burden || MB || VTa || SKAT)
-    {
-        error("Covariance files are essential to do gene-level tests. Please use --covFiles your.list.of.cov.files option.\n");
-    }
+    parseScoreFiles();
+    parseCovFiles();
 }
 
 

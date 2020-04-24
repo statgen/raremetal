@@ -189,6 +189,8 @@ public:
     void setMetaStatics();
 
     void openMetaFiles();
+    void parseScoreFiles();
+    void parseCovFiles();
 
     void setLogFile(FILE *plog);
 
