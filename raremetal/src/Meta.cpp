@@ -1653,6 +1653,14 @@ void Meta::UpdateStats(int study, String &markerName, double stat, double vstat,
     }
 }
 
+/**
+ * Update heterogeneity statistic for a particular variant given the score statistic and variance from a particular study.
+ * @param study
+ * @param markerName Variant in chr:pos format :(
+ * @param stat Variant score statistic
+ * @param sqrt_v Variance of score statistic
+ * @param flip Whether the score statistic should be flipped because effect allele did not match the first analyzed study's effect allele
+ */
 void Meta::UpdateHetStats(int study, String &markerName, double stat, double sqrt_v, bool flip)
 {
   double flip_factor = 1.0;
@@ -1741,6 +1749,8 @@ void Meta::UpdateHetCondStats(int study, bool flip, int adjust, String &markerNa
  *
  * This function adds its individual contribution to the running total for the heterogeneity statistic for this variant
  * over all studies.
+ *
+ * See https://git.io/JfLSM in METAL.
  *
  * @param study integer representing the study (index into the summaryFiles array of summary statistic files)
  * @param adjust bool representing whether to shift columns left by 1 depending on RAREMETAL or rvtest format
@@ -2693,6 +2703,10 @@ void Meta::printSingleMetaVariant(GroupFromAnnotation &group, int i, IFILE &outp
     }
 
     if (bHeterogeneity) {
+      /**
+       * Calculate heterogeneity p-value and I2 statistic.
+       * See https://git.io/JfLS9 in METAL.
+       */
       double het_stat = SNP_heterog_stat.Double(SNPname_noallele);
       int het_df = SNP_heterog_df.Integer(SNPname_noallele);
       double I2 = (het_stat <= het_df - 1) || (het_df <= 1) ? 0.0 : (het_stat - het_df + 1) / het_stat * 100.0;
