@@ -2492,10 +2492,12 @@ void Meta::printSingleMetaHeader(String &filename, IFILE &output)
     ifprintf(output, "##STUDY_NUM=%d\n", scorefile.Length());
     ifprintf(output, "##TotalSampleSize=%d\n", total_N);
 
-    String header = "#CHROM\tPOS\tREF\tALT\tN\tPOOLED_ALT_AF\tDIRECTION_BY_STUDY\tEFFECT_SIZE\tEFFECT_SIZE_SD\tH2\tPVALUE";
+    String header = "#CHROM\tPOS\tREF\tALT\tN\tPOOLED_ALT_AF\tDIRECTION_BY_STUDY\tEFFECT_SIZE\tEFFECT_SIZE_SD\tH2";
+    header += logP ? "\tLOG_PVALUE" : "\tPVALUE";
 
     if (cond != "") {
       header += "\tCOND_EFFSIZE\tCOND_EFFSIZE_SD\tCOND_H2\tCOND_PVALUE";
+      header += logP ? "\tCOND_LOG_PVALUE" : "\tCOND_PVALUE";
     }
 
     if (sumCaseAC) {
@@ -2673,8 +2675,8 @@ void Meta::printSingleMetaVariant(GroupFromAnnotation &group, int i, IFILE &outp
         }
         ifprintf(output, "%s\t%s\t%s\t%s\t%d\t%g\t%s\t%g\t%g\t%g\t%s%g\t%g\t%g\t%g\t%s%g", tmp[0].c_str(),
                  tmp[1].c_str(), tmp[2].c_str(), tmp[3].c_str(), N, maf, direction.c_str(), result.effSize, result.effSize_se, result.h2,
-                 result.disect ? "<" : "", result.pvalue, cond_result.effSize, cond_result.effSize_se, cond_result.h2, cond_result.disect ? "<" : "",
-                 cond_result.pvalue);
+                 result.disect ? "<" : "", logP ? result.log_pvalue : result.pvalue, cond_result.effSize, cond_result.effSize_se, cond_result.h2, cond_result.disect ? "<" : "",
+                 logP ? cond_result.log_pvalue : cond_result.pvalue);
 
         pvalueAll_cond.Push(cond_result.pvalue);
         if (maf < 0.01)
@@ -2688,7 +2690,7 @@ void Meta::printSingleMetaVariant(GroupFromAnnotation &group, int i, IFILE &outp
     } else
     {
         ifprintf(output, "%s\t%s\t%s\t%s\t%d\t%g\t%s\t%g\t%g\t%g\t%s%g", tmp[0].c_str(), tmp[1].c_str(), tmp[2].c_str(),
-                 tmp[3].c_str(), N, maf, direction.c_str(), result.effSize, result.effSize_se, result.h2, result.disect ? "<" : "", result.pvalue);
+                 tmp[3].c_str(), N, maf, direction.c_str(), result.effSize, result.effSize_se, result.h2, result.disect ? "<" : "", logP ? result.log_pvalue : result.pvalue);
     }
 
     if (sumCaseAC)

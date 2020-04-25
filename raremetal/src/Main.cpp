@@ -87,6 +87,7 @@ int main(int argc, char *argv[])
             LONG_STRINGPARAMETER("dosageOptionFile", &meta.dosageOptionFile)
             LONG_PARAMETER("sumCaseAC", &meta.sumCaseAC)
             LONG_PARAMETER("heterogeneity", &meta.bHeterogeneity)
+            LONG_PARAMETER("logPvalue", &meta.logP)
         LONG_PHONEHOME(VERSION)
     END_LONG_PARAMETERS();
 

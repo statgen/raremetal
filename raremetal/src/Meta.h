@@ -69,6 +69,7 @@ public:
     String dosageOptionFile;
     bool sumCaseAC;
     bool bHeterogeneity;
+    bool logP; // write p-values in -log10 scale
 
     //saved single variant information from pooled studies
     StringArray scorefile;
