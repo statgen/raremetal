@@ -2505,11 +2505,13 @@ void Meta::printSingleMetaHeader(String &filename, IFILE &output)
     }
 
     if (bHeterogeneity) {
-      header += "\tHET_I2\tHET_CHISQ\tHET_PVALUE";
+      header += "\tHET_I2\tHET_CHISQ";
+      header += logP ? "\tHET_LOG_PVALUE" : "\tHET_PVALUE";
     }
 
     if (bHeterogeneity && cond != "") {
-      header += "\tHET_COND_I2\tHET_COND_CHISQ\tHET_COND_PVALUE";
+      header += "\tHET_COND_I2\tHET_COND_CHISQ";
+      header += logP ? "\tHET_COND_LOG_PVALUE" : "\tHET_COND_PVALUE";
     }
 
     ifprintf(output, header.c_str());
@@ -2712,16 +2714,32 @@ void Meta::printSingleMetaVariant(GroupFromAnnotation &group, int i, IFILE &outp
       double het_stat = SNP_heterog_stat.Double(SNPname_noallele);
       int het_df = SNP_heterog_df.Integer(SNPname_noallele);
       double I2 = (het_stat <= het_df - 1) || (het_df <= 1) ? 0.0 : (het_stat - het_df + 1) / het_stat * 100.0;
-      double het_pval = (het_stat < 1e-7) || (het_df <= 1) ? 1.0 : pchisq(het_stat, het_df - 1, 0, 0);
+
+      double het_pval;
+      if (logP) {
+        het_pval = (het_stat < 1e-7) || (het_df <= 1) ? 0.0 : -pchisq(het_stat, het_df - 1, 0, 1) / LN_10;
+      }
+      else {
+        het_pval = (het_stat < 1e-7) || (het_df <= 1) ? 1.0 : pchisq(het_stat, het_df - 1, 0, 0);
+      }
+
       ifprintf(output, "\t%g\t%g\t%g", I2, het_stat, het_pval);
     }
 
     if (bHeterogeneity && cond != "") {
       double cond_het_stat = SNP_heterog_cond_stat.Double(SNPname_noallele);
       int cond_het_df = SNP_heterog_cond_df.Integer(SNPname_noallele);
-      double I2 = (cond_het_stat <= cond_het_df - 1) || (cond_het_df <= 1) ? 0.0 : (cond_het_stat - cond_het_df + 1) / cond_het_stat * 100.0;
-      double het_pval = (cond_het_stat < 1e-7) || (cond_het_df <= 1) ? 1.0 : pchisq(cond_het_stat, cond_het_df - 1, 0, 0);
-      ifprintf(output, "\t%g\t%g\t%g", I2, cond_het_stat, het_pval);
+      double cond_I2 = (cond_het_stat <= cond_het_df - 1) || (cond_het_df <= 1) ? 0.0 : (cond_het_stat - cond_het_df + 1) / cond_het_stat * 100.0;
+
+      double cond_het_pval;
+      if (logP) {
+        cond_het_pval = (cond_het_stat < 1e-7) || (cond_het_df <= 1) ? 0.0 : -pchisq(cond_het_stat, cond_het_df - 1, 0, 1) / LN_10;
+      }
+      else {
+        cond_het_pval = (cond_het_stat < 1e-7) || (cond_het_df <= 1) ? 1.0 : pchisq(cond_het_stat, cond_het_df - 1, 0, 0);
+      }
+
+      ifprintf(output, "\t%g\t%g\t%g", cond_I2, cond_het_stat, cond_het_pval);
     }
 
     ifprintf(output, "\n");
