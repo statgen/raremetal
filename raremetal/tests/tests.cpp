@@ -10,7 +10,6 @@ TEST_CASE("P-value precision") {
     Meta meta;
 
     meta.setLogFile();
-    meta.skipOutput = true;
 
     meta.scorefile.Add("tests/raremetal/test_tut_rm/inputs/STUDY1.QT1.singlevar.score.txt.gz");
     meta.scorefile.Add("tests/raremetal/test_tut_rm/inputs/STUDY2.QT1.singlevar.score.txt.gz");
@@ -45,7 +44,6 @@ TEST_CASE("Heterogeneity statistics") {
     Meta meta;
 
     meta.setLogFile();
-    meta.skipOutput = true;
     meta.bHeterogeneity = true;
     meta.scorefile.Add("tests/datasets/simulated/heterog/study0_raremetal.txt.gz");
     meta.scorefile.Add("tests/datasets/simulated/heterog/study1_raremetal.txt.gz");
