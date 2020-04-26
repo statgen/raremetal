@@ -78,7 +78,23 @@ Meta::Meta() {
 Meta::~Meta() {}
 
 void Meta::setLogFile(FILE *plog) {
-  log = plog;
+  if (plog == nullptr) {
+    String filename;
+    if (prefix == "") {
+      filename = "raremetal.log";
+    }
+    else if (prefix.Last() == '.' || prefix.Last() == '/') {
+      filename = prefix + "raremetal.log";
+    }
+    else {
+      filename = prefix + ".raremetal.log";
+    }
+
+    log = freopen(filename, "wt", stderr);
+  }
+  else {
+    log = plog;
+  }
 }
 
 //This function read all study names from a file
@@ -769,42 +785,57 @@ void Meta::PoolSummaryStat(GroupFromAnnotation &group)
         ifclose(file);
       }
     }
+}
 
-    printf("\nPerforming Single variant meta analysis ...\n");
+void Meta::WriteSingleVariantResults(GroupFromAnnotation &group) {
+  printf("\nPerforming Single variant meta analysis ...\n");
 
-    if (!skipOutput) {
-      //calculate final results here
-      IFILE output;
-      String filename;
-      IFILE vcfout;
-      String vcf_filename;
-      printSingleMetaHeader(filename, output);
-      if (outvcf) {
-        printOutVcfHeader(vcf_filename, vcfout);
-      }
+  //calculate final results here
+  IFILE output;
+  String filename;
+  IFILE vcfout;
+  String vcf_filename;
 
-      //for annotation purpose
-      target_chr = "";
-      target_pos = 0, target = 0;
-      target_pvalue = _NAN_;
-      //Sort variants by chr and pos
-      for (int i = 0; i < SNPmaf_maf.Length(); i++) {
-        printSingleMetaVariant(group, i, output, vcfout);
-      }
+  if (prefix == "-") {
+    filename = "-";
+  }
+  else if (prefix == "") {
+    filename = "meta.singlevar.results";
+  }
+  else if (prefix.Last() == '.' || prefix.Last() == '/') {
+    filename = prefix + "meta.singlevar.results";
+  }
+  else {
+    filename = prefix + ".meta.singlevar.results";
+  }
 
-      plotSingleMetaGC(output, 1);
-      if (cond != "") {
-        plotSingleMetaGC(output, 0);
-      }
-      printf("\n  done.\n\n");
+  output = ifopen(filename, "w", InputFile::UNCOMPRESSED);
 
-      ifclose(output);
-      if (outvcf) {
-        ifclose(vcfout);
-        printf("\n  VCF file based on superset of variants from pooled studies has been saved \n    %s\n",
-               vcf_filename.c_str());
-      }
-    }
+  printSingleMetaHeader(filename, output);
+  if (outvcf) {
+    printOutVcfHeader(vcf_filename, vcfout);
+  }
+
+  //for annotation purpose
+  target_chr = "";
+  target_pos = 0, target = 0;
+  target_pvalue = _NAN_;
+  //Sort variants by chr and pos
+  for (int i = 0; i < SNPmaf_maf.Length(); i++) {
+    printSingleMetaVariant(group, i, output, vcfout);
+  }
+
+  plotSingleMetaGC(output, 1);
+  if (cond != "") {
+    plotSingleMetaGC(output, 0);
+  }
+  printf("\n  done.\n\n");
+
+  ifclose(output);
+  if (outvcf) {
+    ifclose(vcfout);
+    printf("\n  VCF file based on superset of variants from pooled studies has been saved \n    %s\n", vcf_filename.c_str());
+  }
 }
 
 void Meta::Run(GroupFromAnnotation &group)
@@ -2476,18 +2507,6 @@ void Meta::setPooledAF()
 
 void Meta::printSingleMetaHeader(String &filename, IFILE &output)
 {
-    if (prefix == "")
-    {
-        filename = "meta.singlevar.results";
-    } else if (prefix.Last() == '.' || prefix.Last() == '/')
-    {
-        filename = prefix + "meta.singlevar.results";
-    } else
-    {
-        filename = prefix + ".meta.singlevar.results";
-    }
-
-    output = ifopen(filename, "w", InputFile::UNCOMPRESSED);
     ifprintf(output, "##Method=SinglevarScore\n");
     ifprintf(output, "##STUDY_NUM=%d\n", scorefile.Length());
     ifprintf(output, "##TotalSampleSize=%d\n", total_N);

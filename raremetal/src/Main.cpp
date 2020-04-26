@@ -118,24 +118,13 @@ int main(int argc, char *argv[])
       error("Must provide --popFile when --normPop is specified");
     }
 
-    FILE *logFile;
-    String filename;
-    if (meta.prefix == "") {
-      filename = "raremetal.log";
-    } else if (meta.prefix.Last() == '.' || meta.prefix.Last() == '/') {
-      filename = meta.prefix + "raremetal.log";
-    } else {
-      filename = meta.prefix + ".raremetal.log";
-    }
-
-    logFile = freopen(filename, "wt", stderr);
-    meta.setLogFile(logFile);
-    WriteLog(meta, group, logFile);
+    meta.setLogFile();
+    WriteLog(meta, group, meta.log);
 
     time_t now;
     time(&now);
     printf("Analysis started at: %s\n", ctime(&now));
-    fprintf(logFile, "Analysis started at: %s\n", ctime(&now));
+    fprintf(meta.log, "Analysis started at: %s\n", ctime(&now));
 
     if (meta.summaryFiles == "") {
       error("--summaryFiles can not be empty.\n");
@@ -150,24 +139,27 @@ int main(int argc, char *argv[])
       String path;
       path = argv[0];
       meta.Prepare();
-      group.Run(path, logFile);
+      group.Run(path, meta.log);
       meta.PoolSummaryStat(group);
+      if (!meta.skipOutput) {
+        meta.WriteSingleVariantResults(group);
+      }
       meta.Run(group);
 
       time(&now);
       printf("\nAnalysis ends at: %s\n", ctime(&now));
-      fprintf(logFile, "\nAnalysis ends at: %s\n", ctime(&now));
+      fprintf(meta.log, "\nAnalysis ends at: %s\n", ctime(&now));
       time_t endTime = time(0);
       int timeSec = (int) (endTime - initialTime);
       double timeHour = timeSec / 3600.0;
       printf("Analysis took %d seconds (~ %.1f hours).\n", timeSec, timeHour);
-      fprintf(logFile, "Analysis took %d seconds (~ %.1f hours).\n", timeSec, timeHour);
+      fprintf(meta.log, "Analysis took %d seconds (~ %.1f hours).\n", timeSec, timeHour);
 
-      fclose(logFile);
+      fclose(meta.log);
     }
     catch (std::exception &e) {
       printf("Exiting, exception thrown: %s\n\n", e.what());
-      fprintf(logFile, "Exiting, exception thrown: %s\n\n", e.what());
+      fprintf(meta.log, "Exiting, exception thrown: %s\n\n", e.what());
       PhoneHome::completionStatus("Exception");
       return (-1);
     }

@@ -195,7 +195,7 @@ public:
     void parseScoreFiles();
     void parseCovFiles();
 
-    void setLogFile(FILE *plog);
+    void setLogFile(FILE *plog = nullptr);
 
     void prepareConditionalAnalysis();
 
@@ -243,6 +243,7 @@ public:
     void printOutVcfHeader(String &vcf_filename, IFILE &vcfout);
 
     void printSingleMetaVariant(GroupFromAnnotation &group, int i, IFILE &output, IFILE &vcfout);
+    void WriteSingleVariantResults(GroupFromAnnotation &group);
 
     void annotateSingleVariantToGene(GroupFromAnnotation &group, double pvalue, double cond_pvalue, StringArray &tmp);
 

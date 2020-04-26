@@ -8,20 +8,8 @@
 TEST_CASE("P-value precision") {
   SECTION("Score statistic resulting in very small p-value") {
     Meta meta;
-    String filename;
 
-    if (meta.prefix == "") {
-      filename = "raremetal.log";
-    }
-    else if (meta.prefix.Last() == '.' || meta.prefix.Last() == '/') {
-      filename = meta.prefix + "raremetal.log";
-    }
-    else {
-      filename = meta.prefix + ".raremetal.log";
-    }
-
-    FILE *logFile = freopen(filename, "wt", stderr);
-    meta.setLogFile(logFile);
+    meta.setLogFile();
     meta.skipOutput = true;
 
     meta.scorefile.Add("tests/raremetal/test_tut_rm/inputs/STUDY1.QT1.singlevar.score.txt.gz");
@@ -55,20 +43,8 @@ TEST_CASE("P-value precision") {
 TEST_CASE("Heterogeneity statistics") {
   SECTION("Should be correct on simple example") {
     Meta meta;
-    String filename;
 
-    if (meta.prefix == "") {
-      filename = "raremetal.log";
-    }
-    else if (meta.prefix.Last() == '.' || meta.prefix.Last() == '/') {
-      filename = meta.prefix + "raremetal.log";
-    }
-    else {
-      filename = meta.prefix + ".raremetal.log";
-    }
-
-    FILE *logFile = freopen(filename, "wt", stderr);
-    meta.setLogFile(logFile);
+    meta.setLogFile();
     meta.skipOutput = true;
     meta.bHeterogeneity = true;
     meta.scorefile.Add("tests/datasets/simulated/heterog/study0_raremetal.txt.gz");
