@@ -189,9 +189,6 @@ public:
 
     void CalculateXXCov(int study, Matrix &result);
 
-    void setMetaStatics();
-
-    void openMetaFiles();
     void parseScoreFiles();
     void parseCovFiles();
 

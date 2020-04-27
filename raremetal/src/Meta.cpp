@@ -99,13 +99,30 @@ void Meta::setLogFile(FILE *plog) {
 
 //This function read all study names from a file
 //and save the names in the StringArray files
-void Meta::Prepare()
-{
-//	if (useExactMetaMethod) {
-//		printf("WARNING: this method is still under development and not recommended to use in this version!!!\n");
-//	}
-    setMetaStatics();
-    openMetaFiles();
+void Meta::Prepare() {
+    // Setup PDF
+    if (prefix.Last() == '.' || prefix.Last() == '/') {
+      pdf_filename = prefix + "meta.plots.pdf";
+    }
+    else {
+      pdf_filename = prefix + ".meta.plots.pdf";
+    }
+    pdf.OpenFile(pdf_filename);
+
+    // Parse files with paths to score statistics and covariance matrices per study
+    parseScoreFiles();
+    parseCovFiles();
+
+    // Restrict to only a single region?
+    if (Region != "") {
+      RegionStatus = true;
+      printf("Restrict analysis to region %s!\n", Region.c_str());
+      StringArray tf;
+      tf.AddTokens(Region, ":-");
+      Chr = tf[0];
+      Start = tf[1].AsInteger();
+      End = tf[2].AsInteger();
+    }
 
     SampleSize.Dimension(scorefile.Length());
     for (int s = 0; s < scorefile.Length(); s++)
@@ -1149,35 +1166,11 @@ void Meta::CalculateXXCov(int study, Matrix &result)
     svd.InvertInPlace(result);
 }
 
-/**** for Meta::Prepare() ******/
-
-// set static stat in meta class
-void Meta::setMetaStatics()
-{
-    // region
-    if (Region != "")
-    {
-        RegionStatus = true;
-        printf("Restrict analysis to region %s!\n", Region.c_str());
-        StringArray tf;
-        tf.AddTokens(Region, ":-");
-        Chr = tf[0];
-        Start = tf[1].AsInteger();
-        End = tf[2].AsInteger();
-    }
-
-    // pdf file name
-    if (prefix.Last() == '.' || prefix.Last() == '/')
-    {
-        pdf_filename = prefix + "meta.plots.pdf";
-    } else
-    {
-        pdf_filename = prefix + ".meta.plots.pdf";
-    }
-}
-
-
 void Meta::parseScoreFiles() {
+  if (scorefile.Length() > 0) {
+    return; // We already added scorefiles directly, likely in unit tests
+  }
+
   // summary file
   if (summaryFiles != "")
   {
@@ -1204,6 +1197,10 @@ void Meta::parseScoreFiles() {
 }
 
 void Meta::parseCovFiles() {
+  if (covfile.Length() > 0) {
+    return; // We already added covariance files directly, likely in unit tests
+  }
+
   // cov file
   if (covFiles != "")
   {
@@ -1234,19 +1231,6 @@ void Meta::parseCovFiles() {
     error("Covariance files are essential to do gene-level tests. Please use --covFiles your.list.of.cov.files option.\n");
   }
 }
-
-/**
- * open pdf
- * load list of summary files
- * load list of cov files if needed
- */
-void Meta::openMetaFiles()
-{
-    pdf.OpenFile(pdf_filename);
-    parseScoreFiles();
-    parseCovFiles();
-}
-
 
 /**
  * prepare for conditional analysis and ensure that the specified variants are actually present in this set of studies
