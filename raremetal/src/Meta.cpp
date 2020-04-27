@@ -2678,7 +2678,7 @@ void Meta::printSingleMetaVariant(GroupFromAnnotation &group, int i, IFILE &outp
             cond_result.h2 = 0.0;
             cond_result.effSize_se = 0.0;
         }
-        ifprintf(output, "%s\t%s\t%s\t%s\t%d\t%g\t%s\t%g\t%g\t%g\t%s%g\t%g\t%g\t%g\t%s%g", tmp[0].c_str(),
+        ifprintf(output, "%s\t%s\t%s\t%s\t%d\t%g\t%s\t%g\t%g\t%g\t%s%Lg\t%g\t%g\t%g\t%s%Lg", tmp[0].c_str(),
                  tmp[1].c_str(), tmp[2].c_str(), tmp[3].c_str(), N, maf, direction.c_str(), result.effSize, result.effSize_se, result.h2,
                  result.disect ? "<" : "", logP ? result.log_pvalue : result.pvalue, cond_result.effSize, cond_result.effSize_se, cond_result.h2, cond_result.disect ? "<" : "",
                  logP ? cond_result.log_pvalue : cond_result.pvalue);
@@ -2694,7 +2694,7 @@ void Meta::printSingleMetaVariant(GroupFromAnnotation &group, int i, IFILE &outp
         }
     } else
     {
-        ifprintf(output, "%s\t%s\t%s\t%s\t%d\t%g\t%s\t%g\t%g\t%g\t%s%g", tmp[0].c_str(), tmp[1].c_str(), tmp[2].c_str(),
+        ifprintf(output, "%s\t%s\t%s\t%s\t%d\t%g\t%s\t%g\t%g\t%g\t%s%Lg", tmp[0].c_str(), tmp[1].c_str(), tmp[2].c_str(),
                  tmp[3].c_str(), N, maf, direction.c_str(), result.effSize, result.effSize_se, result.h2, result.disect ? "<" : "", logP ? result.log_pvalue : result.pvalue);
     }
 

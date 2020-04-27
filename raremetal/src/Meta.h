@@ -13,6 +13,7 @@
 #include "WritePDF.h"
 
 #include <map>
+#include <cmath>
 
 const double LN_10 = log(10);
 
@@ -314,7 +315,7 @@ public:
 struct SingleVariantResult {
   double u, v, n;
   double chisq;
-  double pvalue;
+  long double pvalue;
   double log_pvalue; // -log10(pvalue)
   double effSize;
   bool disect;
@@ -332,21 +333,16 @@ struct SingleVariantResult {
     this->u = u;
     this->v = v;
     this->n = n;
+    this->disect = false;
   }
 
   void calculate() {
     chisq = u * u / v;
-    pvalue = pchisq(chisq, 1, 0, 0);
     log_pvalue = -pchisq(chisq, 1, 0, 1) / LN_10;
+    pvalue = exp(static_cast<long double>(pchisq(chisq, 1, 0, 1)));
     effSize = u / v;
     h2 = v * effSize * effSize / n;
     effSize_se = 1.0 / sqrt(v);
-
-    while (pvalue == 0.0) {
-      disect = true;
-      chisq *= 0.999;
-      pvalue = pchisq(chisq, 1, 0, 0);
-    }
   }
 };
 

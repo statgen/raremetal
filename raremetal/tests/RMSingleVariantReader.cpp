@@ -8,13 +8,24 @@
 
 using namespace std;
 
-double extract_double(const std::string &s) {
-  double d;
+template <typename T> T extract_fp(const std::string &s) {
+  T d;
   try {
-    d = stod(s);
+    if (std::is_same<T, long double>::value) {
+      d = stold(s);
+    }
+    else if (std::is_same<T, double>::value) {
+      d = stod(s);
+    }
+    else if (std::is_same<T, float>::value) {
+      d = stof(s);
+    }
+    else {
+      throw std::invalid_argument("Invalid return type when extracting floating point type number from string");
+    }
   }
   catch (const std::exception &e) {
-    d = numeric_limits<float>::quiet_NaN();
+    d = numeric_limits<T>::quiet_NaN();
   }
   return d;
 }
@@ -60,10 +71,10 @@ void RMSingleVariantReader::load(const string &file) {
       rec->n = stoul(tokens.at(4));
       rec->pooled_alt_af = stod(tokens.at(5));
       rec->direction_by_study = tokens.at(6);
-      rec->effect_size = extract_double(tokens.at(7));
-      rec->effect_stderr = extract_double(tokens.at(8));
-      rec->h2 = extract_double(tokens.at(9));
-      rec->pvalue = extract_double(tokens.at(10));
+      rec->effect_size = extract_fp<double>(tokens.at(7));
+      rec->effect_stderr = extract_fp<double>(tokens.at(8));
+      rec->h2 = extract_fp<double>(tokens.at(9));
+      rec->pvalue = extract_fp<long double>(tokens.at(10));
 
       // Keys
       string chrpos = rec->chrom + ":" + to_string(rec->pos);

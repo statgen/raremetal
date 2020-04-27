@@ -17,7 +17,7 @@ struct RMSingleVariantRecord {
   double effect_size;
   double effect_stderr;
   double h2;
-  double pvalue;
+  long double pvalue;
 };
 
 class RMSingleVariantReader {

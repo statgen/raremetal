@@ -45,6 +45,10 @@ TEST_CASE("P-value precision") {
     SingleVariantResult result(U, V, N);
     REQUIRE(result.effSize == Approx(1074.71));
     REQUIRE(result.log_pvalue == Approx(1727.694));
+
+    // Catch2 can't test for approximate long doubles, have to log10 it
+    double p_from_log = -static_cast<double>(log10(result.pvalue));
+    REQUIRE(p_from_log == Approx(1727.694));
   }
 }
 
@@ -73,6 +77,10 @@ TEST_CASE("File I/O") {
     REQUIRE(rec1->h2 == Approx(0.000860396));
     REQUIRE(rec1->pooled_alt_af == Approx(0.00244379));
     REQUIRE(score_reader.get_nstudies() == 2);
+
+    auto rec2 = score_reader.get_record("9:494428375_G/432");
+    double p_from_log = -static_cast<double>(log10(rec2->pvalue));
+    REQUIRE(p_from_log == Approx(1727.694));
 
     remove("test.fileio.simple.meta.singlevar.results");
     remove("test.fileio.simple.meta.plots.pdf");
