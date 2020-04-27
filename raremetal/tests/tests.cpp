@@ -1,9 +1,18 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 #include <stdio.h>
+#include <fstream>
 #include "StringBasics.h"
 #include "../src/GroupFromAnnotation.h"
 #include "../src/Meta.h"
+#include "RMSingleVariantReader.h"
+
+using namespace std;
+
+bool file_exists(const std::string &name) {
+  ifstream f(name.c_str());
+  return f.good();
+}
 
 TEST_CASE("P-value precision") {
   SECTION("Score statistic resulting in very small p-value") {
@@ -36,6 +45,38 @@ TEST_CASE("P-value precision") {
     SingleVariantResult result(U, V, N);
     REQUIRE(result.effSize == Approx(1074.71));
     REQUIRE(result.log_pvalue == Approx(1727.694));
+  }
+}
+
+TEST_CASE("File I/O") {
+  SECTION("Simple meta-analysis") {
+    Meta meta;
+    meta.prefix = "test.fileio.simple";
+    meta.setLogFile();
+
+    meta.scorefile.Add("tests/raremetal/test_tut_rm/inputs/STUDY1.QT1.singlevar.score.txt.gz");
+    meta.scorefile.Add("tests/raremetal/test_tut_rm/inputs/STUDY2.QT1.singlevar.score.txt.gz");
+
+    meta.covfile.Add("tests/raremetal/test_tut_rm/inputs/STUDY1.QT1.singlevar.cov.txt.gz");
+    meta.covfile.Add("tests/raremetal/test_tut_rm/inputs/STUDY2.QT1.singlevar.cov.txt.gz");
+
+    GroupFromAnnotation group;
+    meta.Prepare();
+    meta.PoolSummaryStat(group);
+    meta.WriteSingleVariantResults(group);
+
+    auto score_reader = RMSingleVariantReader("test.fileio.simple.meta.singlevar.results");
+    auto rec1 = score_reader.get_record("9:44001280_G/A");
+    REQUIRE(rec1->pvalue == Approx(0.348151));
+    REQUIRE(rec1->effect_size == Approx(0.423643));
+    REQUIRE(rec1->effect_stderr == Approx(0.451557));
+    REQUIRE(rec1->h2 == Approx(0.000860396));
+    REQUIRE(rec1->pooled_alt_af == Approx(0.00244379));
+    REQUIRE(score_reader.get_nstudies() == 2);
+
+    remove("test.fileio.simple.meta.singlevar.results");
+    remove("test.fileio.simple.meta.plots.pdf");
+    remove("test.fileio.simple.raremetal.log");
   }
 }
 
