@@ -41,6 +41,7 @@ void RMSingleVariantReader::load(const string &file) {
   auto regex_header = regex("#CHROM\tPOS.*");
 
   bool header_done = false;
+  vector<string> header;
   while (getline(input_file, line)) {
     smatch match;
     if (!header_done) {
@@ -52,6 +53,7 @@ void RMSingleVariantReader::load(const string &file) {
       }
       else if (regex_search(line, match, regex_header)) {
         header_done = true;
+        copy(sregex_token_iterator(line.begin(), line.end(), line_separator, -1), sregex_token_iterator(), back_inserter(header));
       }
     }
     else {
@@ -64,17 +66,42 @@ void RMSingleVariantReader::load(const string &file) {
 
       // Create record
       auto rec = make_shared<RMSingleVariantRecord>();
-      rec->chrom = tokens.at(0);
-      rec->pos = stoul(tokens.at(1));
-      rec->ref = tokens.at(2);
-      rec->alt = tokens.at(3);
-      rec->n = stoul(tokens.at(4));
-      rec->pooled_alt_af = stod(tokens.at(5));
-      rec->direction_by_study = tokens.at(6);
-      rec->effect_size = extract_fp<double>(tokens.at(7));
-      rec->effect_stderr = extract_fp<double>(tokens.at(8));
-      rec->h2 = extract_fp<double>(tokens.at(9));
-      rec->pvalue = extract_fp<long double>(tokens.at(10));
+      for (int i = 0; i < tokens.size(); i++) {
+        string col(header[i]);
+        if (col == "#CHROM") {
+          rec->chrom = tokens.at(i);
+        }
+        else if (col == "POS") {
+          rec->pos = stoul(tokens.at(i));
+        }
+        else if (col == "REF") {
+          rec->ref = tokens.at(i);
+        }
+        else if (col == "ALT") {
+          rec->alt = tokens.at(i);
+        }
+        else if (col == "N_INFORMATIVE") {
+          rec->n = stoul(tokens.at(i));
+        }
+        else if (col == "POOLED_ALT_AF") {
+          rec->pooled_alt_af = stod(tokens.at(i));
+        }
+        else if (col == "DIRECTION_BY_STUDY") {
+          rec->direction_by_study = tokens.at(i);
+        }
+        else if (col == "EFFECT_SIZE") {
+          rec->effect_size = extract_fp<double>(tokens.at(i));
+        }
+        else if (col == "EFFECT_SIZE_SD") {
+          rec->effect_stderr = extract_fp<double>(tokens.at(i));
+        }
+        else if (col == "H2") {
+          rec->h2 = extract_fp<double>(tokens.at(i));
+        }
+        else if (col == "PVALUE") {
+          rec->pvalue = extract_fp<long double>(tokens.at(i));
+        }
+      }
 
       // Keys
       string chrpos = rec->chrom + ":" + to_string(rec->pos);
