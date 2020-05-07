@@ -1630,6 +1630,11 @@ void Meta::UpdateACInfo(String &chr_pos, double AC)
 }
 
 void Meta::UpdateAFInfo(std::string &variant, double af, double weight) {
+  /**
+   * This function follows the same strategy in METAL (https://git.io/JfnWY)
+   * - Add to a running total of weight * allele frequency (used to calculate weighted mean)
+   * - Add to a running total of weight * (allele frequency)^2 (used to calculate variance)
+   */
   if (averageFreq) {
     frequency[variant] += weight * af;
     frequency2[variant] += weight * af * af;
@@ -2745,11 +2750,16 @@ void Meta::printSingleMetaVariant(GroupFromAnnotation &group, int i, IFILE &outp
         ifprintf(output, "\t%d\t%d", c1, c2);
     }
 
+    /**
+     * Same calculation as in METAL (https://git.io/JfnW3)
+     */
     if (averageFreq) {
       double n = freqN[std_chrpos];
       double f = frequency[std_chrpos] / n;
       double f2 = frequency2[std_chrpos] / n;
 
+      // Calculate variance as sum of squares - square of the mean
+      // Then sqrt(var) = SE
       double freqSE = f2 - f * f;
       freqSE = freqSE > 0.0 ? sqrt(freqSE) : 0.0;
 
