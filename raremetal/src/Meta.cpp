@@ -2465,22 +2465,22 @@ void Meta::setPooledAF()
                 }
             }
 
-            double maf;
+            double alt_af;
             if (founderAF)
             {
-                maf = AC / (2.0 * N);
+                alt_af = AC / (2.0 * N);
             } else
             {
-                maf = AC / (2.0 * N);
+                alt_af = AC / (2.0 * N);
             }
 
             int idx = directionByChrPos.Integer(tmp[0] + ":" + tmp[1]);
             if (directions[idx].FindChar('+') == -1 && directions[idx].FindChar('-') == -1)
             {
-                maf = 0.0;
+                alt_af = 0.0;
             }
 
-            SNPmaf_maf.Push(maf);
+            SNPmaf_maf.Push(alt_af);
             SNPmaf_name.Push(SNPname_i[pos_i_idx[j]]);
             SNP_effect_N.Push(N);
             SNPmaf.SetInteger(SNPname_i[pos_i_idx[j]], SNPmaf_maf.Length() - 1);
