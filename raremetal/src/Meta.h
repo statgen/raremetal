@@ -13,6 +13,7 @@
 #include "WritePDF.h"
 
 #include <map>
+#include <string>
 #include <cmath>
 
 const double LN_10 = log(10);
@@ -71,6 +72,8 @@ public:
     bool sumCaseAC;
     bool bHeterogeneity;
     bool logP; // write p-values in -log10 scale
+    bool averageFreq;
+    bool minMaxFreq;
 
     //saved single variant information from pooled studies
     StringArray scorefile;
@@ -103,6 +106,11 @@ public:
     int skip_count;
     StringIntHash caseAC;
     StringIntHash controlAC;
+    std::map<std::string, double> freqN;      // total sample size of all studies contributing to this variant's AF
+    std::map<std::string, double> frequency;  // running total of alternate allele frequency across studies
+    std::map<std::string, double> frequency2; // running total of (alternate allele frequency)^2 across studies
+    std::map<std::string, double> maxFreq;    // maximum alternate allele frequency seen across studies
+    std::map<std::string, double> minFreq;    // minimum alternate allele frequency seen across studies
 
     // for pooling summary stats
     StringIntHash usefulSize; // pooled N info
@@ -210,6 +218,7 @@ public:
     void UpdateStrDoubleHash(String &chr_pos, double val, StringDoubleHash &sdhash);
 
     void UpdateACInfo(String &chr_pos, double AC);
+    void UpdateAFInfo(std::string &variant, double af, double weight);
 
     void UpdateStats(int study, String &markerName, double stat, double vstat, bool flip);
     void UpdateHetStats(int study, String &markerName, double stat, double vstat, bool flip);

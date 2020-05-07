@@ -25,6 +25,7 @@
 #include "QuadProg.h"
 #include <iterator>
 #include <math.h> // pow, abs
+#include <string>
 
 Meta::Meta() {
   summaryFiles = "";
@@ -73,6 +74,8 @@ Meta::Meta() {
   log = nullptr;
   skipOutput = false;
   Nsamples = -1;
+  averageFreq = false;
+  minMaxFreq = false;
 }
 
 Meta::~Meta() {}
@@ -1626,6 +1629,23 @@ void Meta::UpdateACInfo(String &chr_pos, double AC)
     }
 }
 
+void Meta::UpdateAFInfo(std::string &variant, double af, double weight) {
+  if (averageFreq) {
+    frequency[variant] += weight * af;
+    frequency2[variant] += weight * af * af;
+    freqN[variant] += weight;
+  }
+
+  if (minMaxFreq) {
+    if (minFreq[variant] == 0.0 || minFreq[variant] > af) {
+      minFreq[variant] = af;
+    }
+
+    if (maxFreq[variant] == 0.0 || maxFreq[variant] < af) {
+      maxFreq[variant] = af;
+    }
+  }
+}
 
 // simply add up u and v
 // for exact method, v passed here is vk/sigmak. V will be further adjusted in print meta record
@@ -1947,6 +1967,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
     }
 
     String chr_pos = tokens[0] + ":" + tokens[1];
+    std::string std_chrpos(chr_pos.c_str());
     int direction_idx = directionByChrPos.Integer(chr_pos);
 
     //CHECK duplicate markers
@@ -2055,6 +2076,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
     bool flip = false;
     double u = tokens[13 - adjust].AsDouble();
     double v = tokens[14 - adjust].AsDouble();
+    double w = 1 / (v * v);
     if (relateBinary)
     {
         u *= Const_binary[study];
@@ -2074,6 +2096,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
             UpdateDirection(direction_idx, study, direct, chr_pos, false);
             //should only hash the count of alternative allele
             UpdateACInfo(chr_pos, count);
+            UpdateAFInfo(std_chrpos, 0.0, w);
             if (SampleSize[study] != current_N)
             {
                 UpdateStrIntHash(chr_pos, SampleSize[study] - current_N, usefulSize);
@@ -2084,6 +2107,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
             char direct = GetDirection(chr_pos, tokens[15 - adjust].AsDouble(), false);
             UpdateDirection(direction_idx, study, direct, chr_pos, false);
             UpdateACInfo(chr_pos, current_AC);
+            UpdateAFInfo(std_chrpos, current_AC / (2 * current_N), w);
             if (SampleSize[study] != current_N)
             {
                 UpdateStrIntHash(chr_pos, SampleSize[study] - current_N, usefulSize);
@@ -2137,6 +2161,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
 
             UpdateStrIntHash(chr_pos, current_N, recSize); // add --altMAF
             UpdateACInfo(chr_pos, count);
+            UpdateAFInfo(std_chrpos, count / (2 * current_N), w);
             if (SampleSize[study] != current_N)
             {
                 UpdateStrIntHash(chr_pos, SampleSize[study] - current_N, usefulSize);
@@ -2165,6 +2190,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
                     UpdateStrIntHash(chr_pos, SampleSize[study] - current_N, usefulSize);
                 }
                 UpdateACInfo(chr_pos, 2 * c1 + c2);
+                UpdateAFInfo(std_chrpos, (2 * c1 + c2) / (2 * current_N), w);
                 char direct = GetDirection(chr_pos, tokens[15 - adjust].AsDouble(), true);
                 UpdateDirection(direction_idx, study, direct, chr_pos, false);
                 UpdateStats(study, chr_pos, u, v, flip);
@@ -2176,6 +2202,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
                     UpdateStrIntHash(chr_pos, SampleSize[study] - current_N, usefulSize);
                 }
                 UpdateACInfo(chr_pos, current_AC);
+                UpdateAFInfo(std_chrpos, current_AC / (2 * current_N), w);
                 char direct = GetDirection(chr_pos, tokens[15 - adjust].AsDouble(), false);
                 UpdateDirection(direction_idx, study, direct, chr_pos, false);
                 UpdateStats(study, chr_pos, u, v, flip);
@@ -2507,6 +2534,14 @@ void Meta::printSingleMetaHeader(String &filename, IFILE &output)
       header += "\tsumCaseAC\tsumControlAC";
     }
 
+    if (averageFreq) {
+      header += "\tALT_AF_MEAN\tALT_AF_SE";
+    }
+
+    if (minMaxFreq) {
+      header += "\tALT_AF_MIN\tALT_AF_MAX";
+    }
+
     if (bHeterogeneity) {
       header += "\tHET_I2\tHET_CHISQ";
       header += logP ? "\tHET_LOG_PVALUE" : "\tHET_PVALUE";
@@ -2561,6 +2596,7 @@ void Meta::printSingleMetaVariant(GroupFromAnnotation &group, int i, IFILE &outp
     StringArray tmp;
     tmp.AddTokens(SNPname, ":");
     String SNPname_noallele = tmp[0] + ":" + tmp[1];
+    std::string std_chrpos(SNPname_noallele.c_str());
     int N = SNP_effect_N[i];
     double U = SNPstat.Double(SNPname_noallele);
     double V = SNP_Vstat.Double(SNPname_noallele);
@@ -2707,6 +2743,24 @@ void Meta::printSingleMetaVariant(GroupFromAnnotation &group, int i, IFILE &outp
             printf("Warning: variant doesn't have caseAC or controlAC count!\n");
         }
         ifprintf(output, "\t%d\t%d", c1, c2);
+    }
+
+    if (averageFreq) {
+      double n = freqN[std_chrpos];
+      double f = frequency[std_chrpos] / n;
+      double f2 = frequency2[std_chrpos] / n;
+
+      double freqSE = f2 - f * f;
+      freqSE = freqSE > 0.0 ? sqrt(freqSE) : 0.0;
+
+      ifprintf(output, "\t%g\t%g", f, freqSE);
+    }
+
+    if (minMaxFreq) {
+      double min_f = minFreq[std_chrpos];
+      double max_f = maxFreq[std_chrpos];
+
+      ifprintf(output, "\t%g\t%g", min_f, max_f);
     }
 
     if (bHeterogeneity) {
