@@ -52,6 +52,44 @@ TEST_CASE("P-value precision") {
   }
 }
 
+TEST_CASE("Allele frequencies") {
+  SECTION("Average and min/max") {
+    Meta meta;
+    meta.prefix = "test.allelefreq";
+    meta.setLogFile();
+    meta.averageFreq = true;
+    meta.minMaxFreq = true;
+    meta.scorefile.Add("tests/datasets/simulated/heterog/study0_raremetal.txt.gz");
+    meta.scorefile.Add("tests/datasets/simulated/heterog/study1_raremetal.txt.gz");
+
+    GroupFromAnnotation group;
+    meta.Prepare();
+    meta.PoolSummaryStat(group);
+    meta.WriteSingleVariantResults(group);
+
+    auto score_reader = RMSingleVariantReader("test.allelefreq.meta.singlevar.results");
+    auto rec1 = score_reader.get_record("8:875238_G/C");
+
+    REQUIRE(rec1->alt_af_mean == Approx(0.486337));
+    REQUIRE(rec1->alt_af_se == Approx(0.0519997));
+    REQUIRE(rec1->alt_af_min == Approx(0.4345));
+    REQUIRE(rec1->alt_af_max == Approx(0.5385));
+
+    // Note: when given the test files in order of study0, then study1, metal will select "A" as the
+    // effect allele. However, raremetal will always report towards the alt allele, which is "G".
+    // Remember this when interpreting allele frequencies/effects. A mean of 0.515486 is approx 1 - 0.48.
+    auto rec2 = score_reader.get_record("3:1291852_A/G");
+    REQUIRE(rec2->alt_af_mean == Approx(0.515486));
+    REQUIRE(rec2->alt_af_se == Approx(0.0149234));
+    REQUIRE(rec2->alt_af_min == Approx(0.502));
+    REQUIRE(rec2->alt_af_max == Approx(0.532));
+
+    remove("test.allelefreq.meta.singlevar.results");
+    remove("test.allelefreq.meta.plots.pdf");
+    remove("test.allelefreq.raremetal.log");
+  }
+}
+
 TEST_CASE("File I/O") {
   SECTION("Simple meta-analysis") {
     Meta meta;
