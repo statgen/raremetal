@@ -101,6 +101,18 @@ void RMSingleVariantReader::load(const string &file) {
         else if (col == "PVALUE") {
           rec->pvalue = extract_fp<long double>(tokens.at(i));
         }
+        else if (col == "ALT_AF_MEAN") {
+          rec->alt_af_mean = extract_fp<double>(tokens.at(i));
+        }
+        else if (col == "ALT_AF_SE") {
+          rec->alt_af_se = extract_fp<double>(tokens.at(i));
+        }
+        else if (col == "ALT_AF_MIN") {
+          rec->alt_af_min = extract_fp<double>(tokens.at(i));
+        }
+        else if (col == "ALT_AF_MAX") {
+          rec->alt_af_max = extract_fp<double>(tokens.at(i));
+        }
       }
 
       // Keys

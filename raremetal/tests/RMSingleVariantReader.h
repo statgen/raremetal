@@ -17,6 +17,10 @@ struct RMSingleVariantRecord {
   double effect_size;
   double effect_stderr;
   double h2;
+  double alt_af_mean;
+  double alt_af_se;
+  double alt_af_min;
+  double alt_af_max;
   long double pvalue;
 };
 
