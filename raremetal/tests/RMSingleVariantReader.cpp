@@ -1,33 +1,17 @@
 #include "RMSingleVariantReader.h"
-#include <fstream>
-#include <string>
-#include <iostream>
-#include <regex>
-#include <exception>
-#include <limits>
 
 using namespace std;
 
-template <typename T> T extract_fp(const std::string &s) {
-  T d;
-  try {
-    if (std::is_same<T, long double>::value) {
-      d = stold(s);
-    }
-    else if (std::is_same<T, double>::value) {
-      d = stod(s);
-    }
-    else if (std::is_same<T, float>::value) {
-      d = stof(s);
-    }
-    else {
-      throw std::invalid_argument("Invalid return type when extracting floating point type number from string");
-    }
-  }
-  catch (const std::exception &e) {
-    d = numeric_limits<T>::quiet_NaN();
-  }
-  return d;
+uint64_t RMSingleVariantReader::get_num_records() {
+  return records.size();
+}
+
+RMSingleVariantReader::record_iterator RMSingleVariantReader::begin() const {
+  return records.begin();
+}
+
+RMSingleVariantReader::record_iterator RMSingleVariantReader::end() const {
+  return records.end();
 }
 
 void RMSingleVariantReader::load(const string &file) {

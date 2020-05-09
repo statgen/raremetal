@@ -1,9 +1,12 @@
 add_executable(tests-raremetal
   tests.cpp
+  reader_util.h
   RMWScoreReader.cpp
   RMWScoreReader.h
   RMSingleVariantReader.cpp
   RMSingleVariantReader.h
+  RMGroupTestReader.cpp
+  RMGroupTestReader.h
   ../src/GroupFromAnnotation.cpp
   ../src/GroupFromAnnotation.h
   ../src/Meta.cpp

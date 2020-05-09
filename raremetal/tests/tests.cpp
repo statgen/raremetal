@@ -6,12 +6,65 @@
 #include "../src/GroupFromAnnotation.h"
 #include "../src/Meta.h"
 #include "RMSingleVariantReader.h"
-
+#include "RMGroupTestReader.h"
 using namespace std;
 
 bool file_exists(const std::string &name) {
   ifstream f(name.c_str());
   return f.good();
+}
+
+TEST_CASE("Program Arguments") {
+  SECTION("--range") {
+    Meta meta;
+    meta.prefix = "test.range";
+    meta.setLogFile();
+    meta.Region = "1:1-87";
+    meta.SKAT = true;
+    meta.scorefile.Add("tests/datasets/simulated/region/test.smallchunk.MetaScore.assoc.gz");
+    meta.covfile.Add("tests/datasets/simulated/region/test.smallchunk.MetaCov.assoc.gz");
+
+    GroupFromAnnotation group;
+    group.groupFile = "tests/datasets/simulated/region/test.smallchunk.mask.tab";
+
+    meta.Prepare();
+    group.Run("", meta.log);
+    meta.PoolSummaryStat(group);
+
+    // This is pretty wild. If you don't run the printing routine, the single variant p-values aren't stored
+    // internally, so group-based tests can't look them up. TODO: refactor this...
+    meta.WriteSingleVariantResults(group);
+    meta.Run(group);
+
+    // Given the range above, only ZSYH2 should be tested and not the other gene.
+    auto group_reader = RMGroupTestReader("test.range.meta.SKAT_.results");
+    auto group_rec = group_reader.get_record("ZSYH2");
+    auto num_group_rec = group_reader.get_num_records();
+
+    REQUIRE(num_group_rec == 1);
+    REQUIRE(group_rec->pvalue_liu == Approx(1.28628e-09));
+
+    // Given the range above, the single variant results should only contain records from position 1:2 to 1:87.
+    auto sv_reader = RMSingleVariantReader("test.range.meta.singlevar.results");
+    auto num_sv_rec = sv_reader.get_num_records();
+    auto sv_rec_first = *sv_reader.begin();
+    auto sv_rec_last = *(--sv_reader.end());
+
+    REQUIRE(num_sv_rec == 86);
+
+    REQUIRE(sv_rec_first->chrom == "1");
+    REQUIRE(sv_rec_first->pos == 2);
+    REQUIRE(sv_rec_first->pvalue == Approx(0.1487579));
+
+    REQUIRE(sv_rec_last->chrom == "1");
+    REQUIRE(sv_rec_last->pos == 87);
+    REQUIRE(sv_rec_last->pvalue == Approx(0.7183580));
+
+    remove("test.range.raremetal.log");
+    remove("test.range.meta.plots.pdf");
+    remove("test.range.meta.singlevar.results");
+    remove("test.range.meta.SKAT_.results");
+  }
 }
 
 TEST_CASE("P-value precision") {

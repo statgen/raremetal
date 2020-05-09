@@ -5,6 +5,13 @@
 #include <map>
 #include <vector>
 #include <memory>
+#include <fstream>
+#include <string>
+#include <iostream>
+#include <regex>
+#include <exception>
+#include <limits>
+#include "reader_util.h"
 
 struct RMSingleVariantRecord {
   std::string chrom;
@@ -32,11 +39,17 @@ protected:
   std::vector<std::shared_ptr<RMSingleVariantRecord>> records;
   std::map<std::string, std::shared_ptr<RMSingleVariantRecord>> index;
 public:
+  using record_iterator = std::vector<std::shared_ptr<RMSingleVariantRecord>>::const_iterator;
+
   RMSingleVariantReader(const std::string &file);
   void load(const std::string &file);
   double get_nsamples();
   uint64_t get_nstudies();
+  uint64_t get_num_records();
   std::shared_ptr<RMSingleVariantRecord> get_record(const std::string &i);
+
+  record_iterator begin() const;
+  record_iterator end() const;
 };
 
 #endif //RAREMETAL_RMSINGLEVARIANTREADER_H
