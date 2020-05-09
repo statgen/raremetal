@@ -55,9 +55,9 @@ Meta::Meta() {
   RegionStatus = false;
   Region = "";
   cond = "";
-  Chr = "";
-  Start = -1;
-  End = -1;
+  region_chrom = "";
+  region_start = -1;
+  region_end = -1;
   useExactMetaMethod = false; // use Jingjing's exact method
   normPop = false; // correct for population stratification
   simplifyCovLoad = false; // only load cov matrix between selected marker for group test
@@ -122,9 +122,9 @@ void Meta::Prepare() {
       printf("Restrict analysis to region %s!\n", Region.c_str());
       StringArray tf;
       tf.AddTokens(Region, ":-");
-      Chr = tf[0];
-      Start = tf[1].AsInteger();
-      End = tf[2].AsInteger();
+      region_chrom = tf[0];
+      region_start = tf[1].AsInteger();
+      region_end = tf[2].AsInteger();
     }
 
     SampleSize.Dimension(scorefile.Length());
@@ -673,48 +673,66 @@ void Meta::PoolSummaryStat(GroupFromAnnotation &group)
         buffer.ReadLine(file);
         bool adjust;
         tellRvOrRmw(buffer, adjust, marker_col, cov_col);
-//		if (!status)
-//			error("File %s is neither RMW or rvtest score file!\n", filename.c_str());
         ifclose(file);
         FormatAdjust.Push(adjust);
 
         file = ifopen(filename, "r");
-        bool pass_header = 0;
-        while (!ifeof(file))
-        {
-            buffer.ReadLine(file);
-            if (buffer.Length() < 2)
-            {
-                continue;
+
+        while (!ifeof(file)) {
+          buffer.ReadLine(file);
+          if (buffer.Length() < 2) {
+            continue;
+          }
+
+          if (SampleSize[study] == -1) {
+            if (buffer.Find("##AnalyzedSamples") != -1) {
+              StringArray tokens;
+              tokens.AddTokens(buffer, "=");
+              SampleSize[study] = tokens[1].AsInteger();
+              continue;
             }
-            if (!pass_header)
-            {
-                if (SampleSize[study] == -1)
-                {
-                    if (buffer.Find("##AnalyzedSamples") != -1)
-                    {
-                        StringArray tokens;
-                        tokens.AddTokens(buffer, "=");
-                        SampleSize[study] = tokens[1].AsInteger();
-                        continue;
-                    }
-                }
-                if (buffer.FindChar('#') == -1 && buffer.Find("CHROM") == -1)
-                {
-                    pass_header = 1;
-                }
-            }
-            if (!pass_header)
-            {
-                continue;
-            }
-            double current_chisq;
-            bool status = poolSingleRecord(study, current_chisq, duplicateSNP, adjust, buffer, covReader);
-            if (status)
-            {
-                chisq_study_i.Push(current_chisq);
-            }
+          }
+          if (buffer.FindChar('#') == -1 && buffer.Find("CHROM") == -1) {
+            break;
+          }
         }
+
+        // If the user requested a specific region, then use tabix to seek the file forward to the line with
+        // the starting position of the region.
+        if (RegionStatus) {
+          Tabix tabix;
+          String score_index = filename + ".tbi";
+          StatGenStatus::Status libstatus = tabix.readIndex(score_index.c_str());
+
+          if (libstatus != StatGenStatus::SUCCESS) {
+            error("Cannot open tabix index for score statistic file %s\n", score_index.c_str());
+          }
+
+          bool status = SetIfilePosition(file, tabix, region_chrom, region_start);
+          if (!status) {
+            error("Cannot find position %s:%d-%d in score statistic file %s!\n", region_chrom.c_str(), region_start, region_end, filename.c_str());
+          }
+        }
+
+        bool region_done;
+        bool status;
+        while (!ifeof(file)) {
+          buffer.ReadLine(file);
+
+          double current_chisq;
+          region_done = false;
+          status = false;
+          poolSingleRecord(study, current_chisq, duplicateSNP, adjust, buffer, covReader, status, region_done);
+
+          if (region_done) {
+            break;
+          }
+
+          if (status) {
+            chisq_study_i.Push(current_chisq);
+          }
+        }
+
         ifclose(file);
 
         total_N += SampleSize[study];
@@ -1956,14 +1974,14 @@ int Meta::MatchOneAllele(String ref_current, int &idx)
 
 // pool single record from score file
 // if u2/v2 is generated, return true
-bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP, bool adjust, String &buffer,
-                            SummaryFileReader &covReader)
+void Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP, bool adjust, String &buffer,
+                            SummaryFileReader &covReader, bool &status, bool &region_done)
 {
     StringArray tokens;
     tokens.AddTokens(buffer, SEPARATORS);
     if (tokens[0].Find("#") != -1)
     {
-        return 0;
+        return;
     }
 
     if (tokens[0].Find("chr") != -1)
@@ -1971,7 +1989,16 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
         tokens[0] = tokens[0].SubStr(3);
     }
 
-    String chr_pos = tokens[0] + ":" + tokens[1];
+    String chrom = tokens[0];
+    int pos = atoi(tokens[1].c_str());
+
+    if (RegionStatus && (pos > region_end || chrom != region_chrom)) {
+      status = false;
+      region_done = true;
+      return;
+    }
+
+    String chr_pos = chrom + ":" + tokens[1];
     std::string std_chrpos(chr_pos.c_str());
     int direction_idx = directionByChrPos.Integer(chr_pos);
 
@@ -1982,7 +2009,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
         duplicateSNP++;
         fprintf(log, "Warning: variant %s from study %s is skipped because of duplicate records in the same study.\n",
                 chr_pos.c_str(), scorefile[study].c_str());
-        return 0;
+        return;
     }
 
     //POOLING STEP1: if fail HWE or CALLRATE then skip this record
@@ -2073,7 +2100,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
         UpdateExcludedMarker(study, chr_pos, filter_type,
                              tokens[0] + ":" + tokens[1] + ":" + tokens[2] + ":" + tokens[3]);
         fprintf(log,"Warning: variant %s from study %s is skipped because of call rate, HWE, or missing alleles.\n",chr_pos.c_str(),scorefile[study].c_str());
-        return 0;
+        return;
     }
 
     //STEP2: check if this position has been hashed. If yes, match alleles; if not, hash position and ref alt alleles.
@@ -2157,7 +2184,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
                 char direct = '!';
                 UpdateDirection(direction_idx, study, direct, chr_pos, true);
                 fprintf(log,"Warning: variant %s from study %s is skipped because alleles did not match previous study.\n",chr_pos.c_str(),scorefile[study].c_str());
-                return 0;
+                return;
             }
             if (match == 1)
             {
@@ -2184,7 +2211,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
                 char direct = '!';
                 UpdateDirection(direction_idx, study, direct, chr_pos, true);
                 fprintf(log,"Warning: variant %s from study %s is skipped because alleles did not match previous study.\n",chr_pos.c_str(),scorefile[study].c_str());
-                return 0;
+                return;
             }
             UpdateStrIntHash(chr_pos, current_N, recSize);
             if (match == 1)
@@ -2259,7 +2286,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
     if (c1 + c2 == 0 || c2 + c3 == 0)
     {
         fprintf(log,"Warning: variant %s from study %s is skipped because variant is monomorphic.\n",chr_pos.c_str(),scorefile[study].c_str());
-        return 0;
+        return;
     }
 
     //push the chisq statistics for GC calculation
@@ -2278,7 +2305,8 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
             updateSNPcond(study, flip, adjust, chr_pos, tokens, covReader);
         }
     }
-    return 1;
+
+    status = true;
 }
 
 // if dup marker, return true
@@ -3108,81 +3136,75 @@ void Meta::loadSingleCovInGroup(GroupFromAnnotation &group)
         String filename = covfile[study];
         IFILE covfile_;
         covfile_ = ifopen(filename, "r");
-        if (covfile_ == NULL)
-        {
-            error("ERROR! Cannot open file: %s! Input cov file has to be bgzipped and tabix indexed using the following command:\n bgzip yourfile.singlevar.cov.txt; tabix -c \"#\" -s 1 -b 2 -e 2 yourprefix.singlevar.cov.txt.gz\n",
-                  filename.c_str());
+        if (covfile_ == NULL) {
+          error("ERROR! Cannot open file: %s! Input cov file has to be bgzipped and tabix indexed using the following command:\n bgzip yourfile.singlevar.cov.txt; tabix -c \"#\" -s 1 -b 2 -e 2 yourprefix.singlevar.cov.txt.gz\n",filename.c_str());
         }
+
+        bool pass_header = false;
+        bool newFormat = false;
+        while (!ifeof(covfile_)) {
+          String buffer;
+          buffer.ReadLine(covfile_);
+          if (!pass_header) {
+            if (buffer.Find("CHROM") == -1) {
+              continue;
+            }
+
+            // now check new or old format
+            StringArray tokens;
+            tokens.AddTokens(buffer, "\t ");
+            if (tokens[2] == "MARKERS_IN_WINDOW" && tokens[3] == "COV_MATRICES") {
+              newFormat = false;
+            }
+            else if (tokens[2] == "EXP" && tokens[3] == "COV_MATRICES") {
+              newFormat = true;
+            }
+            else if (tokens[3] == "NUM_MARKER" && tokens[4] == "MARKER_POS" && tokens[5] == "COV") {
+              newFormat = false;
+            }
+            else {
+              error("Covariance matrix is neither new or old format...are you using the right file?\n");
+            }
+
+            pass_header = true;
+          }
+        }
+
         Tabix covtabix;
         String tabix_name = filename + ".tbi";
         StatGenStatus::Status libstatus = covtabix.readIndex(tabix_name.c_str());
-        if (RegionStatus)
-        {
-            if (libstatus != StatGenStatus::SUCCESS)
-            {
-                error("Cannot open tabix file %s!\n", tabix_name.c_str());
-            }
-            bool status = SetIfilePosition(covfile_, covtabix, Chr, Start);
-            if (!status)
-            {
-                error("Cannot find position %s:%d-%d in cov file %s!\n", Chr.c_str(), Start, End, filename.c_str());
-            }
+        if (RegionStatus) {
+          if (libstatus != StatGenStatus::SUCCESS) {
+            error("Cannot open tabix file %s!\n", tabix_name.c_str());
+          }
+          bool status = SetIfilePosition(covfile_, covtabix, region_chrom, region_start);
+          if (!status) {
+            error("Cannot find position %s:%d-%d in cov file %s!\n", region_chrom.c_str(), region_start, region_end, filename.c_str());
+          }
         }
 
         int m = 0;
-        bool pass_header = 0;
-        bool newFormat = 0;
-        while (!ifeof(covfile_))
-        {
-            String buffer;
-            buffer.ReadLine(covfile_);
-            if (!pass_header)
-            {
-                if (buffer.Find("CHROM") == -1)
-                {
-                    continue;
-                }
-                // now check new or old format
-                StringArray tokens;
-                tokens.AddTokens(buffer, "\t ");
-                if (tokens[2] == "MARKERS_IN_WINDOW" && tokens[3] == "COV_MATRICES")
-                {
-                    newFormat = 0;
-                } else if (tokens[2] == "EXP" && tokens[3] == "COV_MATRICES")
-                {
-                    newFormat = 1;
-                } else if (tokens[3] == "NUM_MARKER" && tokens[4] == "MARKER_POS" && tokens[5] == "COV")
-                {
-                    newFormat = 0;
-                } else
-                {
-                    error("Covariance matrix is neither new or old format...are you using the right file?\n");
-                }
-                pass_header = 1;
-                continue;
+        while (!ifeof(covfile_)) {
+          String buffer;
+          buffer.ReadLine(covfile_);
+
+          StringArray tokens;
+          tokens.AddTokens(buffer, "\t ");
+          if (RegionStatus) {
+            if (tokens[1].AsInteger() > region_end || tokens[0] != region_chrom) { // out of this region or into another chromosome
+              break;
             }
-            StringArray tokens;
-            tokens.AddTokens(buffer, "\t ");
-            if (RegionStatus)
-            {
-                if (tokens[1].AsInteger() > End || tokens[0] != Chr)
-                { // out of this region or into another chromosome
-                    break;
-                }
+          }
+
+          if (FormatAdjust[study]) { // rvtest
+            readCovOldFormatLine(study, tokens, m);
+          } else {
+            if (newFormat) {
+              readCovNewFormatLine(study, tokens, m);
+            } else {
+              readCovOldFormatLine(study, tokens, m);
             }
-            if (FormatAdjust[study])
-            { // rvtest
-                readCovOldFormatLine(study, tokens, m);
-            } else
-            {
-                if (newFormat)
-                {
-                    readCovNewFormatLine(study, tokens, m);
-                } else
-                {
-                    readCovOldFormatLine(study, tokens, m);
-                }
-            }
+          }
         }
         ifclose(covfile_);
         printf("done\n");

@@ -49,11 +49,11 @@ public:
     int marker_col;
     int cov_col;
     bool altMAF; // if TRUE, exclude size of studies that do not contain that variant
-    bool RegionStatus; // if TRUE, restrict gene-based test to the specified region
+    bool RegionStatus; // if TRUE, restrict single-variant and gene-based test to the specified region
     String Region; // raw region option
-    String Chr;
-    int Start;
-    int End; // 3 variables to define region
+    String region_chrom;
+    int region_start;
+    int region_end; // 3 variables to define region
     FILE *log;
     bool skipOutput;
 
@@ -229,8 +229,8 @@ public:
 
     int MatchOneAllele(String refalt_current, int &marker_idx);
 
-    bool poolSingleRecord(int study, double &current_chisq, int &duplicateSNP, bool adjust, String &buffer,
-                          SummaryFileReader &covReader);
+    void poolSingleRecord(int study, double &current_chisq, int &duplicateSNP, bool adjust, String &buffer,
+                          SummaryFileReader &covReader, bool &status, bool &region_done);
 
     void poolHeterogeneity(int study, bool adjust, String &buffer, SummaryFileReader &covReader);
 
