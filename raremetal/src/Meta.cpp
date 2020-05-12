@@ -692,7 +692,8 @@ void Meta::PoolSummaryStat(GroupFromAnnotation &group)
               continue;
             }
           }
-          if (buffer.FindChar('#') == -1 && buffer.Find("CHROM") == -1) {
+
+          if (buffer.Find("#CHROM") == 0) {
             break;
           }
         }
@@ -3140,33 +3141,26 @@ void Meta::loadSingleCovInGroup(GroupFromAnnotation &group)
           error("ERROR! Cannot open file: %s! Input cov file has to be bgzipped and tabix indexed using the following command:\n bgzip yourfile.singlevar.cov.txt; tabix -c \"#\" -s 1 -b 2 -e 2 yourprefix.singlevar.cov.txt.gz\n",filename.c_str());
         }
 
-        bool pass_header = false;
         bool newFormat = false;
         while (!ifeof(covfile_)) {
           String buffer;
           buffer.ReadLine(covfile_);
-          if (!pass_header) {
-            if (buffer.Find("CHROM") == -1) {
-              continue;
-            }
 
+          if (buffer.Find("CHROM") > -1) {
             // now check new or old format
             StringArray tokens;
             tokens.AddTokens(buffer, "\t ");
             if (tokens[2] == "MARKERS_IN_WINDOW" && tokens[3] == "COV_MATRICES") {
               newFormat = false;
-            }
-            else if (tokens[2] == "EXP" && tokens[3] == "COV_MATRICES") {
+            } else if (tokens[2] == "EXP" && tokens[3] == "COV_MATRICES") {
               newFormat = true;
-            }
-            else if (tokens[3] == "NUM_MARKER" && tokens[4] == "MARKER_POS" && tokens[5] == "COV") {
+            } else if (tokens[3] == "NUM_MARKER" && tokens[4] == "MARKER_POS" && tokens[5] == "COV") {
               newFormat = false;
-            }
-            else {
+            } else {
               error("Covariance matrix is neither new or old format...are you using the right file?\n");
             }
 
-            pass_header = true;
+            break;
           }
         }
 
