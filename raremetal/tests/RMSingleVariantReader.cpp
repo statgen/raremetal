@@ -68,7 +68,7 @@ void RMSingleVariantReader::load(const string &file) {
           rec->n = stoul(tokens.at(i));
         }
         else if (col == "POOLED_ALT_AF") {
-          rec->pooled_alt_af = stod(tokens.at(i));
+          rec->pooled_alt_af = extract_fp<double>(tokens.at(i));
         }
         else if (col == "DIRECTION_BY_STUDY") {
           rec->direction_by_study = tokens.at(i);
