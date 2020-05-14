@@ -71,6 +71,7 @@ Meta::Meta() {
   dosageOptionFile = "";
   sumCaseAC = false;
   bHeterogeneity = false;
+  logP = false;
   log = nullptr;
   skipOutput = false;
   Nsamples = -1;
