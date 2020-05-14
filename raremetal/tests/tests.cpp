@@ -203,6 +203,9 @@ TEST_CASE("Tutorial datasets") {
   SECTION("tut_rm") {
     Meta meta;
     meta.prefix = "test.tut_rm";
+    meta.SKAT = true;
+    meta.Burden = true;
+    meta.VTa = true;
     meta.setLogFile();
 
     meta.scorefile.Add("tests/raremetal/test_tut_rm/inputs/STUDY1.QT1.singlevar.score.txt.gz");
@@ -212,14 +215,28 @@ TEST_CASE("Tutorial datasets") {
     meta.covfile.Add("tests/raremetal/test_tut_rm/inputs/STUDY2.QT1.singlevar.cov.txt.gz");
 
     GroupFromAnnotation group;
+    group.groupFile = "tests/raremetal/test_tut_rm/inputs/group.file";
+
     meta.Prepare();
+    group.Run("", meta.log);
     meta.PoolSummaryStat(group);
     meta.WriteSingleVariantResults(group);
+    meta.Run(group);
 
-    auto reader_tested = RMSingleVariantReader("test.tut_rm.meta.singlevar.results");
-    auto reader_expect = RMSingleVariantReader("tests/raremetal/test_tut_rm/expected/COMBINED.QT1.meta.singlevar.results");
+    auto reader_sv_tested = RMSingleVariantReader("test.tut_rm.meta.singlevar.results");
+    auto reader_sv_expect = RMSingleVariantReader("tests/raremetal/test_tut_rm/expected/COMBINED.QT1.meta.singlevar.results");
+    REQUIRE(reader_sv_tested == reader_sv_expect);
 
-    bool test = reader_tested == reader_expect;
-    REQUIRE(test);
+    auto reader_skat_tested = RMGroupTestReader("test.tut_rm.meta.SKAT_.results");
+    auto reader_skat_expect = RMGroupTestReader("tests/raremetal/test_tut_rm/expected/COMBINED.QT1.meta.SKAT_.results");
+    REQUIRE(reader_skat_tested == reader_skat_expect);
+
+    auto reader_burden_tested = RMGroupTestReader("test.tut_rm.meta.burden.results");
+    auto reader_burden_expect = RMGroupTestReader("tests/raremetal/test_tut_rm/expected/COMBINED.QT1.meta.burden.results");
+    REQUIRE(reader_burden_tested == reader_burden_expect);
+
+    auto reader_vt_tested = RMGroupTestReader("test.tut_rm.meta.VT_.results");
+    auto reader_vt_expect = RMGroupTestReader("tests/raremetal/test_tut_rm/expected/COMBINED.QT1.meta.VT_.results");
+    REQUIRE(reader_vt_tested == reader_vt_expect);
   }
 }
