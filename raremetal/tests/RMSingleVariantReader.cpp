@@ -135,6 +135,23 @@ shared_ptr<RMSingleVariantRecord> RMSingleVariantReader::get_record(const string
 }
 
 bool RMSingleVariantReader::operator==(const RMSingleVariantReader &other) const {
+  // Check basic stats.
+  if (nsamples != other.nsamples) {
+    return false;
+  }
+
+  if (nstudies != other.nstudies) {
+    return false;
+  }
+
+  if (trait_name != other.trait_name) {
+    return false;
+  }
+
+  if (records.size() != other.records.size()) {
+    return false;
+  }
+
   // Iterate over each record in this reader and compare to the other reader.
   for (uint64_t i = 0; i < records.size(); i++) {
     auto &rec1 = *(this->records[i]);
