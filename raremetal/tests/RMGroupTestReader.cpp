@@ -64,6 +64,12 @@ void RMGroupTestReader::load(const string &file) {
         else if (col == "PVALUE_DAVIES") {
           rec->pvalue_davies = extract_fp<double>(tokens.at(i));
         }
+        else if (col == "PVALUE") {
+          rec->pvalue = extract_fp<double>(tokens.at(i));
+        }
+        else if (col == "EFFECT_SIZE") {
+          rec->effect_size = extract_fp<double>(tokens.at(i));
+        }
       }
 
       // Insert
@@ -135,9 +141,11 @@ bool RMGroupTestRecord::operator==(const RMGroupTestRecord &other) const {
   bool b_stat = approx_nan(stat, other.stat);
   bool b_pval_davies = approx_nan(pvalue_davies, other.pvalue_davies);
   bool b_pval_liu = approx_nan(pvalue_liu, other.pvalue_liu);
+  bool b_pval = approx_nan(pvalue, other.pvalue);
+  bool b_effect = approx_nan(effect_size, other.effect_size);
 
   bool b_final = b_group && b_num_var && b_avg_af && b_min_af && b_max_af &&
-                 b_stat && b_pval_davies && b_pval_liu;
+                 b_stat && b_pval_davies && b_pval_liu && b_pval && b_effect;
 
   return b_final;
 }

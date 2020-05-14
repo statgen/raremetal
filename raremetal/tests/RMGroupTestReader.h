@@ -23,6 +23,8 @@ struct RMGroupTestRecord {
   double stat = -1;
   double pvalue_davies = -1;
   double pvalue_liu = -1;
+  double pvalue = -1;
+  double effect_size = -1;
 
   bool operator==(const RMGroupTestRecord &other) const;
   bool operator!=(const RMGroupTestRecord &other) const;
