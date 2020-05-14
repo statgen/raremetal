@@ -64,6 +64,7 @@ TEST_CASE("Program Arguments") {
     remove("test.range.meta.plots.pdf");
     remove("test.range.meta.singlevar.results");
     remove("test.range.meta.SKAT_.results");
+    remove("raremetal.log");
   }
 }
 
@@ -140,6 +141,7 @@ TEST_CASE("Allele frequencies") {
     remove("test.allelefreq.meta.singlevar.results");
     remove("test.allelefreq.meta.plots.pdf");
     remove("test.allelefreq.raremetal.log");
+    remove("raremetal.log");
   }
 }
 
@@ -176,6 +178,7 @@ TEST_CASE("File I/O") {
     remove("test.fileio.simple.meta.singlevar.results");
     remove("test.fileio.simple.meta.plots.pdf");
     remove("test.fileio.simple.raremetal.log");
+    remove("raremetal.log");
   }
 }
 
@@ -196,6 +199,8 @@ TEST_CASE("Heterogeneity statistics") {
 
     // Low heterogeneity
     REQUIRE(meta.SNP_heterog_stat.Double("8:875238") == Approx(0.357466));
+
+    remove("raremetal.log");
   }
 }
 
@@ -238,5 +243,13 @@ TEST_CASE("Tutorial datasets") {
     auto reader_vt_tested = RMGroupTestReader("test.tut_rm.meta.VT_.results");
     auto reader_vt_expect = RMGroupTestReader("tests/raremetal/test_tut_rm/expected/COMBINED.QT1.meta.VT_.results");
     REQUIRE(reader_vt_tested == reader_vt_expect);
+
+    remove("test.tut_rm.meta.singlevar.results");
+    remove("test.tut_rm.meta.SKAT_.results");
+    remove("test.tut_rm.meta.burden.results");
+    remove("test.tut_rm.meta.VT_.results");
+    remove("test.tut_rm.meta.plots.pdf");
+    remove("test.tut_rm.raremetal.log");
+    remove("raremetal.log");
   }
 }
