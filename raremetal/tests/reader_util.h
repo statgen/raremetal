@@ -4,6 +4,8 @@
 #include <string>
 #include <limits>
 #include <exception>
+#include <cmath>
+#include "catch.hpp"
 
 template <typename T> T extract_fp(const std::string &s) {
   T d;
@@ -26,4 +28,17 @@ template <typename T> T extract_fp(const std::string &s) {
   }
   return d;
 }
+
+template <typename T> bool approx_nan(const T &a, const T &b) {
+  if (isnan(a) && isnan(b)) {
+    return true;
+  }
+  else if (isnan(a) ^ isnan(b)) {
+    return false;
+  }
+  else {
+    return a == Approx(b);
+  }
+}
+
 #endif //RAREMETAL_READER_UTIL_H

@@ -133,3 +133,44 @@ shared_ptr<RMSingleVariantRecord> RMSingleVariantReader::get_record(const string
     return null;
   }
 }
+
+bool RMSingleVariantReader::operator==(const RMSingleVariantReader &other) const {
+  // Iterate over each record in this reader and compare to the other reader.
+  for (uint64_t i = 0; i < records.size(); i++) {
+    auto &rec1 = *(this->records[i]);
+    auto &rec2 = *(other.records[i]);
+    if (rec1 != rec2) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool RMSingleVariantRecord::operator==(const RMSingleVariantRecord &other) const {
+  bool b_chrom = chrom == other.chrom;
+  bool b_pos = pos == other.pos;
+  bool b_ref = ref == other.ref;
+  bool b_alt = alt == other.alt;
+  bool b_n = n == other.n;
+  bool b_pooled_alt_af = approx_nan(pooled_alt_af, other.pooled_alt_af);
+  bool b_direction = direction_by_study == other.direction_by_study;
+  bool b_effect = approx_nan(effect_size, other.effect_size);
+  bool b_se = approx_nan(effect_stderr, other.effect_stderr);
+  bool b_h2 = approx_nan(h2, other.h2);
+  bool b_pval = approx_nan(pvalue, other.pvalue);
+  bool b_alt_af_mean = approx_nan(alt_af_mean, other.alt_af_mean);
+  bool b_alt_af_se = approx_nan(alt_af_se, other.alt_af_se);
+  bool b_alt_af_min = approx_nan(alt_af_min, other.alt_af_min);
+  bool b_alt_af_max = approx_nan(alt_af_max, other.alt_af_max);
+
+  bool b_final = b_chrom && b_pos && b_ref && b_alt && b_n && b_pooled_alt_af && b_direction &&
+    b_effect && b_se && b_h2 && b_pval && b_alt_af_mean && b_alt_af_se && b_alt_af_min &&
+    b_alt_af_max;
+
+  return b_final;
+}
+
+bool RMSingleVariantRecord::operator!=(const RMSingleVariantRecord &other) const {
+  return !(*this == other);
+}

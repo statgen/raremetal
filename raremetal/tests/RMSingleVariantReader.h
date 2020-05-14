@@ -12,6 +12,7 @@
 #include <exception>
 #include <limits>
 #include "reader_util.h"
+#include "catch.hpp"
 
 struct RMSingleVariantRecord {
   std::string chrom;
@@ -24,11 +25,14 @@ struct RMSingleVariantRecord {
   double effect_size;
   double effect_stderr;
   double h2;
-  double alt_af_mean;
-  double alt_af_se;
-  double alt_af_min;
-  double alt_af_max;
+  double alt_af_mean = -1;
+  double alt_af_se = -1;
+  double alt_af_min = -1;
+  double alt_af_max = -1;
   long double pvalue;
+
+  bool operator==(const RMSingleVariantRecord &other) const;
+  bool operator!=(const RMSingleVariantRecord &other) const;
 };
 
 class RMSingleVariantReader {
@@ -50,6 +54,8 @@ public:
 
   record_iterator begin() const;
   record_iterator end() const;
+
+  bool operator==(const RMSingleVariantReader &other) const;
 };
 
 #endif //RAREMETAL_RMSINGLEVARIANTREADER_H
