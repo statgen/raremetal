@@ -198,3 +198,28 @@ TEST_CASE("Heterogeneity statistics") {
     REQUIRE(meta.SNP_heterog_stat.Double("8:875238") == Approx(0.357466));
   }
 }
+
+TEST_CASE("Tutorial datasets") {
+  SECTION("tut_rm") {
+    Meta meta;
+    meta.prefix = "test.tut_rm";
+    meta.setLogFile();
+
+    meta.scorefile.Add("tests/raremetal/test_tut_rm/inputs/STUDY1.QT1.singlevar.score.txt.gz");
+    meta.scorefile.Add("tests/raremetal/test_tut_rm/inputs/STUDY2.QT1.singlevar.score.txt.gz");
+
+    meta.covfile.Add("tests/raremetal/test_tut_rm/inputs/STUDY1.QT1.singlevar.cov.txt.gz");
+    meta.covfile.Add("tests/raremetal/test_tut_rm/inputs/STUDY2.QT1.singlevar.cov.txt.gz");
+
+    GroupFromAnnotation group;
+    meta.Prepare();
+    meta.PoolSummaryStat(group);
+    meta.WriteSingleVariantResults(group);
+
+    auto reader_tested = RMSingleVariantReader("test.tut_rm.meta.singlevar.results");
+    auto reader_expect = RMSingleVariantReader("tests/raremetal/test_tut_rm/expected/COMBINED.QT1.meta.singlevar.results");
+
+    bool test = reader_tested == reader_expect;
+    REQUIRE(test);
+  }
+}
