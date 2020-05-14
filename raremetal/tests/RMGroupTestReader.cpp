@@ -95,3 +95,53 @@ shared_ptr<RMGroupTestRecord> RMGroupTestReader::get_record(const string &i) {
     return null;
   }
 }
+
+bool RMGroupTestReader::operator==(const RMGroupTestReader &other) const {
+  // Check basic stats.
+  if (nsamples != other.nsamples) {
+    return false;
+  }
+
+  if (nstudies != other.nstudies) {
+    return false;
+  }
+
+  if (trait_name != other.trait_name) {
+    return false;
+  }
+
+  if (records.size() != other.records.size()) {
+    return false;
+  }
+
+  // Iterate over each record in this reader and compare to the other reader.
+  for (uint64_t i = 0; i < records.size(); i++) {
+    auto &rec1 = *(this->records[i]);
+    auto &rec2 = *(other.records[i]);
+    if (rec1 != rec2) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool RMGroupTestRecord::operator==(const RMGroupTestRecord &other) const {
+  bool b_group = group == other.group;
+  bool b_num_var = num_var == other.num_var;
+  bool b_avg_af = approx_nan(avg_af, other.avg_af);
+  bool b_min_af = approx_nan(min_af, other.min_af);
+  bool b_max_af = approx_nan(max_af, other.max_af);
+  bool b_stat = approx_nan(stat, other.stat);
+  bool b_pval_davies = approx_nan(pvalue_davies, other.pvalue_davies);
+  bool b_pval_liu = approx_nan(pvalue_liu, other.pvalue_liu);
+
+  bool b_final = b_group && b_num_var && b_avg_af && b_min_af && b_max_af &&
+                 b_stat && b_pval_davies && b_pval_liu;
+
+  return b_final;
+}
+
+bool RMGroupTestRecord::operator!=(const RMGroupTestRecord &other) const {
+  return !(*this == other);
+}

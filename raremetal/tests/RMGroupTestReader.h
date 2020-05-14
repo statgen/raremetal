@@ -17,12 +17,15 @@ struct RMGroupTestRecord {
   std::string group;
   uint64_t num_var;
   std::vector<std::string> variants;
-  double avg_af;
-  double min_af;
-  double max_af;
-  double stat;
-  double pvalue_davies;
-  double pvalue_liu;
+  double avg_af = -1;
+  double min_af = -1;
+  double max_af = -1;
+  double stat = -1;
+  double pvalue_davies = -1;
+  double pvalue_liu = -1;
+
+  bool operator==(const RMGroupTestRecord &other) const;
+  bool operator!=(const RMGroupTestRecord &other) const;
 };
 
 class RMGroupTestReader {
@@ -41,6 +44,8 @@ public:
   std::string get_group_test();
   uint64_t get_num_records();
   std::shared_ptr<RMGroupTestRecord> get_record(const std::string &i);
+
+  bool operator==(const RMGroupTestReader &other) const;
 };
 
 #endif //RAREMETAL_RMGROUPTESTREADER_H
