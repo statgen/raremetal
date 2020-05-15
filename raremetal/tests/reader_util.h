@@ -30,10 +30,10 @@ template <typename T> T extract_fp(const std::string &s) {
 }
 
 template <typename T> bool approx_nan(const T &a, const T &b) {
-  if (isnan(a) && isnan(b)) {
+  if (std::isnan(a) && std::isnan(b)) {
     return true;
   }
-  else if (isnan(a) ^ isnan(b)) {
+  else if (std::isnan(a) ^ std::isnan(b)) {
     return false;
   }
   else {
