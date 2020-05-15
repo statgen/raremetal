@@ -246,4 +246,54 @@ TEST_CASE("Tutorial datasets") {
     remove("test.tut_rm.raremetal.log");
     remove("raremetal.log");
   }
+
+  SECTION("tut_rm_rvt_cov") {
+    // Run meta-analysis with scores/cov from RAREMETALWORKER.
+    Meta meta_rm;
+    meta_rm.prefix = "test.tut_rm_rvt_cov.raremetal";
+    meta_rm.Burden = true;
+    meta_rm.setLogFile();
+    meta_rm.scorefile.Add("tests/raremetal/test_tut_rm_rvt_cov/inputs/STUDY1.QT1.singlevar.score.txt.gz");
+    meta_rm.scorefile.Add("tests/raremetal/test_tut_rm_rvt_cov/inputs/STUDY2.QT1.singlevar.score.txt.gz");
+    meta_rm.covfile.Add("tests/raremetal/test_tut_rm_rvt_cov/inputs/STUDY1.QT1.singlevar.cov.txt.gz");
+    meta_rm.covfile.Add("tests/raremetal/test_tut_rm_rvt_cov/inputs/STUDY2.QT1.singlevar.cov.txt.gz");
+    GroupFromAnnotation group_rm;
+    group_rm.groupFile = "tests/raremetal/test_tut_rm_rvt_cov/inputs/group.file";
+    meta_rm.Prepare();
+    group_rm.Run("", meta_rm.log);
+    meta_rm.PoolSummaryStat(group_rm);
+    meta_rm.WriteSingleVariantResults(group_rm);
+    meta_rm.Run(group_rm);
+
+    // Run meta-analysis with scores/cov from RVTEST.
+    Meta meta_rvtest;
+    meta_rvtest.prefix = "test.tut_rm_rvt_cov.rvtest";
+    meta_rvtest.Burden = true;
+    meta_rvtest.setLogFile();
+    meta_rvtest.scorefile.Add("tests/raremetal/test_tut_rm_rvt_cov/inputs/STUDY1.rvtests.MetaScore.assoc.gz");
+    meta_rvtest.scorefile.Add("tests/raremetal/test_tut_rm_rvt_cov/inputs/STUDY2.rvtests.MetaScore.assoc.gz");
+    meta_rvtest.covfile.Add("tests/raremetal/test_tut_rm_rvt_cov/inputs/STUDY1.rvtests.MetaCov.assoc.gz");
+    meta_rvtest.covfile.Add("tests/raremetal/test_tut_rm_rvt_cov/inputs/STUDY2.rvtests.MetaCov.assoc.gz");
+    GroupFromAnnotation group_rvtest;
+    group_rvtest.groupFile = "tests/raremetal/test_tut_rm_rvt_cov/inputs/group.file";
+    meta_rvtest.Prepare();
+    group_rvtest.Run("", meta_rvtest.log);
+    meta_rvtest.PoolSummaryStat(group_rvtest);
+    meta_rvtest.WriteSingleVariantResults(group_rvtest);
+    meta_rvtest.Run(group_rvtest);
+
+    auto reader_raremetal = RMGroupTestReader("test.tut_rm_rvt_cov.raremetal.meta.burden.results");
+    auto reader_rvtest = RMGroupTestReader("test.tut_rm_rvt_cov.rvtest.meta.burden.results");
+    REQUIRE(reader_raremetal == reader_rvtest);
+
+    remove("test.tut_rm_rvt_cov.raremetal.meta.singlevar.results");
+    remove("test.tut_rm_rvt_cov.raremetal.meta.burden.results");
+    remove("test.tut_rm_rvt_cov.raremetal.meta.plots.pdf");
+    remove("test.tut_rm_rvt_cov.raremetal.raremetal.log");
+    remove("test.tut_rm_rvt_cov.rvtest.meta.singlevar.results");
+    remove("test.tut_rm_rvt_cov.rvtest.meta.burden.results");
+    remove("test.tut_rm_rvt_cov.rvtest.meta.plots.pdf");
+    remove("test.tut_rm_rvt_cov.rvtest.raremetal.log");
+    remove("raremetal.log");
+  }
 }
