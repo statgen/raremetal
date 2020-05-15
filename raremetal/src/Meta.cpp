@@ -694,7 +694,7 @@ void Meta::PoolSummaryStat(GroupFromAnnotation &group)
             }
           }
 
-          if (buffer.Find("#CHROM") == 0) {
+          if (buffer.Find("CHROM") > -1) {
             break;
           }
         }
