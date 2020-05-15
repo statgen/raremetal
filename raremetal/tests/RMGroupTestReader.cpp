@@ -7,6 +7,10 @@ uint64_t RMGroupTestReader::get_num_records() {
 }
 
 void RMGroupTestReader::load(const string &file) {
+  if (!filepath_exists(file)) {
+    throw std::runtime_error("Could not find file: " + file);
+  }
+
   ifstream input_file(file);
   string line;
   auto line_separator = regex("[ \t]");
@@ -76,6 +80,10 @@ void RMGroupTestReader::load(const string &file) {
       records.push_back(rec);
       this->index.emplace(rec->group, rec);
     }
+  }
+
+  if (records.empty()) {
+    throw std::runtime_error("No group test results were read from file: " + file);
   }
 }
 

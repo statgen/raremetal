@@ -5,6 +5,7 @@
 #include <map>
 #include <vector>
 #include <memory>
+#include "reader_util.h"
 
 struct RMWScoreRecord {
   std::string chrom;

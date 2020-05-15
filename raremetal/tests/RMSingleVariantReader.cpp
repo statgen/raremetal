@@ -15,6 +15,10 @@ RMSingleVariantReader::record_iterator RMSingleVariantReader::end() const {
 }
 
 void RMSingleVariantReader::load(const string &file) {
+  if (!filepath_exists(file)) {
+    throw std::runtime_error("Could not find file: " + file);
+  }
+
   ifstream input_file(file);
   string line;
   auto line_separator = regex("[ \t]");
@@ -108,6 +112,10 @@ void RMSingleVariantReader::load(const string &file) {
       this->index.emplace(chrpos, rec);
       this->index.emplace(variant, rec);
     }
+  }
+
+  if (records.empty()) {
+    throw std::runtime_error("No single variant test results were read from file: " + file);
   }
 }
 
