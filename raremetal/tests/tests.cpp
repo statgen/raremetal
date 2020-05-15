@@ -1,18 +1,12 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 #include <stdio.h>
-#include <fstream>
 #include "StringBasics.h"
 #include "../src/GroupFromAnnotation.h"
 #include "../src/Meta.h"
 #include "RMSingleVariantReader.h"
 #include "RMGroupTestReader.h"
 using namespace std;
-
-bool file_exists(const std::string &name) {
-  ifstream f(name.c_str());
-  return f.good();
-}
 
 TEST_CASE("Program Arguments") {
   SECTION("--range") {

@@ -5,7 +5,13 @@
 #include <limits>
 #include <exception>
 #include <cmath>
+#include <fstream>
 #include "catch.hpp"
+
+inline bool filepath_exists(const std::string &name) {
+  std::ifstream f(name.c_str());
+  return f.good();
+}
 
 template <typename T> T extract_fp(const std::string &s) {
   T d;
