@@ -799,28 +799,46 @@ void Meta::PoolSummaryStat(GroupFromAnnotation &group)
         IFILE file;
         file = ifopen(filename, "r");
 
-        // Get rid of first header line. We already know what type of file this is from earlier.
         String buffer;
-        buffer.ReadLine(file);
-        bool adjust = FormatAdjust[study];
-
-        // Loop over lines of score file, updating heterogeneity statistic for each variant.
-        bool pass_header = false;
         while (!ifeof(file)) {
           buffer.ReadLine(file);
           if (buffer.Length() < 2) {
             continue;
           }
-          if (!pass_header) {
-            if (buffer.FindChar('#') == -1 && buffer.Find("CHROM") == -1) {
-              pass_header = true;
-            }
+
+          if (buffer.Find("CHROM") > -1) {
+            break;
           }
-          if (!pass_header) {
-            continue;
+        }
+
+        // If the user requested a specific region, then use tabix to seek the file forward to the line with
+        // the starting position of the region.
+        if (RegionStatus) {
+          Tabix tabix;
+          String score_index = filename + ".tbi";
+          StatGenStatus::Status libstatus = tabix.readIndex(score_index.c_str());
+
+          if (libstatus != StatGenStatus::SUCCESS) {
+            error("Cannot open tabix index for score statistic file %s\n", score_index.c_str());
           }
 
-          poolHeterogeneity(study, adjust, buffer, covReader);
+          bool status = SetIfilePosition(file, tabix, region_chrom, region_start);
+          if (!status) {
+            error("Cannot find position %s:%d-%d in score statistic file %s!\n", region_chrom.c_str(), region_start, region_end, filename.c_str());
+          }
+        }
+
+        bool adjust = FormatAdjust[study];
+
+        // Loop over lines of score file, updating heterogeneity statistic for each variant.
+        bool region_done = false;
+        while (!ifeof(file)) {
+          buffer.ReadLine(file);
+          poolHeterogeneity(study, adjust, buffer, covReader, region_done);
+
+          if (region_done) {
+            break;
+          }
         }
         ifclose(file);
       }
@@ -1817,7 +1835,7 @@ void Meta::UpdateHetCondStats(int study, bool flip, int adjust, String &markerNa
  * @param buffer string current line to be parsed
  * @param covReader extracts covariances for a variant if conditional analysis is required
  */
-void Meta::poolHeterogeneity(int study, bool adjust, String &buffer, SummaryFileReader &covReader) {
+void Meta::poolHeterogeneity(int study, bool adjust, String &buffer, SummaryFileReader &covReader, bool &region_done) {
   StringArray tokens;
   tokens.AddTokens(buffer, SEPARATORS);
 
@@ -1827,6 +1845,14 @@ void Meta::poolHeterogeneity(int study, bool adjust, String &buffer, SummaryFile
 
   if (tokens[0].Find("chr") != -1) {
     tokens[0] = tokens[0].SubStr(3);
+  }
+
+  String chrom = tokens[0];
+  int pos = atoi(tokens[1].c_str());
+
+  if (RegionStatus && (pos > region_end || chrom != region_chrom)) {
+    region_done = true;
+    return;
   }
 
   String chr_pos = tokens[0] + ":" + tokens[1];

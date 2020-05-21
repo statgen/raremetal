@@ -232,7 +232,7 @@ public:
     void poolSingleRecord(int study, double &current_chisq, int &duplicateSNP, bool adjust, String &buffer,
                           SummaryFileReader &covReader, bool &status, bool &region_done);
 
-    void poolHeterogeneity(int study, bool adjust, String &buffer, SummaryFileReader &covReader);
+    void poolHeterogeneity(int study, bool adjust, String &buffer, SummaryFileReader &covReader, bool &region_done);
 
     bool isDupMarker(String &chr_str, String &chr_pos);
 
