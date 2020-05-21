@@ -77,6 +77,7 @@ Meta::Meta() {
   Nsamples = -1;
   averageFreq = false;
   minMaxFreq = false;
+  noPDF = false;
 }
 
 Meta::~Meta() {}
@@ -105,13 +106,14 @@ void Meta::setLogFile(FILE *plog) {
 //and save the names in the StringArray files
 void Meta::Prepare() {
     // Setup PDF
-    if (prefix.Last() == '.' || prefix.Last() == '/') {
-      pdf_filename = prefix + "meta.plots.pdf";
+    if (!noPDF) {
+      if (prefix.Last() == '.' || prefix.Last() == '/') {
+        pdf_filename = prefix + "meta.plots.pdf";
+      } else {
+        pdf_filename = prefix + ".meta.plots.pdf";
+      }
+      pdf.OpenFile(pdf_filename);
     }
-    else {
-      pdf_filename = prefix + ".meta.plots.pdf";
-    }
-    pdf.OpenFile(pdf_filename);
 
     // Parse files with paths to score statistics and covariance matrices per study
     parseScoreFiles();
@@ -2988,7 +2990,9 @@ void Meta::plotSingleMetaGC(IFILE &output, bool calc_gc)
     }
     demo3 = "GC=";
     demo3 += GC3;
-    writepdf.Draw(pdf, geneLabel, pvalueAll, pvalue1, pvalue5, chr_plot, pos_plot, title, demo1, demo2, demo3, false);
+    if (!noPDF) {
+      writepdf.Draw(pdf, geneLabel, pvalueAll, pvalue1, pvalue5, chr_plot, pos_plot, title, demo1, demo2, demo3, false);
+    }
 
     //Calculate genomic control
     if (calc_gc)
@@ -3595,7 +3599,7 @@ void Meta::BurdenAssoc(String method, GroupFromAnnotation &group, Vector *&maf, 
     name += ")";
     String extraname = "";
     String demo;
-    if (pvalue_burden.Length() > 0)
+    if (pvalue_burden.Length() > 0 && !noPDF)
     {
         //Calculate genomic control
         double GC = GetGenomicControlFromPvalue(pvalue_burden);
@@ -3770,22 +3774,23 @@ void Meta::VTassoc(GroupFromAnnotation &group)
         geneLabels.Push(group.annoGroups[g]);
     }
 
-    String name = "VT (maf<";
-    name += MAF_cutoff;
-    name += ")";
-    String extraname = "";
-    String demo = "";
-    double GC = GetGenomicControlFromPvalue(pvalue_VT);
-    demo = "GC=";
-    demo += GC;
-    writepdf.Draw(pdf, geneLabels, pvalue_VT, chr_plot, pos_plot, name, extraname, demo, true);
-    if (cond != "")
-    {
+    if (!noPDF) {
+      String name = "VT (maf<";
+      name += MAF_cutoff;
+      name += ")";
+      String extraname = "";
+      String demo = "";
+      double GC = GetGenomicControlFromPvalue(pvalue_VT);
+      demo = "GC=";
+      demo += GC;
+      writepdf.Draw(pdf, geneLabels, pvalue_VT, chr_plot, pos_plot, name, extraname, demo, true);
+      if (cond != "") {
         name += " Conditional Analysis";
         double GC = GetGenomicControlFromPvalue(cond_pvalue_VT);
         demo = "GC=";
         demo += GC;
         writepdf.Draw(pdf, geneLabels, cond_pvalue_VT, chr_plot, pos_plot, name, extraname, demo, true);
+      }
     }
 
     ifclose(output);
@@ -4530,23 +4535,25 @@ void Meta::SKATassoc(GroupFromAnnotation &group)
         geneLabels.Push(group.annoGroups[g]);
     }
 
-    String name = "SKAT (maf<";
-    name += MAF_cutoff;
-    name += ")";
-    String extraname = "";
-    String demo = "";
-    double GC = GetGenomicControlFromPvalue(pvalue_SKAT);
-    demo = "GC=";
-    demo += GC;
-    writepdf.Draw(pdf, geneLabels, pvalue_SKAT, chr_plot, pos_plot, name, extraname, demo, true);
-    if (cond != "")
-    {
+    if (!noPDF) {
+      String name = "SKAT (maf<";
+      name += MAF_cutoff;
+      name += ")";
+      String extraname = "";
+      String demo = "";
+      double GC = GetGenomicControlFromPvalue(pvalue_SKAT);
+      demo = "GC=";
+      demo += GC;
+      writepdf.Draw(pdf, geneLabels, pvalue_SKAT, chr_plot, pos_plot, name, extraname, demo, true);
+      if (cond != "") {
         name += " conditional analysis";
         double GC = GetGenomicControlFromPvalue(cond_pvalue_SKAT);
         demo = "GC=";
         demo += GC;
         writepdf.Draw(pdf, geneLabels, cond_pvalue_SKAT, chr_plot, pos_plot, name, extraname, demo, true);
+      }
     }
+
     ifclose(output);
     if (report)
     {

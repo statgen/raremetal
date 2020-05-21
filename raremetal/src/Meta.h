@@ -74,6 +74,7 @@ public:
     bool logP; // write p-values in -log10 scale
     bool averageFreq;
     bool minMaxFreq;
+    bool noPDF; // disable writing PDF
 
     //saved single variant information from pooled studies
     StringArray scorefile;
