@@ -194,6 +194,71 @@ TEST_CASE("Heterogeneity statistics") {
     // Low heterogeneity
     REQUIRE(meta.SNP_heterog_stat.Double("8:875238") == Approx(0.357466));
 
+    for (int i = 0; i < meta.SNPmaf_name.Length(); i++) {
+      String snp_name = meta.SNPmaf_name[i];
+      StringArray tmp;
+      tmp.AddTokens(snp_name, ":");
+      String snp_chrpos = tmp[0] + ":" + tmp[1];
+
+      double het_chisq = meta.SNP_heterog_stat.Double(snp_chrpos);
+      REQUIRE(het_chisq != _NAN_);
+      if (het_chisq != _NAN_) { REQUIRE(het_chisq >= 0.0); }
+    }
+
+    // Check size match
+    REQUIRE(meta.SNPstat.Entries() == meta.SNP_heterog_stat.Entries());
+
+    remove("raremetal.log");
+  }
+
+  SECTION("Check heterogeneity limited to --range") {
+    Meta meta;
+    meta.prefix = "test.range.heterog";
+    meta.setLogFile();
+    meta.bHeterogeneity = true;
+    meta.Region = "3:1291852-1955783";
+    meta.scorefile.Add("tests/datasets/simulated/heterog/study0_raremetal.txt.gz");
+    meta.scorefile.Add("tests/datasets/simulated/heterog/study1_raremetal.txt.gz");
+
+    GroupFromAnnotation group;
+
+    meta.Prepare();
+    meta.PoolSummaryStat(group);
+    meta.WriteSingleVariantResults(group);
+
+    // Given the range above, the single variant results should only contain records from position 1:2 to 1:87.
+    auto sv_reader = RMSingleVariantReader("test.range.heterog.meta.singlevar.results");
+    auto num_sv_rec = sv_reader.get_num_records();
+    auto sv_rec_first = *sv_reader.begin();
+    auto sv_rec_last = *(--sv_reader.end());
+
+    REQUIRE(num_sv_rec == 3);
+    REQUIRE(sv_rec_first->chrom == "3");
+    REQUIRE(sv_rec_first->pos == 1291852);
+    REQUIRE(sv_rec_first->het_pvalue == Approx(9.84832e-26));
+    REQUIRE(sv_rec_last->chrom == "3");
+    REQUIRE(sv_rec_last->pos == 1955783);
+    REQUIRE(sv_rec_last->het_pvalue == Approx(3.55586e-18));
+
+    // All variants should have a heterogeneity p-value available
+    for (int i = 0; i < meta.SNPmaf_name.Length(); i++) {
+      String snp_name = meta.SNPmaf_name[i];
+      StringArray tmp;
+      tmp.AddTokens(snp_name, ":");
+      String snp_chrpos = tmp[0] + ":" + tmp[1];
+
+      double het_chisq = meta.SNP_heterog_stat.Double(snp_chrpos);
+      REQUIRE(het_chisq != _NAN_);
+      if (het_chisq != _NAN_) { REQUIRE(het_chisq >= 0.0); }
+    }
+
+    // Check size match
+    REQUIRE(meta.SNPstat.Entries() == meta.SNP_heterog_stat.Entries());
+
+    remove("test.range.heterog.raremetal.log");
+    remove("test.range.heterog.meta.plots.pdf");
+    remove("test.range.heterog.meta.singlevar.results");
+    remove("test.range.heterog.meta.SKAT_.results");
     remove("raremetal.log");
   }
 }
