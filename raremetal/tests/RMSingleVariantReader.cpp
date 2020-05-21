@@ -101,6 +101,9 @@ void RMSingleVariantReader::load(const string &file) {
         else if (col == "ALT_AF_MAX") {
           rec->alt_af_max = extract_fp<double>(tokens.at(i));
         }
+        else if (col == "HET_PVALUE") {
+          rec->het_pvalue = extract_fp<long double>(tokens.at(i));
+        }
       }
 
       // Keys
@@ -188,10 +191,11 @@ bool RMSingleVariantRecord::operator==(const RMSingleVariantRecord &other) const
   bool b_alt_af_se = approx_nan(alt_af_se, other.alt_af_se);
   bool b_alt_af_min = approx_nan(alt_af_min, other.alt_af_min);
   bool b_alt_af_max = approx_nan(alt_af_max, other.alt_af_max);
+  bool b_het_pval = approx_nan(het_pvalue, other.het_pvalue);
 
   bool b_final = b_chrom && b_pos && b_ref && b_alt && b_n && b_pooled_alt_af && b_direction &&
     b_effect && b_se && b_h2 && b_pval && b_alt_af_mean && b_alt_af_se && b_alt_af_min &&
-    b_alt_af_max;
+    b_alt_af_max && b_het_pval;
 
   return b_final;
 }

@@ -30,6 +30,7 @@ struct RMSingleVariantRecord {
   double alt_af_min = -1;
   double alt_af_max = -1;
   long double pvalue;
+  long double het_pvalue = -1;
 
   bool operator==(const RMSingleVariantRecord &other) const;
   bool operator!=(const RMSingleVariantRecord &other) const;
