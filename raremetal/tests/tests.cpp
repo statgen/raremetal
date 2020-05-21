@@ -215,6 +215,7 @@ TEST_CASE("Heterogeneity statistics") {
     Meta meta;
     meta.prefix = "test.range.heterog";
     meta.setLogFile();
+    meta.noPDF = true;
     meta.bHeterogeneity = true;
     meta.Region = "3:1291852-1955783";
     meta.scorefile.Add("tests/datasets/simulated/heterog/study0_raremetal.txt.gz");
