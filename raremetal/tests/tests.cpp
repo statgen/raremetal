@@ -363,3 +363,98 @@ TEST_CASE("Tutorial datasets") {
     remove("raremetal.log");
   }
 }
+
+TEST_CASE("Under the alternative hypothesis") {
+  SECTION("SKAT") {
+    Meta meta;
+    meta.prefix = "test.althyp.skat";
+    meta.setLogFile();
+    meta.Region = "1:1-87";
+    meta.SKAT = true;
+
+    meta.scorefile.Add("tests/datasets/simulated/region/test.smallchunk.MetaScore.assoc.gz");
+    meta.covfile.Add("tests/datasets/simulated/region/test.smallchunk.MetaCov.assoc.gz");
+
+    GroupFromAnnotation group;
+    group.groupFile = "tests/datasets/simulated/region/test.smallchunk.mask.tab";
+
+    meta.Prepare();
+    group.Run("", meta.log);
+    meta.PoolSummaryStat(group);
+
+    meta.WriteSingleVariantResults(group);
+    meta.Run(group);
+
+    auto reader_skat = RMGroupTestReader("test.althyp.skat.meta.SKAT_.results");
+    auto zsyh2_skat = reader_skat.get_record("ZSYH2");
+    REQUIRE(zsyh2_skat->pvalue_liu == Approx(1.28628e-09));
+
+    remove("test.althyp.skat.raremetal.log");
+    remove("test.althyp.skat.meta.plots.pdf");
+    remove("test.althyp.skat.meta.singlevar.results");
+    remove("test.althyp.skat.meta.SKAT_.results");
+    remove("raremetal.log");
+  }
+
+  SECTION("VT") {
+    Meta meta;
+    meta.prefix = "test.althyp.vt";
+    meta.setLogFile();
+    meta.Region = "1:1-95";
+    meta.VTa = true;
+
+    meta.scorefile.Add("tests/datasets/simulated/alt_hyp/for_rm_test.MetaScore.assoc.gz");
+    meta.covfile.Add("tests/datasets/simulated/alt_hyp/for_rm_test.MetaCov.assoc.gz");
+
+    GroupFromAnnotation group;
+    group.groupFile = "tests/datasets/simulated/alt_hyp/for_rm_test.mask.tab";
+
+    meta.Prepare();
+    group.Run("", meta.log);
+    meta.PoolSummaryStat(group);
+
+    meta.WriteSingleVariantResults(group);
+    meta.Run(group);
+
+    auto reader_vt = RMGroupTestReader("test.althyp.vt.meta.VT_.results");
+    auto rec = reader_vt.get_record("ZDKL1");
+    REQUIRE(rec->pvalue == Approx(1.85541e-62));
+
+    remove("test.althyp.vt.raremetal.log");
+    remove("test.althyp.vt.meta.plots.pdf");
+    remove("test.althyp.vt.meta.singlevar.results");
+    remove("test.althyp.vt.meta.VT_.results");
+    remove("raremetal.log");
+  }
+
+  SECTION("Burden") {
+    Meta meta;
+    meta.prefix = "test.althyp.burden";
+    meta.setLogFile();
+    meta.Region = "1:1-95";
+    meta.Burden = true;
+
+    meta.scorefile.Add("tests/datasets/simulated/alt_hyp/for_rm_test.MetaScore.assoc.gz");
+    meta.covfile.Add("tests/datasets/simulated/alt_hyp/for_rm_test.MetaCov.assoc.gz");
+
+    GroupFromAnnotation group;
+    group.groupFile = "tests/datasets/simulated/alt_hyp/for_rm_test.mask.tab";
+
+    meta.Prepare();
+    group.Run("", meta.log);
+    meta.PoolSummaryStat(group);
+
+    meta.WriteSingleVariantResults(group);
+    meta.Run(group);
+
+    auto reader_vt = RMGroupTestReader("test.althyp.burden.meta.burden.results");
+    auto rec = reader_vt.get_record("ZDKL1");
+    REQUIRE(rec->pvalue == Approx(3.20186e-63));
+
+    remove("test.althyp.burden.raremetal.log");
+    remove("test.althyp.burden.meta.plots.pdf");
+    remove("test.althyp.burden.meta.singlevar.results");
+    remove("test.althyp.burden.meta.VT_.results");
+    remove("raremetal.log");
+  }
+}
