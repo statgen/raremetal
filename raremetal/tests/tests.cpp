@@ -1,6 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 #include <stdio.h>
+#include <cmath>
 #include "StringBasics.h"
 #include "../src/GroupFromAnnotation.h"
 #include "../src/Meta.h"
@@ -135,6 +136,44 @@ TEST_CASE("Allele frequencies") {
     remove("test.allelefreq.meta.singlevar.results");
     remove("test.allelefreq.meta.plots.pdf");
     remove("test.allelefreq.raremetal.log");
+    remove("raremetal.log");
+  }
+
+  SECTION("Monomorphic") {
+    Meta meta;
+    meta.prefix = "test.monomorphic";
+    meta.setLogFile();
+    meta.Region = "1:1-95";
+    meta.Burden = true;
+
+    meta.scorefile.Add("tests/datasets/simulated/monomorphic/for_rm_test.MetaScore.assoc.gz");
+    meta.covfile.Add("tests/datasets/simulated/monomorphic/for_rm_test.MetaCov.assoc.gz");
+
+    GroupFromAnnotation group;
+    group.groupFile = "tests/datasets/simulated/monomorphic/for_rm_test.mask.tab";
+
+    meta.Prepare();
+    group.Run("", meta.log);
+    meta.PoolSummaryStat(group);
+
+    meta.WriteSingleVariantResults(group);
+    meta.Run(group);
+
+    auto reader_single = RMSingleVariantReader("test.monomorphic.meta.singlevar.results");
+    auto mono_rec = reader_single.get_record("1:2_A/C");
+    REQUIRE(mono_rec->pooled_alt_af == 0);
+    REQUIRE(mono_rec->direction_by_study == "?");
+    REQUIRE(mono_rec->n == 0);
+    REQUIRE(isnan(mono_rec->effect_size));
+
+    auto reader_vt = RMGroupTestReader("test.monomorphic.meta.burden.results");
+    auto rec = reader_vt.get_record("ZDKL1");
+    REQUIRE(rec->pvalue == Approx(2.57422e-63)); // We made one variant monomorphic so this should be different from the test below
+
+    remove("test.monomorphic.raremetal.log");
+    remove("test.monomorphic.meta.plots.pdf");
+    remove("test.monomorphic.meta.singlevar.results");
+    remove("test.monomorphic.meta.burden.results");
     remove("raremetal.log");
   }
 }
