@@ -1,20 +1,41 @@
 language: cpp
-dist: bionic
-compiler: gcc
+
+jobs:
+  include:
+    - os: linux
+      dist: bionic
+      compiler: gcc
+      env: LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+    - os: osx
+      osx_image: xcode11.3
+      compiler: clang
+
 cache: pip
-env:
-  - LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+
 before_install:
-  - sudo apt update
-  - sudo apt install build-essential cmake gfortran locales zlib1g-dev liblzma-dev
-  - sudo apt install python3 python3-setuptools python3-pip python3-virtualenv
-  - sudo locale-gen en_US.UTF-8
-  - sudo pip3 install cget
-  - cget install -f requirements.txt
+  - |
+    if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
+      brew install cmake zlib xz python3
+      brew cask install gfortran
+      sudo python3 -m pip install cget
+      sudo installer -pkg /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg -target /
+      cget install -f requirements.txt
+    fi
+  - |
+    if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
+      sudo apt update
+      sudo apt install build-essential cmake gfortran locales zlib1g-dev liblzma-dev
+      sudo apt install python3 python3-setuptools python3-pip python3-virtualenv
+      sudo locale-gen en_US.UTF-8
+      sudo pip3 install cget
+      cget install -f requirements.txt
+    fi
+
 install:
-  - mkdir build && cd build
+  - rm -rf build && mkdir build && cd build
   - cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../cget/cget/cget.cmake -DBUILD_TESTS=1 ..
   - make
   - cd ..
+
 script:
   - build/raremetal/tests/bin/tests-raremetal
