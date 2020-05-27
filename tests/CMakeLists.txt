@@ -2,7 +2,7 @@
 # raremetal has a new Catch2 test suite. We'll port these remaining tests to raremetalworker down the road,
 # assuming we don't completely deprecate raremetalworker.
 
-set(RMW_BIN ${CMAKE_BINARY_DIR}/raremetalworker)
+set(RMW_BIN ${CMAKE_BINARY_DIR}/bin/raremetalworker)
 
 
 ##### Definitions and helpers
