@@ -6,30 +6,39 @@ jobs:
       dist: bionic
       compiler: gcc
       env: LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+      before_install:
+        - |
+          sudo apt update
+          sudo apt install build-essential cmake gfortran locales zlib1g-dev liblzma-dev
+          sudo apt install python3 python3-setuptools python3-pip python3-virtualenv
+          sudo locale-gen en_US.UTF-8
+          sudo pip3 install cget
+          cget install -f requirements.txt
+
     - os: osx
       osx_image: xcode11.3
       compiler: clang
+      before_install:
+        - |
+          brew install cmake zlib xz python3
+          brew cask install gfortran
+          sudo python3 -m pip install cget
+          sudo installer -pkg /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg -target /
+          cget install -f requirements.txt
+
+    - os: osx
+      osx_image: xcode11.4
+      compiler: clang
+      before_install:
+        - |
+          brew install cmake zlib xz python3
+          brew cask install gfortran
+          sudo python3 -m pip install cget
+          export CPATH=$(xcrun --show-sdk-path)/usr/include
+          export CFLAGS="${CFLAGS} -Wno-nullability-completeness -Wno-expansion-to-defined -Wno-undef"
+          cget install -f requirements.txt
 
 cache: pip
-
-before_install:
-  - |
-    if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
-      brew install cmake zlib xz python3
-      brew cask install gfortran
-      sudo python3 -m pip install cget
-      sudo installer -pkg /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg -target /
-      cget install -f requirements.txt
-    fi
-  - |
-    if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
-      sudo apt update
-      sudo apt install build-essential cmake gfortran locales zlib1g-dev liblzma-dev
-      sudo apt install python3 python3-setuptools python3-pip python3-virtualenv
-      sudo locale-gen en_US.UTF-8
-      sudo pip3 install cget
-      cget install -f requirements.txt
-    fi
 
 install:
   - rm -rf build && mkdir build && cd build
