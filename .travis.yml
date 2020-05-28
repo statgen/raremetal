@@ -48,3 +48,8 @@ install:
 
 script:
   - build/raremetal/tests/bin/tests-raremetal
+  - cd build
+
+  # The raremetalworker tests only work on OSX. If we're on OSX, then run the tests and return the result.
+  # Otherwise, this statement should return true, to avoid completely failing the entire build/job.
+  - if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then ctest --verbose; else true; fi
