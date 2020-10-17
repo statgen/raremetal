@@ -28,6 +28,8 @@ class SummaryFileReader
 {
 public:
     static int counter;
+    int marker_col;
+    int cov_col;
 
     SummaryFileReader()
     {

@@ -12,16 +12,14 @@ class GroupFromAnnotation
 {
 public:
     GroupFromAnnotation();
-
     ~GroupFromAnnotation();
 
     //Input/Output options
-    static String vcfInput;
-    static String groupFile;
-    static String function;
-    static String mapFile;
-    static bool labelHits;
-
+    String vcfInput;
+    String groupFile;
+    String function;
+    String mapFile;
+    bool labelHits;
 
     StringArray *SNPlist;
     StringArray *SNPNoAllele;
@@ -31,6 +29,7 @@ public:
     StringIntHash groupHash;
     Vector *pos;
     int geneCount;
+
     //these are for annotating single variant accoding to refFlat_hg19.txt
     IntArray start_pos, end_pos;
     StringArray genename, chr;
@@ -38,7 +37,6 @@ public:
     QuickIndex chr_idx;
 
     //this is the position of each marker in a gene for output
-
     void GetGeneMap(String path);
 
     void GetGroupFromFile(FILE *log);
@@ -49,7 +47,7 @@ public:
 
     String AnnotateSingleVar(String chr, int pos);
 
-// group vcf related
+    // group vcf related
     void vcfInitialize();
 
     void addLineFromVcf(String &buffer);

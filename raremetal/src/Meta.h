@@ -13,61 +13,68 @@
 #include "WritePDF.h"
 
 #include <map>
+#include <string>
+#include <cmath>
+
+const double LN_10 = log(10);
 
 class Meta
 {
 public:
-    explicit Meta(FILE *plog);
-
+    Meta();
     ~Meta();
 
     //Input/Output options  
-    static String summaryFiles;
-    static String covFiles;
-    static String prefix;
-    static String cond;
-    static bool correctGC;
-    static bool outvcf;
-    static bool tabix;
-    static bool Burden;
-    static bool MB;
-    static bool MAB;
-    static bool BBeta;
-    static bool SKAT;
-//	static bool SKATO;
-    static bool VTa;
-    static bool report;
-    static bool fullResult;
-    static bool founderAF;
-    static bool dosage;
-    static double CALLRATE;
-    static double report_pvalue_cutoff;
-    static double MAF_cutoff;
-    static double HWE;
-    static int marker_col;
-    static int cov_col;
-    static bool altMAF; // if TRUE, exclude size of studies that do not contain that variant
-    static bool RegionStatus; // if TRUE, restrict gene-based test to the specified region
-    static String Region; // raw region option
-    static String Chr;
-    static int Start;
-    static int End; // 3 variables to define region
+    String summaryFiles;
+    String covFiles;
+    String prefix;
+    String cond;
+    bool correctGC;
+    bool outvcf;
+    bool tabix;
+    bool Burden;
+    bool MB;
+    bool MAB;
+    bool BBeta;
+    bool SKAT;
+    bool VTa;
+    bool report;
+    bool fullResult;
+    bool founderAF;
+    bool dosage;
+    double CALLRATE;
+    double report_pvalue_cutoff;
+    double MAF_cutoff;
+    double HWE;
+    int marker_col;
+    int cov_col;
+    bool altMAF; // if TRUE, exclude size of studies that do not contain that variant
+    bool RegionStatus; // if TRUE, restrict single-variant and gene-based test to the specified region
+    String Region; // raw region option
+    String region_chrom;
+    int region_start;
+    int region_end; // 3 variables to define region
     FILE *log;
+    bool skipOutput;
 
-    static bool useExactMetaMethod;
-    static bool normPop;
-    static String popfile_name;
-    static bool simplifyCovLoad;
-    static bool relateBinary;
-    static bool debug;
-    static bool matchOnly;
-    static bool matchByAbs;
-    static double matchDist;
-    static double minMatchMAF; // MAF threshold for adjustment
-    static double maxMatchMAF;
-    static String dosageOptionFile;
-    static bool sumCaseAC;
-//	static bool noAdjustUnmatch;
+    bool useExactMetaMethod;
+    bool normPop;
+    String popfile_name;
+    bool simplifyCovLoad;
+    bool relateBinary;
+    bool debug;
+    bool matchOnly;
+    bool matchByAbs;
+    double matchDist;
+    double minMatchMAF; // MAF threshold for adjustment
+    double maxMatchMAF;
+    String dosageOptionFile;
+    bool sumCaseAC;
+    bool bHeterogeneity;
+    bool logP; // write p-values in -log10 scale
+    bool averageFreq;
+    bool minMaxFreq;
+    bool noPDF; // disable writing PDF
 
     //saved single variant information from pooled studies
     StringArray scorefile;
@@ -87,6 +94,10 @@ public:
     StringDoubleHash SNP_Vstat;
     StringDoubleHash SNPstat_cond;
     StringDoubleHash SNP_Vstat_cond;
+    StringDoubleHash SNP_heterog_stat;
+    StringIntHash SNP_heterog_df;
+    StringDoubleHash SNP_heterog_cond_stat;
+    StringIntHash SNP_heterog_cond_df;
     StringIntHash groupAnchor;
     Vector SNPmaf_maf;
     StringArray SNPmaf_name;
@@ -96,6 +107,11 @@ public:
     int skip_count;
     StringIntHash caseAC;
     StringIntHash controlAC;
+    std::map<std::string, double> freqN;      // total sample size of all studies contributing to this variant's AF
+    std::map<std::string, double> frequency;  // running total of alternate allele frequency across studies
+    std::map<std::string, double> frequency2; // running total of (alternate allele frequency)^2 across studies
+    std::map<std::string, double> maxFreq;    // maximum alternate allele frequency seen across studies
+    std::map<std::string, double> minFreq;    // minimum alternate allele frequency seen across studies
 
     // for pooling summary stats
     StringIntHash usefulSize; // pooled N info
@@ -183,9 +199,10 @@ public:
 
     void CalculateXXCov(int study, Matrix &result);
 
-    void setMetaStatics();
+    void parseScoreFiles();
+    void parseCovFiles();
 
-    void openMetaFiles();
+    void setLogFile(FILE *plog = nullptr);
 
     void prepareConditionalAnalysis();
 
@@ -202,8 +219,10 @@ public:
     void UpdateStrDoubleHash(String &chr_pos, double val, StringDoubleHash &sdhash);
 
     void UpdateACInfo(String &chr_pos, double AC);
+    void UpdateAFInfo(std::string &variant, double af, double weight);
 
     void UpdateStats(int study, String &markerName, double stat, double vstat, bool flip);
+    void UpdateHetStats(int study, String &markerName, double stat, double vstat, bool flip);
 
     char GetDirection(String &chr_pos, double effsize, bool flip);
 
@@ -211,8 +230,10 @@ public:
 
     int MatchOneAllele(String refalt_current, int &marker_idx);
 
-    bool poolSingleRecord(int study, double &current_chisq, int &duplicateSNP, bool adjust, String &buffer,
-                          SummaryFileReader &covReader);
+    void poolSingleRecord(int study, double &current_chisq, int &duplicateSNP, bool adjust, String &buffer,
+                          SummaryFileReader &covReader, bool &status, bool &region_done);
+
+    void poolHeterogeneity(int study, bool adjust, String &buffer, SummaryFileReader &covReader, bool &region_done);
 
     bool isDupMarker(String &chr_str, String &chr_pos);
 
@@ -220,8 +241,8 @@ public:
 
     void setPolyMatch(int &match, String &chr_pos, String &refalt_current, StringArray &tokens, int marker_idx);
 
-    void
-    updateSNPcond(int study, bool flip, int adjust, String &chr_pos, StringArray &tokens, SummaryFileReader &covReader);
+    void updateSNPcond(int study, bool flip, int adjust, String &chr_pos, StringArray &tokens, SummaryFileReader &covReader);
+    void UpdateHetCondStats(int study, bool flip, int adjust, String &chr_pos, StringArray &tokens, SummaryFileReader &covReader);
 
     void setPooledAF();
 
@@ -230,6 +251,7 @@ public:
     void printOutVcfHeader(String &vcf_filename, IFILE &vcfout);
 
     void printSingleMetaVariant(GroupFromAnnotation &group, int i, IFILE &output, IFILE &vcfout);
+    void WriteSingleVariantResults(GroupFromAnnotation &group);
 
     void annotateSingleVariantToGene(GroupFromAnnotation &group, double pvalue, double cond_pvalue, StringArray &tmp);
 
@@ -298,6 +320,40 @@ public:
     void updateSingleVariantGroupStatsNewFormat(GroupFromAnnotation &group, int study, int g, Matrix &cov_i, Matrix &GX,
                                                 StringArray &chr, StringArray &pos, int loc, int m, int gvar_count,
                                                 double multiplyFactor);
+};
+
+struct SingleVariantResult {
+  double u, v, n;
+  double chisq;
+  long double pvalue;
+  double log_pvalue; // -log10(pvalue)
+  double effSize;
+  bool disect;
+  double h2;
+  double effSize_se;
+
+  SingleVariantResult() {}
+
+  SingleVariantResult(double u, double v, double n) {
+    setStats(u, v, n);
+    calculate();
+  }
+
+  void setStats(double u, double v, double n) {
+    this->u = u;
+    this->v = v;
+    this->n = n;
+    this->disect = false;
+  }
+
+  void calculate() {
+    chisq = u * u / v;
+    log_pvalue = -pchisq(chisq, 1, 0, 1) / LN_10;
+    pvalue = exp(static_cast<long double>(pchisq(chisq, 1, 0, 1)));
+    effSize = u / v;
+    h2 = v * effSize * effSize / n;
+    effSize_se = 1.0 / sqrt(v);
+  }
 };
 
 #endif

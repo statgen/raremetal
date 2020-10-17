@@ -1,11 +1,8 @@
-# Test scenarios:
-#   Two tools, many parameters for each
-#       - Raremetalworker
-#       - Raremetal
+# Currently only raremetalworker is tested here.
+# raremetal has a new Catch2 test suite. We'll port these remaining tests to raremetalworker down the road,
+# assuming we don't completely deprecate raremetalworker.
 
-
-set(RMW_BIN ${CMAKE_BINARY_DIR}/raremetalworker)
-set(RM_BIN ${CMAKE_BINARY_DIR}/raremetal)
+set(RMW_BIN ${CMAKE_BINARY_DIR}/bin/raremetalworker)
 
 
 ##### Definitions and helpers
@@ -80,27 +77,3 @@ run_boilerplate(
         test_tut_rmw_nokin
         raremetalworker/test_tut_rmw_nokin/script.cmake
         ${RMW_BIN})
-
-########## RAREMETAL
-set(BASE_TEST_FOLDER ${CMAKE_CURRENT_BINARY_DIR}/test_tut_rm)
-copy_test_scaffold(
-        ${BASE_TEST_FOLDER}
-        raremetal/test_tut_rm/inputs/
-        raremetal/test_tut_rm/expected/)
-run_boilerplate(
-        ${BASE_TEST_FOLDER}
-        test_tut_rm
-        raremetal/test_tut_rm/script.cmake
-        ${RM_BIN})
-
-# Test reading of cov files output by rvtests
-set(BASE_TEST_FOLDER ${CMAKE_CURRENT_BINARY_DIR}/test_tut_rm_rvt_cov)
-copy_test_scaffold(
-        ${BASE_TEST_FOLDER}
-        raremetal/test_tut_rm_rvt_cov/inputs/
-        "")
-run_boilerplate(
-        ${BASE_TEST_FOLDER}
-        test_tut_rm_rvt_cov
-        raremetal/test_tut_rm_rvt_cov/script.cmake
-        ${RM_BIN})

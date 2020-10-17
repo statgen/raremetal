@@ -11,6 +11,8 @@ find_library(LIB_HTS hts)
 find_library(LIB_Z z)
 find_library(LIB_RMATH Rmath)
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY bin)
+
 add_library(libraremetal
             libRareMetal/mvtnorm/randomF77.c
             libRareMetal/pdf/PDF.cpp
@@ -136,8 +138,8 @@ target_include_directories(raremetalworker PRIVATE otherLib/eigen-3.2.0)
 target_link_libraries(raremetalworker libraremetal ${LIB_SAVVY} ${LIB_ZSTD})
 target_compile_definitions(raremetalworker PRIVATE VERSION="${PROJECT_VERSION}")
 
-
 if(BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
+    add_subdirectory(raremetal/tests)
 endif()

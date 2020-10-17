@@ -1,3 +1,3 @@
-statgen/savvy@019a1ddaa9ec588f807f234f68787862f94ea057
-statgen/libStatGen@cram-support --cmake dep/libstatgen.cmake
+statgen/savvy@3d8075d1070326c2584687a760dac6e93790b531
+statgen/libStatGen@fde1db9e8b73163ef3b1d2916a9c26e38b39f7ca --cmake dep/libstatgen.cmake
 atks/Rmath@1a438f2f363e1f8fcf6b2804bd2cd0136d300230 --cmake dep/rmath.cmake

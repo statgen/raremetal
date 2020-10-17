@@ -5,15 +5,14 @@
 #include "InputFile.h"
 #include "QuickIndex.h"
 
-String GroupFromAnnotation::groupFile = "";
-String GroupFromAnnotation::vcfInput = "";
-String GroupFromAnnotation::function = "";
-String GroupFromAnnotation::mapFile = "../data/refFlat_hg19.txt";
-bool GroupFromAnnotation::labelHits = false;
-
 GroupFromAnnotation::GroupFromAnnotation()
 {
-    geneCount = 0;
+  geneCount = 0;
+  groupFile = "";
+  vcfInput = "";
+  function = "";
+  mapFile = "../data/refFlat_hg19.txt";
+  labelHits = false;
 }
 
 GroupFromAnnotation::~GroupFromAnnotation()

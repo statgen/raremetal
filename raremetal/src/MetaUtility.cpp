@@ -3,47 +3,28 @@
 #include <complex>
 //#include <gsl/gsl_integration.h> // integration for Dajiang's method
 
-bool SetIfilePosition(IFILE &sfile, Tabix &myTabix, String Chr, int pos)
+bool SetIfilePosition(IFILE &sfile, Tabix &myTabix, String chrom, int pos)
 {
-    const char *chr = Chr.c_str();
+    const char *chr = chrom.c_str();
     uint64_t fstart = 0;
     bool st = myTabix.getStartPos(chr, pos, fstart);
-    if (!st)
-    {
-        printf("Warning:[SetIfilePosition] Unable to locate %s:%d\n", chr, pos);
-        return false;
+    if (!st) {
+      printf("Warning:[SetIfilePosition] Unable to locate %s:%d\n", chr, pos);
+      return false;
     }
-// seek position now with fstart
-//      if ( fstart != (uint64_t)iftell(sfile) ) {
-    if (ifseek(sfile, fstart, SEEK_SET) != true)
-    {
-        printf("Unable to seek position %s:%d\n", chr, pos);
-        exit(1);
-    }
-//      }
 
+    // seek position now with fstart
+    if (!ifseek(sfile, fstart, SEEK_SET)) {
+      printf("Unable to seek position %s:%d\n", chr, pos);
+      exit(1);
+    }
 
-    if (ifeof(sfile))
-    {
-        printf("Warning:[SetIfilePosition] Reached end!\n");
-        return false;
+    if (ifeof(sfile)) {
+      printf("Warning:[SetIfilePosition] Reached end!\n");
+      return false;
     }
-// then move on to that position
-    String buffer;
-    StringArray tmp;
-    bool found = false;
-    while (!ifeof(sfile))
-    {
-        buffer.ReadLine(sfile);
-        tmp.Clear();
-        tmp.AddTokens(buffer, "\t");
-        if (tmp[1].AsInteger() >= pos)
-        {
-            found = true;
-            break;
-        }
-    }
-    return found;
+
+    return true;
 }
 
 // RMW: adjust = 0;
