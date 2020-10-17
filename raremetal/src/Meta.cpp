@@ -2589,7 +2589,7 @@ void Meta::printSingleMetaHeader(String &filename, IFILE &output)
     header += logP ? "\tLOG_PVALUE" : "\tPVALUE";
 
     if (cond != "") {
-      header += "\tCOND_EFFSIZE\tCOND_EFFSIZE_SD\tCOND_H2\tCOND_PVALUE";
+      header += "\tCOND_EFFSIZE\tCOND_EFFSIZE_SD\tCOND_H2";
       header += logP ? "\tCOND_LOG_PVALUE" : "\tCOND_PVALUE";
     }
 
