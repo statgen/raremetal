@@ -61,6 +61,71 @@ TEST_CASE("Program Arguments") {
     remove("test.range.meta.SKAT_.results");
     remove("raremetal.log");
   }
+
+  SECTION("--condition") {
+    Meta meta;
+    meta.prefix = "test.cond";
+    meta.setLogFile();
+    meta.Region = "1:1-87";
+    meta.cond = "tests/datasets/simulated/region/test.smallchunk.conditionFile";
+    meta.SKAT = true;
+    meta.scorefile.Add("tests/datasets/simulated/region/test.smallchunk.MetaScore.assoc.gz");
+    meta.covfile.Add("tests/datasets/simulated/region/test.smallchunk.MetaCov.assoc.gz");
+
+    GroupFromAnnotation group;
+    group.groupFile = "tests/datasets/simulated/region/test.smallchunk.mask.tab";
+
+    meta.Prepare();
+    group.Run("", meta.log);
+    meta.PoolSummaryStat(group);
+    meta.WriteSingleVariantResults(group);
+    meta.Run(group);
+
+    // Given the range above, only ZSYH2 should be tested and not the other gene.
+    auto group_reader = RMGroupTestReader("test.cond.meta.SKAT_.results");
+    auto group_rec = group_reader.get_record("ZSYH2");
+    auto num_group_rec = group_reader.get_num_records();
+
+    REQUIRE(num_group_rec == 1);
+    REQUIRE(group_rec->pvalue_liu == Approx(1.28628e-09));
+
+    vector<string> group_header(group_reader.header_begin(), group_reader.header_end());
+    REQUIRE(group_header.size() == 12);
+    REQUIRE(group_header[9] == "COND_STATISTICS");
+    REQUIRE(group_header[10] == "COND_PVALUE_DAVIES");
+    REQUIRE(group_header[11] == "COND_PVALUE_LIU");
+
+    // Given the range above, the single variant results should only contain records from position 1:2 to 1:87.
+    auto sv_reader = RMSingleVariantReader("test.cond.meta.singlevar.results");
+    auto num_sv_rec = sv_reader.get_num_records();
+    auto sv_rec_first = *sv_reader.records_begin();
+    auto sv_rec_last = *(--sv_reader.records_end());
+
+    REQUIRE(num_sv_rec == 86);
+
+    REQUIRE(sv_rec_first->chrom == "1");
+    REQUIRE(sv_rec_first->pos == 2);
+    REQUIRE(sv_rec_first->pvalue == Approx(0.1487579));
+
+    REQUIRE(sv_rec_last->chrom == "1");
+    REQUIRE(sv_rec_last->pos == 87);
+    REQUIRE(sv_rec_last->pvalue == Approx(0.7183580));
+
+    auto& third = *sv_reader.get_record("1:4_G/A");
+    REQUIRE(third.cond_effect_size == 0);
+    REQUIRE(third.cond_pvalue == 1);
+
+    vector<string> sv_header(sv_reader.header_begin(), sv_reader.header_end());
+    REQUIRE(sv_header.size() == 15);
+    REQUIRE(sv_header[13] == "COND_H2");
+    REQUIRE(sv_header[14] == "COND_PVALUE");
+
+    remove("test.cond.raremetal.log");
+    remove("test.cond.meta.plots.pdf");
+    remove("test.cond.meta.singlevar.results");
+    remove("test.cond.meta.SKAT_.results");
+    remove("raremetal.log");
+  }
 }
 
 TEST_CASE("P-value precision") {
