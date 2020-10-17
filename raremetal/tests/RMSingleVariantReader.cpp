@@ -112,6 +112,12 @@ void RMSingleVariantReader::load(const string &file) {
         else if (col == "HET_PVALUE") {
           rec->het_pvalue = extract_fp<long double>(tokens.at(i));
         }
+        else if (col == "COND_PVALUE") {
+          rec->cond_pvalue = extract_fp<long double>(tokens.at(i));
+        }
+        else if (col == "COND_EFFSIZE") {
+          rec->cond_effect_size = extract_fp<long double>(tokens.at(i));
+        }
       }
 
       // Keys
