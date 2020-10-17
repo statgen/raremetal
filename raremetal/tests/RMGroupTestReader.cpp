@@ -6,6 +6,14 @@ uint64_t RMGroupTestReader::get_num_records() {
   return records.size();
 }
 
+RMGroupTestReader::header_iterator RMGroupTestReader::header_begin() const {
+  return header.begin();
+}
+
+RMGroupTestReader::header_iterator RMGroupTestReader::header_end() const {
+  return header.end();
+}
+
 void RMGroupTestReader::load(const string &file) {
   if (!filepath_exists(file)) {
     throw std::runtime_error("Could not find file: " + file);
@@ -22,7 +30,7 @@ void RMGroupTestReader::load(const string &file) {
   auto regex_header = regex("#GROUPNAME\tNUM_VAR.*");
 
   bool header_done = false;
-  vector<string> header;
+  header.clear();
   while (getline(input_file, line)) {
     smatch match;
     if (!header_done) {

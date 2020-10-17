@@ -42,8 +42,8 @@ TEST_CASE("Program Arguments") {
     // Given the range above, the single variant results should only contain records from position 1:2 to 1:87.
     auto sv_reader = RMSingleVariantReader("test.range.meta.singlevar.results");
     auto num_sv_rec = sv_reader.get_num_records();
-    auto sv_rec_first = *sv_reader.begin();
-    auto sv_rec_last = *(--sv_reader.end());
+    auto sv_rec_first = *sv_reader.records_begin();
+    auto sv_rec_last = *(--sv_reader.records_end());
 
     REQUIRE(num_sv_rec == 86);
 
@@ -269,8 +269,8 @@ TEST_CASE("Heterogeneity statistics") {
     // Given the range above, the single variant results should only contain records from position 1:2 to 1:87.
     auto sv_reader = RMSingleVariantReader("test.range.heterog.meta.singlevar.results");
     auto num_sv_rec = sv_reader.get_num_records();
-    auto sv_rec_first = *sv_reader.begin();
-    auto sv_rec_last = *(--sv_reader.end());
+    auto sv_rec_first = *sv_reader.records_begin();
+    auto sv_rec_last = *(--sv_reader.records_end());
 
     REQUIRE(num_sv_rec == 3);
     REQUIRE(sv_rec_first->chrom == "3");

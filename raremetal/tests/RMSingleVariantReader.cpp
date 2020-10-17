@@ -6,12 +6,20 @@ uint64_t RMSingleVariantReader::get_num_records() {
   return records.size();
 }
 
-RMSingleVariantReader::record_iterator RMSingleVariantReader::begin() const {
+RMSingleVariantReader::record_iterator RMSingleVariantReader::records_begin() const {
   return records.begin();
 }
 
-RMSingleVariantReader::record_iterator RMSingleVariantReader::end() const {
+RMSingleVariantReader::record_iterator RMSingleVariantReader::records_end() const {
   return records.end();
+}
+
+RMSingleVariantReader::header_iterator RMSingleVariantReader::header_begin() const {
+  return header.begin();
+}
+
+RMSingleVariantReader::header_iterator RMSingleVariantReader::header_end() const {
+  return header.end();
 }
 
 void RMSingleVariantReader::load(const string &file) {
@@ -29,7 +37,7 @@ void RMSingleVariantReader::load(const string &file) {
   auto regex_header = regex("#CHROM\tPOS.*");
 
   bool header_done = false;
-  vector<string> header;
+  header.clear();
   while (getline(input_file, line)) {
     smatch match;
     if (!header_done) {

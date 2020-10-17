@@ -43,8 +43,10 @@ protected:
   std::string trait_name;
   std::vector<std::shared_ptr<RMSingleVariantRecord>> records;
   std::map<std::string, std::shared_ptr<RMSingleVariantRecord>> index;
+  std::vector<std::string> header;
 public:
   using record_iterator = std::vector<std::shared_ptr<RMSingleVariantRecord>>::const_iterator;
+  using header_iterator = std::vector<std::string>::const_iterator;
 
   RMSingleVariantReader(const std::string &file);
   void load(const std::string &file);
@@ -53,8 +55,10 @@ public:
   uint64_t get_num_records();
   std::shared_ptr<RMSingleVariantRecord> get_record(const std::string &i);
 
-  record_iterator begin() const;
-  record_iterator end() const;
+  record_iterator records_begin() const;
+  record_iterator records_end() const;
+  header_iterator header_begin() const;
+  header_iterator header_end() const;
 
   bool operator==(const RMSingleVariantReader &other) const;
 };
