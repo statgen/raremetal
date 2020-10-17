@@ -4239,12 +4239,15 @@ void Meta::SKATassoc(GroupFromAnnotation &group)
     ifprintf(output, "##TotalSampleSize=%d\n", total_N);
     if (fullResult)
     {
-        ifprintf(output,
-                 "#GROUPNAME\tNUM_VAR\tVARs\tMAFs\tSINGLEVAR_EFFECTs\tSINGLEVAR_PVALUEs\tAVG_AF\tMIN_AF\tMAX_AF\tSTATISTICS\tPVALUE_DAVIES\tPVALUE_LIU\n");
+        ifprintf(output, "#GROUPNAME\tNUM_VAR\tVARs\tMAFs\tSINGLEVAR_EFFECTs\tSINGLEVAR_PVALUEs\tAVG_AF\tMIN_AF\tMAX_AF\tSTATISTICS\tPVALUE_DAVIES\tPVALUE_LIU");
     } else
     {
-        ifprintf(output, "#GROUPNAME\tNUM_VAR\tVARs\tAVG_AF\tMIN_AF\tMAX_AF\tSTATISTICS\tPVALUE_DAVIES\tPVALUE_LIU\n");
+        ifprintf(output, "#GROUPNAME\tNUM_VAR\tVARs\tAVG_AF\tMIN_AF\tMAX_AF\tSTATISTICS\tPVALUE_DAVIES\tPVALUE_LIU");
     }
+    if (cond != "") {
+      ifprintf(output, "\tCOND_STATISTICS\tCOND_PVALUE_DAVIES\tCOND_PVALUE_LIU");
+    }
+    ifprintf(output, "\n");
 
     double Qstat, pvalue, pvalue_liu;
     for (int g = 0; g < group.annoGroups.Length(); g++)
