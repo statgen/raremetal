@@ -757,7 +757,9 @@ void PreMeta::Run(String &pedname, Pedigree &ped, FastTransform &trans, FastFit 
 
     if (FastFit::useCovariates)
     {
-        CalculateProjectionMatrix(trans, engine, sigma2);
+        //CalculateProjectionMatrix(trans, engine, sigma2);
+        throw std::invalid_argument("--useCovariates was supplied, but this argument has no "
+                                    "effect as the projection matrix is never used");
     }
 
     if (genoFromPed)
