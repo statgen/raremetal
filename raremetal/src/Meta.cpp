@@ -3213,6 +3213,11 @@ void Meta::loadSingleCovInGroup(GroupFromAnnotation &group)
           String buffer;
           buffer.ReadLine(covfile_);
 
+          if (buffer.IsEmpty()) {
+            // Protect against https://github.com/statgen/libStatGen/issues/29
+            continue;
+          }
+
           StringArray tokens;
           tokens.AddTokens(buffer, "\t ");
           if (RegionStatus) {
