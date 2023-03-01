@@ -25,70 +25,110 @@
 #include "QuadProg.h"
 #include <iterator>
 #include <math.h> // pow, abs
+#include <string>
 
-String Meta::summaryFiles = "";
-String Meta::covFiles = "";
-String Meta::popfile_name = "";
-String Meta::prefix = "";
-bool Meta::correctGC = false;
-bool Meta::Burden = false;
-bool Meta::MB = false;
-bool Meta::MAB = false;
-bool Meta::BBeta = false;
-bool Meta::SKAT = false;
-//bool Meta::SKATO = false;
-bool Meta::VTa = false;
-bool Meta::outvcf = false;
-bool Meta::fullResult = false;
-bool Meta::report = false;
-double  Meta::report_pvalue_cutoff = 1e-06;
-bool Meta::founderAF = false;
-double Meta::HWE = 1e-05;
-double Meta::CALLRATE = 0.95;
-double Meta::MAF_cutoff = 0.05;
-int Meta::marker_col = 2;
-int Meta::cov_col = 3;
-bool Meta::altMAF = false;
-bool Meta::tabix = false;
-bool Meta::dosage = false;
-bool Meta::RegionStatus = false;
-String Meta::Region = "";
-String Meta::cond = "";
-String Meta::Chr = "";
-int Meta::Start = -1;
-int Meta::End = -1;
-bool Meta::useExactMetaMethod = false; // use Jingjing's exact method
-bool Meta::normPop = false; // correct for population stratification
-bool Meta::simplifyCovLoad = false; // only load cov matrix between selected marker for group test
-bool Meta::relateBinary = false;
-bool Meta::debug = false; // show debug info & debug output
-bool Meta::matchOnly = false; // only use matched SNP in 1000G
-bool Meta::matchByAbs = false; // use min abs to calculate dist
-double Meta::matchDist = 0; // in --normPop, exclude variants with dist > matchDist
-double Meta::minMatchMAF = 0; // MAF threshold for adjustment
-double Meta::maxMatchMAF = 1;
-//bool Meta::noAdjustUnmatch = false; // do not adjust f~tilda for variants that do not match 1000G
-String Meta::dosageOptionFile = "";
-bool Meta::sumCaseAC = false;
-
-Meta::Meta(FILE *plog)
-{
-    log = plog;
-    Nsamples = -1;
+Meta::Meta() {
+  summaryFiles = "";
+  covFiles = "";
+  popfile_name = "";
+  prefix = "";
+  correctGC = false;
+  Burden = false;
+  MB = false;
+  MAB = false;
+  BBeta = false;
+  SKAT = false;
+  VTa = false;
+  outvcf = false;
+  fullResult = false;
+  report = false;
+   report_pvalue_cutoff = 1e-06;
+  founderAF = false;
+  HWE = 1e-05;
+  CALLRATE = 0.95;
+  MAF_cutoff = 0.05;
+  marker_col = 2;
+  cov_col = 3;
+  altMAF = false;
+  tabix = false;
+  dosage = false;
+  RegionStatus = false;
+  Region = "";
+  cond = "";
+  region_chrom = "";
+  region_start = -1;
+  region_end = -1;
+  useExactMetaMethod = false; // use Jingjing's exact method
+  normPop = false; // correct for population stratification
+  simplifyCovLoad = false; // only load cov matrix between selected marker for group test
+  relateBinary = false;
+  debug = false; // show debug info & debug output
+  matchOnly = false; // only use matched SNP in 1000G
+  matchByAbs = false; // use min abs to calculate dist
+  matchDist = 0; // in --normPop, exclude variants with dist > matchDist
+  minMatchMAF = 0; // MAF threshold for adjustment
+  maxMatchMAF = 1;
+  dosageOptionFile = "";
+  sumCaseAC = false;
+  bHeterogeneity = false;
+  logP = false;
+  log = nullptr;
+  skipOutput = false;
+  Nsamples = -1;
+  averageFreq = false;
+  minMaxFreq = false;
+  noPDF = false;
 }
 
-Meta::~Meta()
-{}
+Meta::~Meta() {}
+
+void Meta::setLogFile(FILE *plog) {
+  if (plog == nullptr) {
+    String filename;
+    if (prefix == "") {
+      filename = "raremetal.log";
+    }
+    else if (prefix.Last() == '.' || prefix.Last() == '/') {
+      filename = prefix + "raremetal.log";
+    }
+    else {
+      filename = prefix + ".raremetal.log";
+    }
+
+    log = freopen(filename, "wt", stderr);
+  }
+  else {
+    log = plog;
+  }
+}
 
 //This function read all study names from a file
 //and save the names in the StringArray files
-void Meta::Prepare()
-{
-//	if (useExactMetaMethod) {
-//		printf("WARNING: this method is still under development and not recommended to use in this version!!!\n");
-//	}
-    setMetaStatics();
-    openMetaFiles();
+void Meta::Prepare() {
+    // Setup PDF
+    if (!noPDF) {
+      if (prefix.Last() == '.' || prefix.Last() == '/') {
+        pdf_filename = prefix + "meta.plots.pdf";
+      } else {
+        pdf_filename = prefix + ".meta.plots.pdf";
+      }
+      pdf.OpenFile(pdf_filename);
+    }
+
+    // Parse files with paths to score statistics and covariance matrices per study
+    parseScoreFiles();
+    parseCovFiles();
+
+    // Restrict to only a single region?
+    if (Region != "") {
+      RegionStatus = true;
+      printf("Restrict analysis to region %s!\n", Region.c_str());
+      StringArray tf;
+      tf.AddTokens(Region, ":-");
+      region_chrom = tf[0];
+      region_start = tf[1].AsInteger();
+      region_end = tf[2].AsInteger();
+    }
 
     SampleSize.Dimension(scorefile.Length());
     for (int s = 0; s < scorefile.Length(); s++)
@@ -531,7 +571,6 @@ printf("\n\n");
 */
 }
 
-
 /**
  * Read through summary statistics of each study and pool the information.
  * At the end, single variant meta-analysis will be completed.
@@ -612,6 +651,8 @@ void Meta::PoolSummaryStat(GroupFromAnnotation &group)
         //read in summary statistics.
         //maf and summary stat are saved. SNPpos in the file are hashed.
         SummaryFileReader covReader;
+        covReader.marker_col = this->marker_col;
+        covReader.cov_col = this->cov_col;
         if (cond != "" && cond_status[study])
         {
             String covFilename = covfile[study];
@@ -635,48 +676,67 @@ void Meta::PoolSummaryStat(GroupFromAnnotation &group)
         buffer.ReadLine(file);
         bool adjust;
         tellRvOrRmw(buffer, adjust, marker_col, cov_col);
-//		if (!status)
-//			error("File %s is neither RMW or rvtest score file!\n", filename.c_str());
         ifclose(file);
         FormatAdjust.Push(adjust);
 
         file = ifopen(filename, "r");
-        bool pass_header = 0;
-        while (!ifeof(file))
-        {
-            buffer.ReadLine(file);
-            if (buffer.Length() < 2)
-            {
-                continue;
+
+        while (!ifeof(file)) {
+          buffer.ReadLine(file);
+          if (buffer.Length() < 2) {
+            continue;
+          }
+
+          if (SampleSize[study] == -1) {
+            if (buffer.Find("##AnalyzedSamples") != -1) {
+              StringArray tokens;
+              tokens.AddTokens(buffer, "=");
+              SampleSize[study] = tokens[1].AsInteger();
+              continue;
             }
-            if (!pass_header)
-            {
-                if (SampleSize[study] == -1)
-                {
-                    if (buffer.Find("##AnalyzedSamples") != -1)
-                    {
-                        StringArray tokens;
-                        tokens.AddTokens(buffer, "=");
-                        SampleSize[study] = tokens[1].AsInteger();
-                        continue;
-                    }
-                }
-                if (buffer.FindChar('#') == -1 && buffer.Find("CHROM") == -1)
-                {
-                    pass_header = 1;
-                }
-            }
-            if (!pass_header)
-            {
-                continue;
-            }
-            double current_chisq;
-            bool status = poolSingleRecord(study, current_chisq, duplicateSNP, adjust, buffer, covReader);
-            if (status)
-            {
-                chisq_study_i.Push(current_chisq);
-            }
+          }
+
+          if (buffer.Find("CHROM") > -1) {
+            break;
+          }
         }
+
+        // If the user requested a specific region, then use tabix to seek the file forward to the line with
+        // the starting position of the region.
+        if (RegionStatus) {
+          Tabix tabix;
+          String score_index = filename + ".tbi";
+          StatGenStatus::Status libstatus = tabix.readIndex(score_index.c_str());
+
+          if (libstatus != StatGenStatus::SUCCESS) {
+            error("Cannot open tabix index for score statistic file %s\n", score_index.c_str());
+          }
+
+          bool status = SetIfilePosition(file, tabix, region_chrom, region_start);
+          if (!status) {
+            error("Cannot find position %s:%d-%d in score statistic file %s!\n", region_chrom.c_str(), region_start, region_end, filename.c_str());
+          }
+        }
+
+        bool region_done;
+        bool status;
+        while (!ifeof(file)) {
+          buffer.ReadLine(file);
+
+          double current_chisq;
+          region_done = false;
+          status = false;
+          poolSingleRecord(study, current_chisq, duplicateSNP, adjust, buffer, covReader, status, region_done);
+
+          if (region_done) {
+            break;
+          }
+
+          if (status) {
+            chisq_study_i.Push(current_chisq);
+          }
+        }
+
         ifclose(file);
 
         total_N += SampleSize[study];
@@ -720,43 +780,122 @@ void Meta::PoolSummaryStat(GroupFromAnnotation &group)
     //calculate pooled allele frequencies
     setPooledAF();
 
-    printf("\nPerforming Single variant meta analysis ...\n");
+    if (bHeterogeneity) {
+      printf("\nRe-processing studies for heterogeneity analysis ...\n");
+      for (int study = 0; study < scorefile.Length(); study++) {
+        SummaryFileReader covReader;
+        covReader.marker_col = this->marker_col;
+        covReader.cov_col = this->cov_col;
 
-    //calculate final results here
-    IFILE output;
-    String filename;
-    IFILE vcfout;
-    String vcf_filename;
-    printSingleMetaHeader(filename, output);
-    if (outvcf)
-    {
-        printOutVcfHeader(vcf_filename, vcfout);
-    }
+        // We only need the covariance matrix here if conditional analysis was requested.
+        if (cond != "" && cond_status[study]) {
+          String covFilename = covfile[study];
+          bool cov_status = covReader.ReadTabix(covFilename);
+          if (!cov_status) {
+            error("Cannot open cov file: %s\n", covFilename.c_str());
+          }
+        }
 
-    //for annotation purpose
-    target_chr = "";
-    target_pos = 0, target = 0;
-    target_pvalue = _NAN_;
-    //Sort variants by chr and pos
-    for (int i = 0; i < SNPmaf_maf.Length(); i++)
-    {
-        printSingleMetaVariant(group, i, output, vcfout);
-    }
+        // Open file of score statistics again.
+        String filename = scorefile[study];
+        IFILE file;
+        file = ifopen(filename, "r");
 
-    plotSingleMetaGC(output, 1);
-    if (cond != "")
-    {
-        plotSingleMetaGC(output, 0);
-    }
-    printf("\n  done.\n\n");
+        String buffer;
+        while (!ifeof(file)) {
+          buffer.ReadLine(file);
+          if (buffer.Length() < 2) {
+            continue;
+          }
 
-    ifclose(output);
-    if (outvcf)
-    {
-        ifclose(vcfout);
-        printf("\n  VCF file based on superset of variants from pooled studies has been saved \n    %s\n",
-               vcf_filename.c_str());
+          if (buffer.Find("CHROM") > -1) {
+            break;
+          }
+        }
+
+        // If the user requested a specific region, then use tabix to seek the file forward to the line with
+        // the starting position of the region.
+        if (RegionStatus) {
+          Tabix tabix;
+          String score_index = filename + ".tbi";
+          StatGenStatus::Status libstatus = tabix.readIndex(score_index.c_str());
+
+          if (libstatus != StatGenStatus::SUCCESS) {
+            error("Cannot open tabix index for score statistic file %s\n", score_index.c_str());
+          }
+
+          bool status = SetIfilePosition(file, tabix, region_chrom, region_start);
+          if (!status) {
+            error("Cannot find position %s:%d-%d in score statistic file %s!\n", region_chrom.c_str(), region_start, region_end, filename.c_str());
+          }
+        }
+
+        bool adjust = FormatAdjust[study];
+
+        // Loop over lines of score file, updating heterogeneity statistic for each variant.
+        bool region_done = false;
+        while (!ifeof(file)) {
+          buffer.ReadLine(file);
+          poolHeterogeneity(study, adjust, buffer, covReader, region_done);
+
+          if (region_done) {
+            break;
+          }
+        }
+        ifclose(file);
+      }
     }
+}
+
+void Meta::WriteSingleVariantResults(GroupFromAnnotation &group) {
+  printf("\nPerforming Single variant meta analysis ...\n");
+
+  //calculate final results here
+  IFILE output;
+  String filename;
+  IFILE vcfout;
+  String vcf_filename;
+
+  if (prefix == "-") {
+    filename = "-";
+  }
+  else if (prefix == "") {
+    filename = "meta.singlevar.results";
+  }
+  else if (prefix.Last() == '.' || prefix.Last() == '/') {
+    filename = prefix + "meta.singlevar.results";
+  }
+  else {
+    filename = prefix + ".meta.singlevar.results";
+  }
+
+  output = ifopen(filename, "w", InputFile::UNCOMPRESSED);
+
+  printSingleMetaHeader(filename, output);
+  if (outvcf) {
+    printOutVcfHeader(vcf_filename, vcfout);
+  }
+
+  //for annotation purpose
+  target_chr = "";
+  target_pos = 0, target = 0;
+  target_pvalue = _NAN_;
+  //Sort variants by chr and pos
+  for (int i = 0; i < SNPmaf_maf.Length(); i++) {
+    printSingleMetaVariant(group, i, output, vcfout);
+  }
+
+  plotSingleMetaGC(output, 1);
+  if (cond != "") {
+    plotSingleMetaGC(output, 0);
+  }
+  printf("\n  done.\n\n");
+
+  ifclose(output);
+  if (outvcf) {
+    ifclose(vcfout);
+    printf("\n  VCF file based on superset of variants from pooled studies has been saved \n    %s\n", vcf_filename.c_str());
+  }
 }
 
 void Meta::Run(GroupFromAnnotation &group)
@@ -1070,98 +1209,71 @@ void Meta::CalculateXXCov(int study, Matrix &result)
     svd.InvertInPlace(result);
 }
 
-/**** for Meta::Prepare() ******/
+void Meta::parseScoreFiles() {
+  if (scorefile.Length() > 0) {
+    return; // We already added scorefiles directly, likely in unit tests
+  }
 
-// set static stat in meta class
-void Meta::setMetaStatics()
-{
-    // region
-    if (Region != "")
+  // summary file
+  if (summaryFiles != "")
+  {
+    IFILE inFile = ifopen(summaryFiles, "r");
+    if (inFile == NULL)
     {
-        RegionStatus = true;
-        printf("Restrict analysis to region %s!\n", Region.c_str());
-        StringArray tf;
-        tf.AddTokens(Region, ":-");
-        Chr = tf[0];
-        Start = tf[1].AsInteger();
-        End = tf[2].AsInteger();
+      error("FATAL ERROR! Please check file name for --summaryFiles  %s\n", summaryFiles.c_str());
     }
-
-    // pdf file name
-    if (prefix.Last() == '.' || prefix.Last() == '/')
+    String buffer;
+    while (!ifeof(inFile))
     {
-        pdf_filename = prefix + "meta.plots.pdf";
-    } else
-    {
-        pdf_filename = prefix + ".meta.plots.pdf";
+      buffer.ReadLine(inFile);
+      if (buffer.FindChar('#') != -1)
+      {
+        continue;
+      }
+      scorefile.AddTokens(buffer, "\n");
     }
+    ifclose(inFile);
+  } else
+  {
+    error("FATAL ERROR! --summaryFiles can not be empty! Usage: --summaryFiles your.list.of.summary.files\n");
+  }
 }
 
+void Meta::parseCovFiles() {
+  if (covfile.Length() > 0) {
+    return; // We already added covariance files directly, likely in unit tests
+  }
 
-/**
- * open pdf
- * load list of summary files
- * load list of cov files if needed
- */
-void Meta::openMetaFiles()
-{
-    pdf.OpenFile(pdf_filename);
-
-    // summary file
-    if (summaryFiles != "")
+  // cov file
+  if (covFiles != "")
+  {
+    IFILE inFile = ifopen(covFiles, "r");
+    if (inFile == NULL)
     {
-        IFILE inFile = ifopen(summaryFiles, "r");
-        if (inFile == NULL)
-        {
-            error("FATAL ERROR! Please check file name for --summaryFiles  %s\n", summaryFiles.c_str());
-        }
-        String buffer;
-        while (!ifeof(inFile))
-        {
-            buffer.ReadLine(inFile);
-            if (buffer.FindChar('#') != -1)
-            {
-                continue;
-            }
-            scorefile.AddTokens(buffer, "\n");
-        }
-        ifclose(inFile);
-    } else
-    {
-        error("FATAL ERROR! --studyName can not be empty! Usage: --summaryFiles your.list.of.summary.files\n");
+      error("Cannot open file %s\n", covFiles.c_str());
     }
-
-    // cov file
-    if (covFiles != "")
+    String buffer;
+    while (!ifeof(inFile))
     {
-        IFILE inFile = ifopen(covFiles, "r");
-        if (inFile == NULL)
-        {
-            error("Cannot open file %s\n", covFiles.c_str());
-        }
-        String buffer;
-        while (!ifeof(inFile))
-        {
-            buffer.ReadLine(inFile);
-            if (buffer.FindChar('#') != -1)
-            {
-                continue;
-            }
-            covfile.AddTokens(buffer, "\n");
-        }
-        ifclose(inFile);
-        //check if summary files and cov files have the same length
-        if (scorefile.Length() != covfile.Length())
-        {
-            error("There are %d summary files and %d covariance files. Please check to make sure the same number of files are included in the list.\n");
-        }
-    } else if (!Burden || !MB || !VTa || !SKAT)
-    {
-        error("Covariance files are essential to do gene-level tests. Pleaes ues --covFiles your.list.of.cov.files option.\n");
+      buffer.ReadLine(inFile);
+      if (buffer.FindChar('#') != -1)
+      {
+        continue;
+      }
+      covfile.AddTokens(buffer, "\n");
     }
-
+    ifclose(inFile);
+    //check if summary files and cov files have the same length
+    if (scorefile.Length() != covfile.Length())
+    {
+      error("There are %d summary files and %d covariance files. Please check to make sure the same number of files are included in the list.\n");
+    }
+  }
+  else if (Burden || MB || VTa || SKAT)
+  {
+    error("Covariance files are essential to do gene-level tests. Please use --covFiles your.list.of.cov.files option.\n");
+  }
 }
-
 
 /**
  * prepare for conditional analysis and ensure that the specified variants are actually present in this set of studies
@@ -1232,6 +1344,11 @@ bool Meta::setCondMarkers()
     for (int s = 0; s < scorefile.Length(); s++)
     {
         SummaryFileReader statReader, covReader;
+        statReader.marker_col = this->marker_col;
+        statReader.cov_col = this->cov_col;
+        covReader.marker_col = this->marker_col;
+        covReader.cov_col = this->cov_col;
+
         String filename = scorefile[s];
         String covFilename = covfile[s];
 
@@ -1552,6 +1669,28 @@ void Meta::UpdateACInfo(String &chr_pos, double AC)
     }
 }
 
+void Meta::UpdateAFInfo(std::string &variant, double af, double weight) {
+  /**
+   * This function follows the same strategy in METAL (https://git.io/JfnWY)
+   * - Add to a running total of weight * allele frequency (used to calculate weighted mean)
+   * - Add to a running total of weight * (allele frequency)^2 (used to calculate variance)
+   */
+  if (averageFreq) {
+    frequency[variant] += weight * af;
+    frequency2[variant] += weight * af * af;
+    freqN[variant] += weight;
+  }
+
+  if (minMaxFreq) {
+    if (minFreq[variant] == 0.0 || minFreq[variant] > af) {
+      minFreq[variant] = af;
+    }
+
+    if (maxFreq[variant] == 0.0 || maxFreq[variant] < af) {
+      maxFreq[variant] = af;
+    }
+  }
+}
 
 // simply add up u and v
 // for exact method, v passed here is vk/sigmak. V will be further adjusted in print meta record
@@ -1592,6 +1731,159 @@ void Meta::UpdateStats(int study, String &markerName, double stat, double vstat,
         prev += vstat;
         SNP_Vstat.SetDouble(markerName, prev);
     }
+}
+
+/**
+ * Update heterogeneity statistic for a particular variant given the score statistic and variance from a particular study.
+ * @param study
+ * @param markerName Variant in chr:pos format :(
+ * @param stat Variant score statistic
+ * @param sqrt_v Variance of score statistic
+ * @param flip Whether the score statistic should be flipped because effect allele did not match the first analyzed study's effect allele
+ */
+void Meta::UpdateHetStats(int study, String &markerName, double stat, double sqrt_v, bool flip)
+{
+  double flip_factor = 1.0;
+  if (flip) {
+    flip_factor = -1.0;
+  }
+  stat *= flip_factor;
+
+  // Get the meta-analysis U and V
+  double u_meta = SNPstat.Double(markerName);
+  double v_meta = SNP_Vstat.Double(markerName);
+
+  // Calculate het statistic
+  double v = sqrt_v * sqrt_v;
+  double z = stat / v;
+  double e = u_meta / v_meta;
+  double het = (z - e) * (z - e) * v;
+
+  // Add het stat onto running total
+  int stat_idx = SNP_heterog_stat.Find(markerName);
+  if (stat_idx < 0) {
+    SNP_heterog_stat.SetDouble(markerName, het);
+  } else {
+    double prev = SNP_heterog_stat.Double(stat_idx);
+    prev += het;
+    SNP_heterog_stat.SetDouble(markerName, prev);
+  }
+
+  // Increase degrees of freedom of het stat by 1 (each study adds 1 to the total df)
+  int df_idx = SNP_heterog_df.Find(markerName);
+  if (df_idx < 0) {
+    SNP_heterog_df.SetInteger(markerName, 1);
+  } else {
+    int prev = SNP_heterog_df.Integer(df_idx);
+    prev += 1;
+    SNP_heterog_df.SetInteger(markerName, prev);
+  }
+}
+
+void Meta::UpdateHetCondStats(int study, bool flip, int adjust, String &markerName, StringArray &tokens, SummaryFileReader &covReader) {
+  Vector GX;
+  CalculateGenotypeCov(covReader, tokens[0], tokens[1].AsInteger(), study, GX);
+
+  // Get the meta-analysis conditional U and V
+  double u_meta = SNPstat_cond.Double(markerName);
+  double v_meta = SNP_Vstat_cond.Double(markerName);
+
+  // Calculate this study's conditional U and V
+  double cond_u = tokens[13 - adjust].AsDouble() - GX.InnerProduct(commonVar_betaHat[study]);
+  Vector tmp;
+  for (int i = 0; i < GX.dim; i++) {
+    tmp.Push(GX.InnerProduct(XX_inv[study][i]));
+  }
+  double v = tokens[14 - adjust].AsDouble();
+  double cond_v_part = tmp.InnerProduct(GX);
+  double cond_v = v * v - cond_v_part;
+
+  // Calculate het statistic
+  double z = cond_u / cond_v;
+  double e = u_meta / v_meta;
+  double het = (z - e) * (z - e) * cond_v;
+
+  // Add het stat onto running total
+  int stat_idx = SNP_heterog_cond_stat.Find(markerName);
+  if (stat_idx < 0) {
+    SNP_heterog_cond_stat.SetDouble(markerName, het);
+  } else {
+    double prev = SNP_heterog_cond_stat.Double(stat_idx);
+    prev += het;
+    SNP_heterog_cond_stat.SetDouble(markerName, prev);
+  }
+
+  // Increase degrees of freedom of het stat by 1 (each study adds 1 to the total df)
+  int df_idx = SNP_heterog_cond_df.Find(markerName);
+  if (df_idx < 0) {
+    SNP_heterog_cond_df.SetInteger(markerName, 1);
+  } else {
+    int prev = SNP_heterog_cond_df.Integer(df_idx);
+    prev += 1;
+    SNP_heterog_cond_df.SetInteger(markerName, prev);
+  }
+}
+
+/**
+ * Update the heterogeneity statistic (Cochran's Q) for a variant given the score statistic in this study.
+ *
+ * This function adds its individual contribution to the running total for the heterogeneity statistic for this variant
+ * over all studies.
+ *
+ * See https://git.io/JfLSM in METAL.
+ *
+ * @param study integer representing the study (index into the summaryFiles array of summary statistic files)
+ * @param adjust bool representing whether to shift columns left by 1 depending on RAREMETAL or rvtest format
+ * @param buffer string current line to be parsed
+ * @param covReader extracts covariances for a variant if conditional analysis is required
+ */
+void Meta::poolHeterogeneity(int study, bool adjust, String &buffer, SummaryFileReader &covReader, bool &region_done) {
+  StringArray tokens;
+  tokens.AddTokens(buffer, SEPARATORS);
+
+  if (tokens[0].Find("#") != -1) {
+    return;
+  }
+
+  if (tokens[0].Find("chr") != -1) {
+    tokens[0] = tokens[0].SubStr(3);
+  }
+
+  String chrom = tokens[0];
+  int pos = atoi(tokens[1].c_str());
+
+  if (RegionStatus && (pos > region_end || chrom != region_chrom)) {
+    region_done = true;
+    return;
+  }
+
+  String chr_pos = tokens[0] + ":" + tokens[1];
+  int direction_idx = directionByChrPos.Integer(chr_pos);
+  char direction = directions[direction_idx][study];
+
+  if (direction == '?' || direction == '!') {
+    // This variant was previously skipped due to QC or monomorphic
+    return;
+  }
+
+  // poolSingleRecord() by this point has already figured out whether this variant's score statistic & effect size
+  // need to be flipped to match the alleles used in the meta-analysis
+  bool flip = flipSNP.Integer(String(std::to_string(study).c_str()) + ":" + chr_pos) != -1;
+
+  // Get the score statistic and its variance
+  double u_study = tokens[13 - adjust].AsDouble();
+  double v_study = tokens[14 - adjust].AsDouble();
+
+  // Update the heterogeneity statistic for this variant
+  UpdateHetStats(study, chr_pos, u_study, v_study, flip);
+
+  // If we're doing conditional analysis, then we also need to calculate the heterogeneity of the conditional meta-analysis score statistic
+  if (cond != "" && v_study > 0.0) {
+    //if this variant is not the one to be conditioned upon
+    if (conditionVar.Integer(chr_pos) == -1) {
+      UpdateHetCondStats(study, flip, adjust, chr_pos, tokens, covReader);
+    }
+  }
 }
 
 char Meta::GetDirection(String &chr_pos, double effsize, bool flip)
@@ -1712,14 +2004,14 @@ int Meta::MatchOneAllele(String ref_current, int &idx)
 
 // pool single record from score file
 // if u2/v2 is generated, return true
-bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP, bool adjust, String &buffer,
-                            SummaryFileReader &covReader)
+void Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP, bool adjust, String &buffer,
+                            SummaryFileReader &covReader, bool &status, bool &region_done)
 {
     StringArray tokens;
     tokens.AddTokens(buffer, SEPARATORS);
     if (tokens[0].Find("#") != -1)
     {
-        return 0;
+        return;
     }
 
     if (tokens[0].Find("chr") != -1)
@@ -1727,7 +2019,17 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
         tokens[0] = tokens[0].SubStr(3);
     }
 
-    String chr_pos = tokens[0] + ":" + tokens[1];
+    String chrom = tokens[0];
+    int pos = atoi(tokens[1].c_str());
+
+    if (RegionStatus && (pos > region_end || chrom != region_chrom)) {
+      status = false;
+      region_done = true;
+      return;
+    }
+
+    String chr_pos = chrom + ":" + tokens[1];
+    std::string std_chrpos(chr_pos.c_str());
     int direction_idx = directionByChrPos.Integer(chr_pos);
 
     //CHECK duplicate markers
@@ -1737,13 +2039,14 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
         duplicateSNP++;
         fprintf(log, "Warning: variant %s from study %s is skipped because of duplicate records in the same study.\n",
                 chr_pos.c_str(), scorefile[study].c_str());
-        return 0;
+        return;
     }
 
     //POOLING STEP1: if fail HWE or CALLRATE then skip this record
     //if a variant has a missing allele but not monomorphic then exclude this variant without updating the total sample size
     //if(((tokens[2]=="." || tokens[3]==".") && (c1+c2!=0 && c2+c3!=0)) || (tokens[2]=="." && tokens[3]==".") || (tokens[2]==tokens[3] && c1+c2!=0 && c2+c3!=0))
 
+    // An allele should never be zero, but this code checks for it anyway
     if (tokens[2] == "0")
     {
         tokens[2] = ".";
@@ -1754,7 +2057,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
     }
 
     //check allele counts to see if the site is monomorphic
-    int c1, c2, c3;
+    double c1, c2, c3;
     bool use_dosage = false;
     if (dosageOptionFile != "")
     {
@@ -1826,7 +2129,8 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
         UpdateStrIntHash(chr_pos, SampleSize[study], usefulSize);
         UpdateExcludedMarker(study, chr_pos, filter_type,
                              tokens[0] + ":" + tokens[1] + ":" + tokens[2] + ":" + tokens[3]);
-        return 0;
+        fprintf(log,"Warning: variant %s from study %s is skipped because of call rate, HWE, or missing alleles.\n",chr_pos.c_str(),scorefile[study].c_str());
+        return;
     }
 
     //STEP2: check if this position has been hashed. If yes, match alleles; if not, hash position and ref alt alleles.
@@ -1834,6 +2138,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
     bool flip = false;
     double u = tokens[13 - adjust].AsDouble();
     double v = tokens[14 - adjust].AsDouble();
+    double w = 1 / (v * v);
     if (relateBinary)
     {
         u *= Const_binary[study];
@@ -1853,6 +2158,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
             UpdateDirection(direction_idx, study, direct, chr_pos, false);
             //should only hash the count of alternative allele
             UpdateACInfo(chr_pos, count);
+            UpdateAFInfo(std_chrpos, 0.0, w);
             if (SampleSize[study] != current_N)
             {
                 UpdateStrIntHash(chr_pos, SampleSize[study] - current_N, usefulSize);
@@ -1863,6 +2169,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
             char direct = GetDirection(chr_pos, tokens[15 - adjust].AsDouble(), false);
             UpdateDirection(direction_idx, study, direct, chr_pos, false);
             UpdateACInfo(chr_pos, current_AC);
+            UpdateAFInfo(std_chrpos, current_AC / (2 * current_N), w);
             if (SampleSize[study] != current_N)
             {
                 UpdateStrIntHash(chr_pos, SampleSize[study] - current_N, usefulSize);
@@ -1906,7 +2213,8 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
                 UpdateStrIntHash(chr_pos, SampleSize[study], usefulSize);
                 char direct = '!';
                 UpdateDirection(direction_idx, study, direct, chr_pos, true);
-                return 0;
+                fprintf(log,"Warning: variant %s from study %s is skipped because alleles did not match previous study.\n",chr_pos.c_str(),scorefile[study].c_str());
+                return;
             }
             if (match == 1)
             {
@@ -1915,6 +2223,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
 
             UpdateStrIntHash(chr_pos, current_N, recSize); // add --altMAF
             UpdateACInfo(chr_pos, count);
+            UpdateAFInfo(std_chrpos, count / (2 * current_N), w);
             if (SampleSize[study] != current_N)
             {
                 UpdateStrIntHash(chr_pos, SampleSize[study] - current_N, usefulSize);
@@ -1931,7 +2240,8 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
                 UpdateStrIntHash(chr_pos, SampleSize[study], usefulSize);
                 char direct = '!';
                 UpdateDirection(direction_idx, study, direct, chr_pos, true);
-                return 0;
+                fprintf(log,"Warning: variant %s from study %s is skipped because alleles did not match previous study.\n",chr_pos.c_str(),scorefile[study].c_str());
+                return;
             }
             UpdateStrIntHash(chr_pos, current_N, recSize);
             if (match == 1)
@@ -1942,6 +2252,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
                     UpdateStrIntHash(chr_pos, SampleSize[study] - current_N, usefulSize);
                 }
                 UpdateACInfo(chr_pos, 2 * c1 + c2);
+                UpdateAFInfo(std_chrpos, (2 * c1 + c2) / (2 * current_N), w);
                 char direct = GetDirection(chr_pos, tokens[15 - adjust].AsDouble(), true);
                 UpdateDirection(direction_idx, study, direct, chr_pos, false);
                 UpdateStats(study, chr_pos, u, v, flip);
@@ -1953,6 +2264,7 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
                     UpdateStrIntHash(chr_pos, SampleSize[study] - current_N, usefulSize);
                 }
                 UpdateACInfo(chr_pos, current_AC);
+                UpdateAFInfo(std_chrpos, current_AC / (2 * current_N), w);
                 char direct = GetDirection(chr_pos, tokens[15 - adjust].AsDouble(), false);
                 UpdateDirection(direction_idx, study, direct, chr_pos, false);
                 UpdateStats(study, chr_pos, u, v, flip);
@@ -2003,7 +2315,8 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
     //if a variant is monomorphic then update the count of sample size and generate warning
     if (c1 + c2 == 0 || c2 + c3 == 0)
     {
-        return 0;
+        fprintf(log,"Warning: variant %s from study %s is skipped because variant is monomorphic.\n",chr_pos.c_str(),scorefile[study].c_str());
+        return;
     }
 
     //push the chisq statistics for GC calculation
@@ -2022,7 +2335,8 @@ bool Meta::poolSingleRecord(int study, double &current_chisq, int &duplicateSNP,
             updateSNPcond(study, flip, adjust, chr_pos, tokens, covReader);
         }
     }
-    return 1;
+
+    status = true;
 }
 
 // if dup marker, return true
@@ -2241,22 +2555,22 @@ void Meta::setPooledAF()
                 }
             }
 
-            double maf;
+            double alt_af;
             if (founderAF)
             {
-                maf = AC / (2.0 * N);
+                alt_af = AC / (2.0 * N);
             } else
             {
-                maf = AC / (2.0 * N);
+                alt_af = AC / (2.0 * N);
             }
 
             int idx = directionByChrPos.Integer(tmp[0] + ":" + tmp[1]);
             if (directions[idx].FindChar('+') == -1 && directions[idx].FindChar('-') == -1)
             {
-                maf = 0.0;
+                alt_af = 0.0;
             }
 
-            SNPmaf_maf.Push(maf);
+            SNPmaf_maf.Push(alt_af);
             SNPmaf_name.Push(SNPname_i[pos_i_idx[j]]);
             SNP_effect_N.Push(N);
             SNPmaf.SetInteger(SNPname_i[pos_i_idx[j]], SNPmaf_maf.Length() - 1);
@@ -2267,34 +2581,41 @@ void Meta::setPooledAF()
 
 void Meta::printSingleMetaHeader(String &filename, IFILE &output)
 {
-    if (prefix == "")
-    {
-        filename = "meta.singlevar.results";
-    } else if (prefix.Last() == '.' || prefix.Last() == '/')
-    {
-        filename = prefix + "meta.singlevar.results";
-    } else
-    {
-        filename = prefix + ".meta.singlevar.results";
-    }
-
-    output = ifopen(filename, "w", InputFile::UNCOMPRESSED);
     ifprintf(output, "##Method=SinglevarScore\n");
     ifprintf(output, "##STUDY_NUM=%d\n", scorefile.Length());
     ifprintf(output, "##TotalSampleSize=%d\n", total_N);
-    if (cond == "")
-    {
-        ifprintf(output,
-                 "#CHROM\tPOS\tREF\tALT\tN\tPOOLED_ALT_AF\tDIRECTION_BY_STUDY\tEFFECT_SIZE\tEFFECT_SIZE_SD\tH2\tPVALUE");
-    } else
-    {
-        ifprintf(output,
-                 "#CHROM\tPOS\tREF\tALT\tN\tPOOLED_ALT_AF\tDIRECTION_BY_STUDY\tEFFECT_SIZE\tEFFECT_SIZE_SD\tH2\tPVALUE\tCOND_EFFSIZE\tCOND_EFFSIZE_SD\tCOND_H2\tCOND_PVALUE");
+
+    String header = "#CHROM\tPOS\tREF\tALT\tN\tPOOLED_ALT_AF\tDIRECTION_BY_STUDY\tEFFECT_SIZE\tEFFECT_SIZE_SD\tH2";
+    header += logP ? "\tLOG_PVALUE" : "\tPVALUE";
+
+    if (cond != "") {
+      header += "\tCOND_EFFSIZE\tCOND_EFFSIZE_SD\tCOND_H2";
+      header += logP ? "\tCOND_LOG_PVALUE" : "\tCOND_PVALUE";
     }
-    if (sumCaseAC)
-    {
-        ifprintf(output, "\tsumCaseAC\tsumControlAC");
+
+    if (sumCaseAC) {
+      header += "\tsumCaseAC\tsumControlAC";
     }
+
+    if (averageFreq) {
+      header += "\tALT_AF_MEAN\tALT_AF_SE";
+    }
+
+    if (minMaxFreq) {
+      header += "\tALT_AF_MIN\tALT_AF_MAX";
+    }
+
+    if (bHeterogeneity) {
+      header += "\tHET_I2\tHET_CHISQ";
+      header += logP ? "\tHET_LOG_PVALUE" : "\tHET_PVALUE";
+    }
+
+    if (bHeterogeneity && cond != "") {
+      header += "\tHET_COND_I2\tHET_COND_CHISQ";
+      header += logP ? "\tHET_COND_LOG_PVALUE" : "\tHET_COND_PVALUE";
+    }
+
+    ifprintf(output, header.c_str());
     ifprintf(output, "\n");
 }
 
@@ -2338,6 +2659,7 @@ void Meta::printSingleMetaVariant(GroupFromAnnotation &group, int i, IFILE &outp
     StringArray tmp;
     tmp.AddTokens(SNPname, ":");
     String SNPname_noallele = tmp[0] + ":" + tmp[1];
+    std::string std_chrpos(SNPname_noallele.c_str());
     int N = SNP_effect_N[i];
     double U = SNPstat.Double(SNPname_noallele);
     double V = SNP_Vstat.Double(SNPname_noallele);
@@ -2418,87 +2740,61 @@ void Meta::printSingleMetaVariant(GroupFromAnnotation &group, int i, IFILE &outp
         return;
     }
 
-    double chisq = U * U / V;
-//printf("U=%g,V=%g,chisq=%g\n",U,V,chisq);
-    //chisq_before_GC.Push(chisq);
-    double pvalue = pchisq(chisq, 1, 0, 0);
-    double effSize = U / V;
-    double cond_pvalue = _NAN_, cond_effSize = _NAN_;
-    bool disect = false;
-    double h2 = V * effSize * effSize / N;
-    double effSize_se = 1.0 / sqrt(V);
+    SingleVariantResult result(U, V, N);
 
-    // FIXME: Revisit handling of very small pvalues
-    while (pvalue == 0.0)
-    {
-        disect = true;
-        chisq *= 0.999;
-        pvalue = pchisq(chisq, 1, 0, 0);
-    }
+    singleVarPvalue.SetDouble(SNPname, result.pvalue);
+    singleVarEff.SetDouble(SNPname, result.effSize);
 
-    singleVarPvalue.SetDouble(SNPname, pvalue);
-    singleVarEff.SetDouble(SNPname, effSize);
-
-    pvalueAll.Push(pvalue);
+    pvalueAll.Push(result.pvalue);
     if (maf < 0.01)
     {
-        pvalue1.Push(pvalue);
+        pvalue1.Push(result.pvalue);
         pvalue1_idx.Push(pvalueAll.Length() - 1);
     }
     if (maf < 0.05)
     {
-        pvalue5.Push(pvalue);
+        pvalue5.Push(result.pvalue);
         pvalue5_idx.Push(pvalueAll.Length() - 1);
     }
     chr_plot.Push(tmp[0]);
     pos_plot.Push(tmp[1].AsInteger());
 
+    SingleVariantResult cond_result;
     if (cond != "")
     { // print conditional analysis results
-        bool cond_disect = false;
-        double cond_U, cond_V, chisq;
-        double cond_h2 = _NAN_;
-        double cond_effSize_se = _NAN_;
+        double cond_U, cond_V;
+
         if (conditionVar.Integer(SNPname_noallele) == -1)
         {
             cond_U = SNPstat_cond.Double(SNPname_noallele);
             cond_V = SNP_Vstat_cond.Double(SNPname_noallele);
-            chisq = cond_U * cond_U / cond_V;
-            cond_pvalue = pchisq(chisq, 1, 0, 0);
-            cond_effSize = cond_U / cond_V;
-            while (cond_pvalue == 0.0)
-            {
-                disect = true;
-                chisq *= 0.999;
-                cond_pvalue = pchisq(chisq, 1, 0, 0);
-            }
-            cond_h2 = cond_V * cond_effSize * cond_effSize / N;
-            cond_effSize_se = 1.0 / sqrt(cond_V);
+            cond_result.setStats(cond_U, cond_V, N);
+            cond_result.calculate();
         } else
         {
-            cond_effSize = 0.0;
-            cond_pvalue = 1.0;
-            cond_h2 = 0.0;
-            cond_effSize_se = 0.0;
+            cond_result.effSize = 0.0;
+            cond_result.pvalue = 1.0;
+            cond_result.h2 = 0.0;
+            cond_result.effSize_se = 0.0;
         }
-        ifprintf(output, "%s\t%s\t%s\t%s\t%d\t%g\t%s\t%g\t%g\t%g\t%s%g\t%g\t%g\t%g\t%s%g", tmp[0].c_str(),
-                 tmp[1].c_str(), tmp[2].c_str(), tmp[3].c_str(), N, maf, direction.c_str(), effSize, effSize_se, h2,
-                 disect ? "<" : "", pvalue, cond_effSize, cond_effSize_se, cond_h2, cond_disect ? "<" : "",
-                 cond_pvalue);
+        ifprintf(output, "%s\t%s\t%s\t%s\t%d\t%g\t%s\t%g\t%g\t%g\t%s%Lg\t%g\t%g\t%g\t%s%Lg", tmp[0].c_str(),
+                 tmp[1].c_str(), tmp[2].c_str(), tmp[3].c_str(), N, maf, direction.c_str(), result.effSize, result.effSize_se, result.h2,
+                 result.disect ? "<" : "", logP ? result.log_pvalue : result.pvalue, cond_result.effSize, cond_result.effSize_se, cond_result.h2, cond_result.disect ? "<" : "",
+                 logP ? cond_result.log_pvalue : cond_result.pvalue);
 
-        pvalueAll_cond.Push(cond_pvalue);
+        pvalueAll_cond.Push(cond_result.pvalue);
         if (maf < 0.01)
         {
-            pvalue1_cond.Push(cond_pvalue);
+            pvalue1_cond.Push(cond_result.pvalue);
         }
         if (maf < 0.05)
         {
-            pvalue5_cond.Push(cond_pvalue);
+            pvalue5_cond.Push(cond_result.pvalue);
         }
     } else
     {
-        ifprintf(output, "%s\t%s\t%s\t%s\t%d\t%g\t%s\t%g\t%g\t%g\t%s%g", tmp[0].c_str(), tmp[1].c_str(), tmp[2].c_str(),
-                 tmp[3].c_str(), N, maf, direction.c_str(), effSize, effSize_se, h2, disect ? "<" : "", pvalue);
+        ifprintf(output, "%s\t%s\t%s\t%s\t%d\t%g\t%s\t%g\t%g\t%g\t%s%Lg", tmp[0].c_str(), tmp[1].c_str(), tmp[2].c_str(),
+                 tmp[3].c_str(), N, maf, direction.c_str(), result.effSize, result.effSize_se, result.h2, result.disect ? "<" : "", logP ? result.log_pvalue : result.pvalue);
     }
 
     if (sumCaseAC)
@@ -2512,6 +2808,65 @@ void Meta::printSingleMetaVariant(GroupFromAnnotation &group, int i, IFILE &outp
         ifprintf(output, "\t%d\t%d", c1, c2);
     }
 
+    /**
+     * Same calculation as in METAL (https://git.io/JfnW3)
+     */
+    if (averageFreq) {
+      double n = freqN[std_chrpos];
+      double f = frequency[std_chrpos] / n;
+      double f2 = frequency2[std_chrpos] / n;
+
+      // Calculate variance as sum of squares - square of the mean
+      // Then sqrt(var) = SE
+      double freqSE = f2 - f * f;
+      freqSE = freqSE > 0.0 ? sqrt(freqSE) : 0.0;
+
+      ifprintf(output, "\t%g\t%g", f, freqSE);
+    }
+
+    if (minMaxFreq) {
+      double min_f = minFreq[std_chrpos];
+      double max_f = maxFreq[std_chrpos];
+
+      ifprintf(output, "\t%g\t%g", min_f, max_f);
+    }
+
+    if (bHeterogeneity) {
+      /**
+       * Calculate heterogeneity p-value and I2 statistic.
+       * See https://git.io/JfLS9 in METAL.
+       */
+      double het_stat = SNP_heterog_stat.Double(SNPname_noallele);
+      int het_df = SNP_heterog_df.Integer(SNPname_noallele);
+      double I2 = (het_stat <= het_df - 1) || (het_df <= 1) ? 0.0 : (het_stat - het_df + 1) / het_stat * 100.0;
+
+      double het_pval;
+      if (logP) {
+        het_pval = (het_stat < 1e-7) || (het_df <= 1) ? 0.0 : -pchisq(het_stat, het_df - 1, 0, 1) / LN_10;
+      }
+      else {
+        het_pval = (het_stat < 1e-7) || (het_df <= 1) ? 1.0 : pchisq(het_stat, het_df - 1, 0, 0);
+      }
+
+      ifprintf(output, "\t%g\t%g\t%g", I2, het_stat, het_pval);
+    }
+
+    if (bHeterogeneity && cond != "") {
+      double cond_het_stat = SNP_heterog_cond_stat.Double(SNPname_noallele);
+      int cond_het_df = SNP_heterog_cond_df.Integer(SNPname_noallele);
+      double cond_I2 = (cond_het_stat <= cond_het_df - 1) || (cond_het_df <= 1) ? 0.0 : (cond_het_stat - cond_het_df + 1) / cond_het_stat * 100.0;
+
+      double cond_het_pval;
+      if (logP) {
+        cond_het_pval = (cond_het_stat < 1e-7) || (cond_het_df <= 1) ? 0.0 : -pchisq(cond_het_stat, cond_het_df - 1, 0, 1) / LN_10;
+      }
+      else {
+        cond_het_pval = (cond_het_stat < 1e-7) || (cond_het_df <= 1) ? 1.0 : pchisq(cond_het_stat, cond_het_df - 1, 0, 0);
+      }
+
+      ifprintf(output, "\t%g\t%g\t%g", cond_I2, cond_het_stat, cond_het_pval);
+    }
+
     ifprintf(output, "\n");
 
     if (outvcf)
@@ -2523,7 +2878,7 @@ void Meta::printSingleMetaVariant(GroupFromAnnotation &group, int i, IFILE &outp
     // annotation if needed
     if (group.labelHits)
     {
-        annotateSingleVariantToGene(group, pvalue, cond_pvalue, tmp);
+        annotateSingleVariantToGene(group, result.pvalue, cond_result.pvalue, tmp);
     }
 }
 
@@ -2635,7 +2990,9 @@ void Meta::plotSingleMetaGC(IFILE &output, bool calc_gc)
     }
     demo3 = "GC=";
     demo3 += GC3;
-    writepdf.Draw(pdf, geneLabel, pvalueAll, pvalue1, pvalue5, chr_plot, pos_plot, title, demo1, demo2, demo3, false);
+    if (!noPDF) {
+      writepdf.Draw(pdf, geneLabel, pvalueAll, pvalue1, pvalue5, chr_plot, pos_plot, title, demo1, demo2, demo3, false);
+    }
 
     //Calculate genomic control
     if (calc_gc)
@@ -2802,92 +3159,87 @@ void Meta::loadSingleCovInGroup(GroupFromAnnotation &group)
     for (int study = 0; study < covfile.Length(); study++)
     {
         SummaryFileReader covReader;
+        covReader.marker_col = this->marker_col;
+        covReader.cov_col = this->cov_col;
+
         String covFilename = covfile[study];
         setFromRvOrRmwAdjust(FormatAdjust[study], marker_col, cov_col);
         printf("Reading cov matrix from study %d ...\n", study + 1);
         String filename = covfile[study];
         IFILE covfile_;
         covfile_ = ifopen(filename, "r");
-        if (covfile_ == NULL)
-        {
-            error("ERROR! Cannot open file: %s! Input cov file has to be bgzipped and tabix indexed using the following command:\n bgzip yourfile.singlevar.cov.txt; tabix -c \"#\" -s 1 -b 2 -e 2 yourprefix.singlevar.cov.txt.gz\n",
-                  filename.c_str());
+        if (covfile_ == NULL) {
+          error("ERROR! Cannot open file: %s! Input cov file has to be bgzipped and tabix indexed using the following command:\n bgzip yourfile.singlevar.cov.txt; tabix -c \"#\" -s 1 -b 2 -e 2 yourprefix.singlevar.cov.txt.gz\n",filename.c_str());
         }
+
+        bool newFormat = false;
+        while (!ifeof(covfile_)) {
+          String buffer;
+          buffer.ReadLine(covfile_);
+
+          if (buffer.Find("CHROM") > -1) {
+            // now check new or old format
+            StringArray tokens;
+            tokens.AddTokens(buffer, "\t ");
+            if (tokens[2] == "MARKERS_IN_WINDOW" && tokens[3] == "COV_MATRICES") {
+              newFormat = false;
+            } else if (tokens[2] == "EXP" && tokens[3] == "COV_MATRICES") {
+              newFormat = true;
+            } else if (tokens[3] == "NUM_MARKER" && tokens[4] == "MARKER_POS" && tokens[5] == "COV") {
+              newFormat = false;
+            } else {
+              error("Covariance matrix is neither new or old format...are you using the right file?\n");
+            }
+
+            break;
+          }
+        }
+
         Tabix covtabix;
         String tabix_name = filename + ".tbi";
         StatGenStatus::Status libstatus = covtabix.readIndex(tabix_name.c_str());
-        if (RegionStatus)
-        {
-            if (libstatus != StatGenStatus::SUCCESS)
-            {
-                error("Cannot open tabix file %s!\n", tabix_name.c_str());
-            }
-            bool status = SetIfilePosition(covfile_, covtabix, Chr, Start);
-            if (!status)
-            {
-                error("Cannot find position %s:%d-%d in cov file %s!\n", Chr.c_str(), Start, End, filename.c_str());
-            }
+        if (RegionStatus) {
+          if (libstatus != StatGenStatus::SUCCESS) {
+            error("Cannot open tabix file %s!\n", tabix_name.c_str());
+          }
+          bool status = SetIfilePosition(covfile_, covtabix, region_chrom, region_start);
+          if (!status) {
+            error("Cannot find position %s:%d-%d in cov file %s!\n", region_chrom.c_str(), region_start, region_end, filename.c_str());
+          }
         }
 
         int m = 0;
-        bool pass_header = 0;
-        bool newFormat = 0;
-        while (!ifeof(covfile_))
-        {
-            String buffer;
-            buffer.ReadLine(covfile_);
-            if (!pass_header)
-            {
-                if (buffer.Find("CHROM") == -1)
-                {
-                    continue;
-                }
-                // now check new or old format
-                StringArray tokens;
-                tokens.AddTokens(buffer, "\t ");
-                if (tokens[2] == "MARKERS_IN_WINDOW" && tokens[3] == "COV_MATRICES")
-                {
-                    newFormat = 0;
-                } else if (tokens[2] == "EXP" && tokens[3] == "COV_MATRICES")
-                {
-                    newFormat = 1;
-                } else if (tokens[3] == "NUM_MARKER" && tokens[4] == "MARKER_POS" && tokens[5] == "COV")
-                {
-                    newFormat = 0;
-                } else
-                {
-                    error("Covariance matrix is neither new or old format...are you using the right file?\n");
-                }
-                pass_header = 1;
-                continue;
+        while (!ifeof(covfile_)) {
+          String buffer;
+          buffer.ReadLine(covfile_);
+
+          if (buffer.IsEmpty()) {
+            // Protect against https://github.com/statgen/libStatGen/issues/29
+            continue;
+          }
+
+          StringArray tokens;
+          tokens.AddTokens(buffer, "\t ");
+          if (RegionStatus) {
+            if (tokens[1].AsInteger() > region_end || tokens[0] != region_chrom) { // out of this region or into another chromosome
+              break;
             }
-            StringArray tokens;
-            tokens.AddTokens(buffer, "\t ");
-            if (RegionStatus)
-            {
-                if (tokens[1].AsInteger() > End || tokens[0] != Chr)
-                { // out of this region or into another chromosome
-                    break;
-                }
+          }
+
+          if (FormatAdjust[study]) { // rvtest
+            readCovOldFormatLine(study, tokens, m);
+          } else {
+            if (newFormat) {
+              readCovNewFormatLine(study, tokens, m);
+            } else {
+              readCovOldFormatLine(study, tokens, m);
             }
-            if (FormatAdjust[study])
-            { // rvtest
-                readCovOldFormatLine(study, tokens, m);
-            } else
-            {
-                if (newFormat)
-                {
-                    readCovNewFormatLine(study, tokens, m);
-                } else
-                {
-                    readCovOldFormatLine(study, tokens, m);
-                }
-            }
+          }
         }
         ifclose(covfile_);
         printf("done\n");
 
-        //   printf("Updating group stats ...\n");
+        printf("Updating group stats ...\n");
         //update group statistics
         for (int g = 0; g < group.annoGroups.Length(); g++)
         {
@@ -3252,7 +3604,7 @@ void Meta::BurdenAssoc(String method, GroupFromAnnotation &group, Vector *&maf, 
     name += ")";
     String extraname = "";
     String demo;
-    if (pvalue_burden.Length() > 0)
+    if (pvalue_burden.Length() > 0 && !noPDF)
     {
         //Calculate genomic control
         double GC = GetGenomicControlFromPvalue(pvalue_burden);
@@ -3427,22 +3779,23 @@ void Meta::VTassoc(GroupFromAnnotation &group)
         geneLabels.Push(group.annoGroups[g]);
     }
 
-    String name = "VT (maf<";
-    name += MAF_cutoff;
-    name += ")";
-    String extraname = "";
-    String demo = "";
-    double GC = GetGenomicControlFromPvalue(pvalue_VT);
-    demo = "GC=";
-    demo += GC;
-    writepdf.Draw(pdf, geneLabels, pvalue_VT, chr_plot, pos_plot, name, extraname, demo, true);
-    if (cond != "")
-    {
+    if (!noPDF) {
+      String name = "VT (maf<";
+      name += MAF_cutoff;
+      name += ")";
+      String extraname = "";
+      String demo = "";
+      double GC = GetGenomicControlFromPvalue(pvalue_VT);
+      demo = "GC=";
+      demo += GC;
+      writepdf.Draw(pdf, geneLabels, pvalue_VT, chr_plot, pos_plot, name, extraname, demo, true);
+      if (cond != "") {
         name += " Conditional Analysis";
         double GC = GetGenomicControlFromPvalue(cond_pvalue_VT);
         demo = "GC=";
         demo += GC;
         writepdf.Draw(pdf, geneLabels, cond_pvalue_VT, chr_plot, pos_plot, name, extraname, demo, true);
+      }
     }
 
     ifclose(output);
@@ -3891,12 +4244,15 @@ void Meta::SKATassoc(GroupFromAnnotation &group)
     ifprintf(output, "##TotalSampleSize=%d\n", total_N);
     if (fullResult)
     {
-        ifprintf(output,
-                 "#GROUPNAME\tNUM_VAR\tVARs\tMAFs\tSINGLEVAR_EFFECTs\tSINGLEVAR_PVALUEs\tAVG_AF\tMIN_AF\tMAX_AF\tSTATISTICS\tPVALUE_DAVIES\tPVALUE_LIU\n");
+        ifprintf(output, "#GROUPNAME\tNUM_VAR\tVARs\tMAFs\tSINGLEVAR_EFFECTs\tSINGLEVAR_PVALUEs\tAVG_AF\tMIN_AF\tMAX_AF\tSTATISTICS\tPVALUE_DAVIES\tPVALUE_LIU");
     } else
     {
-        ifprintf(output, "#GROUPNAME\tNUM_VAR\tVARs\tAVG_AF\tMIN_AF\tMAX_AF\tSTATISTICS\tPVALUE_DAVIES\tPVALUE_LIU\n");
+        ifprintf(output, "#GROUPNAME\tNUM_VAR\tVARs\tAVG_AF\tMIN_AF\tMAX_AF\tSTATISTICS\tPVALUE_DAVIES\tPVALUE_LIU");
     }
+    if (cond != "") {
+      ifprintf(output, "\tCOND_STATISTICS\tCOND_PVALUE_DAVIES\tCOND_PVALUE_LIU");
+    }
+    ifprintf(output, "\n");
 
     double Qstat, pvalue, pvalue_liu;
     for (int g = 0; g < group.annoGroups.Length(); g++)
@@ -4187,23 +4543,25 @@ void Meta::SKATassoc(GroupFromAnnotation &group)
         geneLabels.Push(group.annoGroups[g]);
     }
 
-    String name = "SKAT (maf<";
-    name += MAF_cutoff;
-    name += ")";
-    String extraname = "";
-    String demo = "";
-    double GC = GetGenomicControlFromPvalue(pvalue_SKAT);
-    demo = "GC=";
-    demo += GC;
-    writepdf.Draw(pdf, geneLabels, pvalue_SKAT, chr_plot, pos_plot, name, extraname, demo, true);
-    if (cond != "")
-    {
+    if (!noPDF) {
+      String name = "SKAT (maf<";
+      name += MAF_cutoff;
+      name += ")";
+      String extraname = "";
+      String demo = "";
+      double GC = GetGenomicControlFromPvalue(pvalue_SKAT);
+      demo = "GC=";
+      demo += GC;
+      writepdf.Draw(pdf, geneLabels, pvalue_SKAT, chr_plot, pos_plot, name, extraname, demo, true);
+      if (cond != "") {
         name += " conditional analysis";
         double GC = GetGenomicControlFromPvalue(cond_pvalue_SKAT);
         demo = "GC=";
         demo += GC;
         writepdf.Draw(pdf, geneLabels, cond_pvalue_SKAT, chr_plot, pos_plot, name, extraname, demo, true);
+      }
     }
+
     ifclose(output);
     if (report)
     {

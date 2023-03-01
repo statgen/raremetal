@@ -423,7 +423,7 @@ void FastFit::FitModels(IFILE SCOREoutput, IFILE SCOREoutput_rec, IFILE SCOREout
                 X(i, j) = trans.X[i][j];
             }
         }
-        tmp.resize(trans.persons, trans.persons);
+        tmp.resize(trans.X.cols, trans.X.cols);
         inv_.resize(trans.X.cols, trans.X.cols);
         tmp = X.transpose() * X;
         inv_ = tmp.inverse();

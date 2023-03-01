@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include "MathMatrix.h"
 #include "StringHash.h"
+#include "IntArray.h"
+#include "MathSVD.h"
 
 #define MATHLIB_STANDALONE
 
@@ -112,15 +114,9 @@ double CalculateMVTPvalue(Vector &score, Matrix &cov, double t_max)
                     //A new combination has been generated!
                     comb.Push(alpha[indx[owk]]);
                 }
-/*
-            printf("New combination:\n");
-            for(int i=0;i<comb.Length();i++)
-               printf("%g ",comb[i]);
-            printf("\n");
-*/
+
                 //Calculate P(A|BC)
                 GetConditionalDist(score, cov, comb, par);
-//            printf("pars are:%g %g\n",par[0],par[1]);
                 double chisq, condProb, prob;
                 if (par[1] == 0.0)
                 {
@@ -134,7 +130,6 @@ double CalculateMVTPvalue(Vector &score, Matrix &cov, double t_max)
                     }
                     condProb = pchisq(chisq, 1, 0, 0);
                 }
-//          printf("conditional prob is:%g\n",condProb);
                 String hashKey;
 
                 if (r == 2)
@@ -143,10 +138,7 @@ double CalculateMVTPvalue(Vector &score, Matrix &cov, double t_max)
                     hashKey += tmp;
                     tmp = comb[1];
                     hashKey += tmp;
-                    //              printf("hashKey is: %s\n",hashKey.c_str());
                     prob = condProb * uni;
-                    //prob = exp(log(condProb) + log(uni));
-                    //printf("joint prob is:%g\n",prob);
                     jointProbHash.SetDouble(hashKey, prob);
                     hashKey.Clear();
                 } else
@@ -156,13 +148,7 @@ double CalculateMVTPvalue(Vector &score, Matrix &cov, double t_max)
                         int tmp = comb[i];
                         hashKey += tmp;
                     }
-                    //              printf("hashKey is: %s\n",hashKey.c_str());
                     prob = jointProbHash.Double(hashKey);
-//	       printf("joint prob is:%g\n",prob);
-                    //if(prob == _NAN_)
-                    //{
-                    //         printf("Error! Joint probability %s is not hashed in properly.\n",hashKey);
-                    //     }
                     prob *= condProb; //This is the new joint prob.
                     String newKey;
                     int tmp = comb[0];
@@ -174,7 +160,6 @@ double CalculateMVTPvalue(Vector &score, Matrix &cov, double t_max)
                 }
 
                 pvalue -= prob;
-//	    printf("pvalue so far is:%g\n",pvalue);
                 comb.Clear();
                 for (int iwk = r - 1; iwk >= 0; iwk--)
                 {

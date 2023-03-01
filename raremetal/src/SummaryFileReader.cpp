@@ -49,14 +49,14 @@ bool SummaryFileReader::ReadRecord(String chr, int pos)
             tmp.AddTokens(buffer, "\t");
             counter++;
             markerPosHash.SetInteger(tmp[0] + tmp[1], counter);
-            markerNearby.Push(tmp[Meta::marker_col]);
-            markerNearbyCov.Push(tmp[Meta::cov_col]);
+            markerNearby.Push(tmp[marker_col]);
+            markerNearbyCov.Push(tmp[cov_col]);
             old_pos = tmp[1].AsInteger();
             old_chr = tmp[0];
             if (old_chr == chr && old_pos == pos)
             {
-                marker_nearby = tmp[Meta::marker_col];
-                marker_cov = tmp[Meta::cov_col];
+                marker_nearby = tmp[marker_col];
+                marker_cov = tmp[cov_col];
                 return (true);
             }
             if (old_pos > pos)
@@ -98,14 +98,14 @@ bool SummaryFileReader::ReadRecord(String chr, int pos)
         tmp.AddTokens(buffer, "\t");
         counter++;
         markerPosHash.SetInteger(tmp[0] + tmp[1], counter);
-        markerNearby.Push(tmp[Meta::marker_col]);
-        markerNearbyCov.Push(tmp[Meta::cov_col]);
+        markerNearby.Push(tmp[marker_col]);
+        markerNearbyCov.Push(tmp[cov_col]);
         old_pos = tmp[1].AsInteger();
         old_chr = tmp[0];
         if (old_chr == chr && old_pos == pos)
         {
-            marker_nearby = tmp[Meta::marker_col];
-            marker_cov = tmp[Meta::cov_col];
+            marker_nearby = tmp[marker_col];
+            marker_cov = tmp[cov_col];
             return (true);
         }
         if (old_pos > pos)

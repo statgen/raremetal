@@ -757,7 +757,9 @@ void PreMeta::Run(String &pedname, Pedigree &ped, FastTransform &trans, FastFit 
 
     if (FastFit::useCovariates)
     {
-        CalculateProjectionMatrix(trans, engine, sigma2);
+        //CalculateProjectionMatrix(trans, engine, sigma2);
+        throw std::invalid_argument("--useCovariates was supplied, but this argument has no "
+                                    "effect as the projection matrix is never used");
     }
 
     if (genoFromPed)
@@ -1471,6 +1473,11 @@ void PreMeta::runGenoFromVcf(Pedigree &ped, FastTransform &trans, FastFit &engin
                 }
             }
         }
+
+        if (!reader.eof()) {
+          throw std::runtime_error("Error: a failure occurred while reading VCF and the end of file was not reached. Check for multiple ploidy or multi-allelic variants.");
+        }
+
         //output the LD matrix for the rest of the markers in genotypeAll
         int markers = genotypeAll.rows;
         for (int i = 0; i < markers; i++)

@@ -1,0 +1,8 @@
+cget
+venv
+.git
+private
+build
+clion-build-debug
+clion-build-release
+docker-compose.override.yml

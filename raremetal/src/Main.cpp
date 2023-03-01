@@ -32,57 +32,64 @@ int main(int argc, char *argv[])
     PhoneHome::allThinning = 100;
     time_t initialTime = time(0);
 
+    Meta meta;
+    GroupFromAnnotation group;
+
     BEGIN_LONG_PARAMETERS(additional)
         LONG_PARAMETER_GROUP("List of Studies")
-            LONG_STRINGPARAMETER("summaryFiles", &Meta::summaryFiles)
-            LONG_STRINGPARAMETER("covFiles", &Meta::covFiles)
+            LONG_STRINGPARAMETER("summaryFiles", &meta.summaryFiles)
+            LONG_STRINGPARAMETER("covFiles", &meta.covFiles)
         LONG_PARAMETER_GROUP("Grouping Methods")
-            LONG_STRINGPARAMETER("groupFile", &GroupFromAnnotation::groupFile)
-            LONG_STRINGPARAMETER("annotatedVcf", &GroupFromAnnotation::vcfInput)
-            LONG_STRINGPARAMETER("annotation", &GroupFromAnnotation::function)
-            LONG_PARAMETER("writeVcf", &Meta::outvcf)
+            LONG_STRINGPARAMETER("groupFile", &group.groupFile)
+            LONG_STRINGPARAMETER("annotatedVcf", &group.vcfInput)
+            LONG_STRINGPARAMETER("annotation", &group.function)
+            LONG_PARAMETER("writeVcf", &meta.outvcf)
         LONG_PARAMETER_GROUP("QC Options")
-            LONG_DOUBLEPARAMETER("hwe", &Meta::HWE)
-            LONG_DOUBLEPARAMETER("callRate", &Meta::CALLRATE)
+            LONG_DOUBLEPARAMETER("hwe", &meta.HWE)
+            LONG_DOUBLEPARAMETER("callRate", &meta.CALLRATE)
         LONG_PARAMETER_GROUP("Association Methods")
-            LONG_PARAMETER("burden", &Meta::Burden)
-            LONG_PARAMETER("MB", &Meta::MB)
-            LONG_PARAMETER("MAB", &Meta::MAB)
-            LONG_PARAMETER("BBeta", &Meta::BBeta)
-            LONG_PARAMETER("SKAT", &Meta::SKAT)
-            //	LONG_PARAMETER("SKATO", &Meta::SKATO)
-            LONG_PARAMETER("VT", &Meta::VTa)
-            LONG_STRINGPARAMETER("condition", &Meta::cond)
-            //LONG_PARAMETER("permute", &Meta::VTp)
+            LONG_PARAMETER("burden", &meta.Burden)
+            LONG_PARAMETER("MB", &meta.MB)
+            LONG_PARAMETER("MAB", &meta.MAB)
+            LONG_PARAMETER("BBeta", &meta.BBeta)
+            LONG_PARAMETER("SKAT", &meta.SKAT)
+            //	LONG_PARAMETER("SKATO", &meta.SKATO)
+            LONG_PARAMETER("VT", &meta.VTa)
+            LONG_STRINGPARAMETER("condition", &meta.cond)
+            //LONG_PARAMETER("permute", &meta.VTp)
         LONG_PARAMETER_GROUP("Other Options")
-            //LONG_PARAMETER("tabix", &Meta::tabix)
-            LONG_PARAMETER("labelHits", &GroupFromAnnotation::labelHits)
-            LONG_STRINGPARAMETER("geneMap", &GroupFromAnnotation::mapFile)
-            LONG_PARAMETER("correctGC", &Meta::correctGC)
-            LONG_STRINGPARAMETER("prefix", &Meta::prefix)
-            //LONG_STRINGPARAMETER("mapFile", &GroupFromAnnotation::mapFile)
-            LONG_DOUBLEPARAMETER("maf", &Meta::MAF_cutoff)
-            LONG_PARAMETER("longOutput", &Meta::fullResult)
-            //LONG_PARAMETER("founderAF", &Meta::founderAF)
-            LONG_PARAMETER("tabulateHits", &Meta::report)
-            LONG_PARAMETER("dosage", &Meta::dosage)
-            LONG_DOUBLEPARAMETER("hitsCutoff", &Meta::report_pvalue_cutoff)
-            LONG_PARAMETER("altMAF", &Meta::altMAF)
-            LONG_STRINGPARAMETER("range", &Meta::Region)
-            LONG_PARAMETER("useExact", &Meta::useExactMetaMethod)
-            LONG_PARAMETER("normPop", &Meta::normPop)
-            LONG_STRINGPARAMETER("popFile", &Meta::popfile_name)
+            //LONG_PARAMETER("tabix", &meta.tabix)
+            LONG_PARAMETER("labelHits", &group.labelHits)
+            LONG_STRINGPARAMETER("geneMap", &group.mapFile)
+            LONG_PARAMETER("correctGC", &meta.correctGC)
+            LONG_STRINGPARAMETER("prefix", &meta.prefix)
+            //LONG_STRINGPARAMETER("mapFile", &group.mapFile)
+            LONG_DOUBLEPARAMETER("maf", &meta.MAF_cutoff)
+            LONG_PARAMETER("longOutput", &meta.fullResult)
+            //LONG_PARAMETER("founderAF", &meta.founderAF)
+            LONG_PARAMETER("tabulateHits", &meta.report)
+            LONG_PARAMETER("dosage", &meta.dosage)
+            LONG_DOUBLEPARAMETER("hitsCutoff", &meta.report_pvalue_cutoff)
+            LONG_PARAMETER("altMAF", &meta.altMAF)
+            LONG_STRINGPARAMETER("range", &meta.Region)
+            LONG_PARAMETER("useExact", &meta.useExactMetaMethod)
+            LONG_PARAMETER("normPop", &meta.normPop)
+            LONG_STRINGPARAMETER("popFile", &meta.popfile_name)
             // related binary trait: Dajiang's method
-            LONG_PARAMETER("relateBinary", &Meta::relateBinary)
-            LONG_PARAMETER("debug", &Meta::debug)
-            LONG_PARAMETER("matchOnly", &Meta::matchOnly)
-            LONG_PARAMETER("matchByAbs", &Meta::matchByAbs)
-            LONG_DOUBLEPARAMETER("matchDist", &Meta::matchDist)
-            LONG_DOUBLEPARAMETER("minMatchMAF", &Meta::minMatchMAF)
-            LONG_DOUBLEPARAMETER("maxMatchMAF", &Meta::maxMatchMAF)
-            //	LONG_PARAMETER("noAdjustUnmatch",&Meta::noAdjustUnmatch)
-            LONG_STRINGPARAMETER("dosageOptionFile", &Meta::dosageOptionFile)
-            LONG_PARAMETER("sumCaseAC", &Meta::sumCaseAC)
+            LONG_PARAMETER("relateBinary", &meta.relateBinary)
+            LONG_PARAMETER("debug", &meta.debug)
+            LONG_PARAMETER("matchOnly", &meta.matchOnly)
+            LONG_PARAMETER("matchByAbs", &meta.matchByAbs)
+            LONG_DOUBLEPARAMETER("matchDist", &meta.matchDist)
+            LONG_DOUBLEPARAMETER("minMatchMAF", &meta.minMatchMAF)
+            LONG_DOUBLEPARAMETER("maxMatchMAF", &meta.maxMatchMAF)
+            //	LONG_PARAMETER("noAdjustUnmatch",&meta.noAdjustUnmatch)
+            LONG_STRINGPARAMETER("dosageOptionFile", &meta.dosageOptionFile)
+            LONG_PARAMETER("sumCaseAC", &meta.sumCaseAC)
+            LONG_PARAMETER("averageFreq", &meta.averageFreq)
+            LONG_PARAMETER("minMaxFreq", &meta.minMaxFreq)
+            LONG_PARAMETER("heterogeneity", &meta.bHeterogeneity)
+            LONG_PARAMETER("logPvalue", &meta.logP)
         LONG_PHONEHOME(VERSION)
     END_LONG_PARAMETERS();
 
@@ -95,81 +102,68 @@ int main(int argc, char *argv[])
 
     PhoneHome::checkVersion("raremetalworker", VERSION);
 
-    if (Meta::normPop && !Meta::useExactMetaMethod)
-    {
-        error("population correction only works for exact method. Please specify --useExact!\n");
+    if (meta.relateBinary) {
+      // RPW 2020-03-23: code related to relateBinary has been commented out elsewhere in the program,
+      // thus this option should not be allowed
+      error("--relateBinary is no longer supported\n");
     }
 
-    if (Meta::useExactMetaMethod)
-    {
-        printf("\n\nWARNING: This method only works for unrelated samples! Plus if you have covariates, please make sure --makeResiduals is specified when running Raremetalworker!\n\n");
+    if (meta.normPop && !meta.useExactMetaMethod) {
+      error("population correction only works for exact method. Please specify --useExact!\n");
     }
 
-    if (Meta::normPop && Meta::popfile_name == "")
-    {
-        Meta::popfile_name = "/net/fantasia/home/yjingj/METAL/1KG/MAF_1KG.txt";
+    if (meta.useExactMetaMethod) {
+      printf("\n\nWARNING: This method only works for unrelated samples! Plus if you have covariates, please make sure --makeResiduals is specified when running Raremetalworker!\n\n");
     }
 
-    FILE *logFile;
-    String filename;
-    if (Meta::prefix == "")
-    {
-        filename = "raremetal.log";
-    } else if (Meta::prefix.Last() == '.' || Meta::prefix.Last() == '/')
-    {
-        filename = Meta::prefix + "raremetal.log";
-    } else
-    {
-        filename = Meta::prefix + ".raremetal.log";
+    if (meta.normPop && meta.popfile_name == "") {
+      error("Must provide --popFile when --normPop is specified");
     }
 
-    logFile = freopen(filename, "wt", stderr);
-    WriteLog(logFile);
+    meta.setLogFile();
+    WriteLog(meta, group, meta.log);
 
     time_t now;
     time(&now);
     printf("Analysis started at: %s\n", ctime(&now));
-    fprintf(logFile, "Analysis started at: %s\n", ctime(&now));
+    fprintf(meta.log, "Analysis started at: %s\n", ctime(&now));
 
-    try
-    {
-        if (Meta::summaryFiles == "")
-        {
-            error("--summaryFiles can not be empty.\n");
-        }
-        GroupFromAnnotation group;
-
-        if (GroupFromAnnotation::groupFile != "" && GroupFromAnnotation::vcfInput != "")
-        {
-            printf("Warning: you have entered both groupfile and annotated VCF file. Groups will be read from the group file only.\n");
-            GroupFromAnnotation::vcfInput = "";
-        }
-
-        String path;
-        path = argv[0];
-        Meta meta(logFile);
-        meta.Prepare();
-        group.Run(path, logFile);
-        meta.PoolSummaryStat(group);
-        meta.Run(group);
-
-        time(&now);
-        printf("\nAnalysis ends at: %s\n", ctime(&now));
-        fprintf(logFile, "\nAnalysis ends at: %s\n", ctime(&now));
-        time_t endTime = time(0);
-        int timeSec = (int) (endTime - initialTime);
-        double timeHour = timeSec / 3600.0;
-        printf("Analysis took %d seconds (~ %.1f hours).\n", timeSec, timeHour);
-        fprintf(logFile, "Analysis took %d seconds (~ %.1f hours).\n", timeSec, timeHour);
-
-        fclose(logFile);
+    if (meta.summaryFiles == "") {
+      error("--summaryFiles can not be empty.\n");
     }
-    catch (std::exception &e)
-    {
-        printf("Exiting, exception thrown: %s\n\n", e.what());
-        fprintf(logFile, "Exiting, exception thrown: %s\n\n", e.what());
-        PhoneHome::completionStatus("Exception");
-        return (-1);
+
+    if (group.groupFile != "" && group.vcfInput != "") {
+      printf("Warning: you have entered both groupfile and annotated VCF file. Groups will be read from the group file only.\n");
+      group.vcfInput = "";
+    }
+
+    try {
+      String path;
+      path = argv[0];
+      meta.Prepare();
+      group.Run(path, meta.log);
+      meta.PoolSummaryStat(group);
+      if (!meta.skipOutput) {
+        meta.WriteSingleVariantResults(group);
+      }
+      meta.Run(group);
+
+      time(&now);
+      printf("\nAnalysis ends at: %s\n", ctime(&now));
+      fprintf(meta.log, "\nAnalysis ends at: %s\n", ctime(&now));
+      time_t endTime = time(0);
+      int timeSec = (int) (endTime - initialTime);
+      double timeHour = timeSec / 3600.0;
+      printf("Analysis took %d seconds (~ %.1f hours).\n", timeSec, timeHour);
+      fprintf(meta.log, "Analysis took %d seconds (~ %.1f hours).\n", timeSec, timeHour);
+
+      fclose(meta.log);
+    }
+    catch (std::exception &e) {
+      printf("Exiting, exception thrown: %s\n\n", e.what());
+      fprintf(meta.log, "Exiting, exception thrown: %s\n\n", e.what());
+      PhoneHome::completionStatus("Exception");
+      return (-1);
     }
     PhoneHome::completionStatus("SUCCESS");
     return 0;
